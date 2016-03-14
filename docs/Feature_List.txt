@@ -1,0 +1,48 @@
+In order of priority
+
+Set up version control (github)
+Finish implementing Vcmd command interface over existing interface
+	- need to test all exec functions, many don't appear to be working from original PlayerPawn
+Completely decouple animproxy from playerpawn
+	- inventory management
+		- picking up items
+		- switching items
+		- dropping items
+		- using items
+	- attacking and defending
+See if we can reimplement animproxy for just the legs
+Figure out a state machine design to handle what we want to do
+Finish SCM importer tool
+Finish rigging ragnar
+Begin testing new animations with new state machine
+
+
+
+Features
+
+New console
+	- Transparent smooth-in / smooth-out interface
+	- Command auto complete
+	- Command suggestions, option suggestions
+	- Ability to snap to full viewport
+	- Ability to snap to sides of viewport and adjust player's aspect ratio
+
+New Rune HUD
+	- Updated display
+
+Major gameplay overhaul
+	- Completely reworked combat system, player is implemented as multiple state machines
+	- Relation classes describe how a pawn uses an item
+	- Entirely new animation set, along with a new ragnar skeleton
+	- Dual wielding ability
+	- Shield bashing
+	- Highly dynamic weapon combination ability
+	- Much improved camera control
+
+Improved particle systems
+	- Weapon swipe particle systems
+	- Bezier curve support for particle paths
+
+Demorec tools
+	- Server records every single game to a demorec directory
+	- Directory cleans out demorecs that are x days old

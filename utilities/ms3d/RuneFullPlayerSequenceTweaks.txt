@@ -1,0 +1,1040 @@
+//
+//	These are the sequence tweaks for Ragnar, for use with Gwynhala's
+//	Rune-Format Milkshape exporter. There are no joint tweaks in this
+//	file; merge them if you need them.
+//
+//	NOTE: This version of the file includes data for all of the
+//	animations in the Rune Version 1.07 player model. If you are
+//	using SubstituteMesh with no new animations, shorten the file
+//	to just this:
+//
+//	Sequences: 1
+//	baseframe 10.0 1 0
+//
+//	Rune will take animation information for all other animations
+//	from players.ums.
+//
+//	---
+//
+//	The format of the data is:
+//
+//	Sequences: <sequence count>
+//	<sequence name> <frame rate in FPS> <number of frames in sequence> <number of events in sequence>
+//	<zero-based frame number within sequence> <name of event>
+//
+//	Sequence and event names must not contain spaces, and are limited
+//	to 32 characters each. The total number of frames of animation is
+//	the sum of all of the sequence lengths. The exporter will ignore
+//	all animations if the number of frames defined in Milkshape differs
+//	from the number of frames defined in the tweak file.
+//
+//	You should only include sequence tweaks and animation frames for
+//	sequences you want to replace (this is all sequences if not using
+//	SubstituteMesh, or if making models for Rune 1.01 / 1.02). At
+//	a minimum, you should have one sequence with one frame, called
+//	"baseframe", even if you want to re-use 100% of Ragnar's animations
+//	and not add any new ones. If you include the name of an animation
+//	here that already exists in Ragnar (players.ums), whatever
+//	animation you put here will replace Ragnar's equivalent in your
+//	model.
+//
+//	For models not based on Ragnar, SubstituteMesh animations are
+//	taken from whatever class the model extends / expands.
+//
+//	This data can be merged with joint tweaks; the order of the
+//	joint and sequence sections is unimportant to the exporter.
+//
+Sequences:  612
+baseframe                         10.00    1    0
+IDL_ALL_drop1_AA0S                15.00    6    1
+3    DoStow                          
+IDL_ALL_hstow1_AA0S               15.00    6    1
+3    DoStow                          
+IDL_ALL_sstow1_AA0S               15.00    6    1
+3    DoStow                          
+IDL_ALL_xstow1_AA0S               15.00    6    1
+3    DoStow                          
+MOV_ALL_jump1_AA0S                18.00   19    0
+MOV_ALL_lstrafe1_AA0S             18.00   12    2
+4    FootStepRight                   
+11   FootStepLeft                    
+MOV_ALL_lstrafe1_AN0N             18.00   12    2
+4    FootStepRight                   
+11   FootStepLeft                    
+MOV_ALL_rstrafe1_AA0S             18.00   12    2
+4    FootStepRight                   
+11   FootStepLeft                    
+MOV_ALL_rstrafe1_AN0N             18.00   12    2
+4    FootStepRight                   
+11   FootStepLeft                    
+MOV_ALL_run1_AA0N                 18.00   12    2
+4    FootStepRight                   
+11   FootStepLeft                    
+MOV_ALL_run1_AA0S                 18.00   12    2
+4    FootStepRight                   
+11   FootStepLeft                    
+MOV_ALL_run1_AN0N                 18.00   12    2
+0    FootStepLeft                    
+6    FootStepRight                   
+MOV_ALL_run1_AN0S                 18.00   12    2
+4    FootStepRight                   
+11   FootStepLeft                    
+MOV_ALL_runback1_AA0S             18.00   12    2
+4    FootStepRight                   
+9    FootStepLeft                    
+IDL_ALL_crbreathe1_AN0N           10.00   16    0
+IDL_ALL_crbreathe1_AN0S           10.00   16    0
+IDL_ALL_crbreathe1_AA0S           10.00   16    0
+IDL_ALL_crbreathe1_AA0N           10.00   16    0
+ATK_ALL_attack1_AA0S              30.00   20    0
+ATK_ALL_attack2_AA0S              40.00   20    0
+ATK_ALL_attack3_AA0S              22.00   17    2
+8    WeaponActivate                  
+14   WeaponDeactivate                
+ATK_ALL_crattack1_AA0S            20.00   15    0
+DEF_ALL_crdefend1_AA0S            10.00   16    0
+DTH_ALL_death1_AN0N               12.00   14    1
+0    Breath                          
+IDL_ALL_crhstow1_AA0N             15.00    6    1
+3    DoStow                          
+IDL_ALL_crsstow1_AA0N             15.00    6    1
+3    DoStow                          
+IDL_ALL_crxstow1_AA0N             15.00    6    1
+3    DoStow                          
+IDL_ALL_crdrop1_AA0N              15.00    6    1
+3    DoStow                          
+MOV_ALL_pullup2_AA0N              15.00   17    0
+ropetest                          10.00   15    0
+weapon1_idle                      10.00   12    1
+0    Breath                          
+weapon1_attackAintro              15.00    3    0
+weapon1_attackA                   25.00   12    0
+weapon1_attackCintro              15.00    3    0
+weapon1_attackC                   25.00    7    0
+weapon1_attackD                   25.00   15    0
+weapon1_attackF                   25.00   11    0
+weapon1_attackI                   25.00   18    0
+weapon1_walk45Left                18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+weapon1_walk45Right               18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+walkforward7                      18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+weapon1_attackJintro              15.00    3    0
+weapon1_attackK                   15.00   10    0
+neutral_idle                      10.00   12    1
+8    Breath                          
+weapon1_Defend                    10.00   12    1
+2    Breath                          
+weapon1_crouchidle                10.00   12    1
+6    Breath                          
+SwimUnderWater                    15.00   16    1
+8    SwimSplash                      
+SwimUnderWater45Left              15.00   16    1
+8    SwimSplash                      
+SwimUnderWater45Right             15.00   16    1
+8    SwimSplash                      
+SwimLeft                          15.00   15    1
+13   SwimSplash                      
+Swimbackwards                     15.00   15    1
+3    SwimSplash                      
+Swimbackwards45Right              15.00   15    1
+3    SwimSplash                      
+Treadwateridle                    15.00   15    1
+3    SwimSplash                      
+SwimUnderWaterDOWN                15.00   16    1
+8    SwimSplash                      
+SwimUnderWaterUP                  15.00   16    1
+8    SwimSplash                      
+Swimbackwards45Left               15.00   15    1
+2    SwimSplash                      
+SwimRight                         15.00   15    1
+13   SwimSplash                      
+neutral_kick                      13.00   13    1
+6    UseNotify                       
+weapon1_backup                    16.00   16    2
+4    FootStepRight                   
+12   FootStepLeft                    
+weapon1_backup45Left              16.00   16    2
+4    FootStepRight                   
+12   FootStepLeft                    
+weapon1_backup45Right             16.00   16    2
+5    FootStepRight                   
+12   FootStepLeft                    
+z_idle                            10.00   20    0
+z_walk                            15.00   20    2
+0    FootStepLeft                    
+11   FootStepRight                   
+weapon2_Pose                      10.00    2    0
+walkforwardTwohands               18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+NeutralToDBH                      10.00    6    0
+walkforwardTwohands45Right        18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+walkforwardTwohands45Left         18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+weapon3_Pose                      10.00    2    0
+weapon4_Pose                      10.00    2    0
+weapon1_Defend                    10.00   12    0
+weapon_Defendwalk                 18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+H3_idle                           10.00   12    0
+S3_idle                           10.00   12    1
+9    Breath                          
+weapon_Defendwalk45Left           18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+weapon_Defendwalk45Right          18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+weapon_Defendbackup               16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+weapon_Defendbackup45Left         16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+weapon_Defendbackup45Right        16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+neutral_defend                    10.00   12    0
+S1_painBack                       18.00    8    0
+StrafeLeft                        18.00   12    2
+0    FootStepLeft                    
+6    FootStepRight                   
+S1_painLeft                       18.00    8    0
+S1_painRight                      18.00    8    0
+T_Idle                            10.00   12    1
+6    Breath                          
+H3_painBack                       18.00   10    0
+H3_painFront                      18.00    8    0
+T_OUTIdle                         10.00   12    1
+4    Breath                          
+S1_defendPOSE                     10.00    2    0
+S5_POSE                           10.00    2    0
+T_Trans                           10.00    8    0
+S4_idle                           10.00   12    0
+S1_attackAreturn                  24.00   10    0
+S1_attackBreturn                  24.00    7    0
+S1_attackCReturn                  24.00   15    0
+S1_attackDreturn                  24.00    6    0
+S3_ForwardAttackAReturn           15.00    6    0
+S3_ForwardAttackA                 18.00   13    0
+weapon2_attackA                   15.00   14    0
+S3_StrafeLeft                     18.00   12    2
+0    FootStepLeft                    
+6    FootStepRight                   
+S3_StrafeRight                    18.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+S3_Backup45Left                   16.00   16    2
+3    FootStepLeft                    
+11   FootStepRight                   
+S3_Backup45Right                  16.00   16    2
+3    FootStepLeft                    
+11   FootStepRight                   
+S3_StrafeLeftAttack               60.00   36    2
+0    FootStepLeft                    
+7    FootStepRight                   
+S3_StrafeRightAttack              60.00   36    2
+0    FootStepRight                   
+6    FootStepLeft                    
+S3_Walk                           18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S3_Walk45Left                     18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S3_Walk45Right                    18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S3_Backup                         16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+LegsTest                          16.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S3_throw                          20.00   27    1
+10   DoThrow                         
+PickupGround                      24.00   12    1
+6    DoStow                          
+PickupWaist                       24.00   12    1
+6    DoStow                          
+PickupOverhead                    24.00   12    1
+6    DoStow                          
+T_Lite                            16.00   12    1
+6    InventorySpecial1               
+T_StrafeLeft                      16.00   12    2
+0    FootStepLeft                    
+6    FootStepRight                   
+T_backup                          16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+T_StrafeRight                     18.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+T_backup45Left                    16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+T_backup45Right                   16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+Drink                             20.00   28    3
+6    DoStow                          
+14   InventorySpecial1               
+24   InventorySpecial2               
+PumpTrigger                       18.00    9    1
+6    UseNotify                       
+LeverTrigger                      16.00    9    1
+3    UseNotify                       
+Eat                               20.00   30    3
+7    DoStow                          
+13   InventorySpecial1               
+22   InventorySpecial2               
+T_LightMed                        18.00   12    1
+6    InventorySpecial1               
+T_LightLow                        18.00   12    1
+6    InventorySpecial1               
+T_Walk                            18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S3_taunt                          14.00   19    0
+SwordPullOutHigh                  18.00   16    1
+6    DoStow                          
+SwordPullOutLow                   18.00   16    1
+6    DoStow                          
+rideA                             10.00    2    0
+ReactToPullOut                    23.00   12    0
+DeathB                            15.00   20    1
+3    FootStepLeft                    
+StrafeRight                       16.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+S3_StandingattackA                40.00   16    0
+S3_StandingattackAReturn          15.00    8    0
+S3_StandingattackB                45.00   25    1
+9    ClearSwipeArray                 
+S3_StandingattackBReturn          15.00    6    0
+CrucifiedA                        10.00    2    0
+CrucifiedB                        10.00    2    0
+CrucifiedC                        10.00    2    0
+S3_BackupAttackA                  22.00    7    1
+5    FootStepLeft                    
+S3_BackupAttackAreturn           100.00   63    1
+10   FootStepRight                   
+S3_BackupAttackB                  25.00   15    1
+7    ClearSwipeArray                 
+S3_BackupAttackBreturn            75.00   20    0
+pullup                            16.00   12    0
+intropullupATest                  25.00   12    0
+pullupTest                        16.00   11    0
+S3_attackA                        70.00   16    1
+3    FootStepLeft                    
+S3_AttackAreturn                  25.00   14    1
+10   FootStepRight                   
+S3_attackB                        65.00   37    2
+9    FootStepRight                   
+22   ClearSwipeArray                 
+S3_attackC                        65.00   46    3
+5    FootStepLeft                    
+13   FootStepRight                   
+29   ClearSwipeArray                 
+S3_attackCreturn                  25.00    8    0
+T_Standingattack                  20.00   16    2
+3    FootStepRight                   
+12   FootStepRight                   
+T_AttackA                         32.00    9    1
+2    FootStepLeft                    
+T_AttackAreturn                   32.00   12    1
+6    FootStepRight                   
+T_AttackB                         32.00   12    2
+2    ClearSwipeArray                 
+6    FootStepRight                   
+T_AttackBreturn                   32.00    9    1
+4    FootStepLeft                    
+intropullupA                      22.00   12    0
+CrucifiedAidle                    10.00   18    0
+CrucifiedApain                    10.00   11    0
+CrucifiedBidle                    10.00   18    0
+CrucifiedBpain                    10.00   11    0
+S1_attackA                        92.00   22    0
+S1_attackB                        72.00   21    1
+1    ClearSwipeArray                 
+S1_attackC                        78.00   26    1
+9    ClearSwipeArray                 
+S1_attackD                        78.00   18    1
+2    ClearSwipeArray                 
+S1_StandingAttackA                76.00   16    0
+S1_StandingAttackB                52.00   22    1
+1    ClearSwipeArray                 
+S1_StandingAttackAReturn          30.00   15    0
+S1_StandingAttackBReturn          30.00   14    0
+S1_attackAreturn                  10.00   10    0
+H5_StandingattackA                60.00   22    0
+H5_StandingattackB                60.00   40    1
+18   ClearSwipeArray                 
+H5_StandingattackBReturn          30.00   13    0
+H5_StandingattackAreturn          30.00   19    0
+GhostThrow                        18.00   15    1
+5    ThrowGhost                      
+S5_Powerup2                       10.00    3    1
+2    PowerUpNotify1                  
+H5_attackA                        72.00   31    0
+H5_attackB                        80.00   55    1
+31   ClearSwipeArray                 
+H5_StrafeLeft                     18.00   12    2
+0    FootStepLeft                    
+6    FootStepRight                   
+H5_StrafeRight                    18.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+H5_StrafeLeftAttack               54.00   34    0
+H5_StrafeRightAttack              54.00   34    0
+H3_StandingattackA                40.00   16    0
+H3_StandingattackB                50.00   19    1
+2    ClearSwipeArray                 
+H3_StandingattackBReturn          40.00    6    0
+H3_StandingattackAReturn          40.00    7    0
+H3_BackupAttackA                  16.00    6    0
+H3_BackupAttackAReturn            16.00   11    0
+H3_BackupAttackB                  16.00    7    1
+0    ClearSwipeArray                 
+H3_BackupAttackBReturn            16.00    5    0
+H5_Idle                           10.00   12    0
+H2_idle                           10.00   12    0
+H5_Backup                         16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+H5_BackupRight                    16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+H5_BackupLeft                     16.00   16    2
+4    FootStepLeft                    
+13   FootStepRight                   
+H5_Backupattack                   50.00   46    0
+H5_Walk45Right                    18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+H5_Walk45Left                     18.00   12    2
+3    FootStepRight                   
+9    FootStepLeft                    
+H3_attackA                        80.00   22    0
+H3_attackB                        80.00   41    1
+22   ClearSwipeArray                 
+H3_attackC                        80.00   30    1
+22   ClearSwipeArray                 
+H3_attackAreturn                  80.00    9    0
+H3_attackCreturn                  80.00   10    0
+S4_Powerupintro                   16.00    8    1
+7    PowerUpNotify1                  
+S4_Powerupreturn                  18.00    7    0
+z_KnockDown                       15.00   14    0
+z_GetUp                           15.00    8    0
+z_Hiss                            16.00   38    0
+H2_StandingAttackA                42.00   16    0
+H2_StandingAttackB                50.00   31    1
+15   ClearSwipeArray                 
+H2_StandingAttackBReturn          18.00    6    0
+H2_StandingAttackAReturn          18.00    6    0
+z_breathe                         25.00   38    1
+11   AltWeaponActivate               
+z_DeadHead                        16.00   20    0
+H2_BackupAttackA                  18.00    5    0
+H2_BackupAttackAreturn            18.00    5    0
+H2_BackupAttackB                  18.00   13    1
+5    ClearSwipeArray                 
+N_PainFront                       25.00   10    0
+N_PainBack                        25.00   12    0
+z_AttackL                         18.00   18    2
+6    WeaponActivate                  
+16   WeaponDeactivate                
+H3_Defend                         10.00    2    0
+S4_Powerupidle                    16.00    8    0
+H3_DefendIdle                     10.00   12    0
+H3_DefendAttack                   20.00    8    1
+1    shieldbash                      
+H3_Defendpain                     20.00    5    0
+TreadONwateridle                  16.00   15    5
+0    SwimSplash                      
+3    SwimSplash                      
+6    SwimSplash                      
+9    SwimSplash                      
+12   SwimSplash                      
+H3_PickupLeft                     24.00   12    1
+6    DoStow                          
+H3_PickupLeftHigh                 24.00   12    1
+6    DoStow                          
+Onehand_painLeft                  25.00   11    0
+Onehand_painRight                 25.00   11    0
+PickupGroundLeft                  24.00   12    1
+6    DoStow                          
+PickupHighLeft                    24.00   12    1
+6    DoStow                          
+SwimbackwardsONwater              16.00   15    1
+3    SwimSplash                      
+SwimbackwardsRightONwater         16.00   15    1
+3    SwimSplash                      
+SwimONwater                       16.00   16    5
+0    SwimSplash                      
+3    SwimSplash                      
+6    SwimSplash                      
+9    SwimSplash                      
+12   SwimSplash                      
+SwimLeftONwater                   16.00   15    1
+13   SwimSplash                      
+SwimRightONwater                  16.00   15    1
+13   SwimSplash                      
+Swim45LeftONwater                 16.00   16    1
+7    SwimSplash                      
+Swim45RightONwater                16.00   16    1
+7    SwimSplash                      
+climbUPrope                       18.00   16    2
+7    RopeClimb                       
+15   RopeClimb                       
+sark_Taunt                        14.00   20    0
+climbDOWNrope                     20.00   16    2
+8    RopeClimb                       
+15   RopeClimb                       
+sark_Flip                         15.00   22    0
+sark_Land                         15.00   12    0
+climbIDLErope                     13.00   12    0
+h3_crouch                         10.00    2    0
+sark_DeathV                       12.00   14    0
+crouch_idle                       10.00   12    0
+crouch_walkforward                14.00   12    2
+1    FootStepLeft                    
+6    FootStepRight                   
+crouch_walkbackward               14.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+crouch_strafeLeft                 14.00   12    2
+1    FootStepLeft                    
+6    FootStepRight                   
+crouch_strafeRight                14.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+crouch_walkforward45Left          14.00   12    2
+1    FootStepLeft                    
+6    FootStepRight                   
+crouch_walkforward45Right         14.00   12    2
+1    FootStepLeft                    
+6    FootStepRight                   
+crouch_walkbackward45Left         14.00   12    2
+6    FootStepLeft                    
+11   FootStepRight                   
+crouch_walkbackward45Right        14.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+newweaponwalk                     18.00   12    0
+H3_throw                          18.00   17    1
+5    DoThrow                         
+SwimbackwardsLeftONwater          16.00   15    1
+3    SwimSplash                      
+sark_DeathL                       12.00   15    0
+H3_taunt                          16.00   20    0
+z_WalkN                           16.00   14    2
+0    FootStepLeft                    
+7    FootStepRight                   
+cine_vil_armraise1                14.00    6    0
+cine_vil_kneeldown                10.00    7    0
+cine_vil_standup                  10.00   13    0
+cine_vil_swordraise               14.00   11    1
+4    DoStow                          
+cine_vil_swordraiseidle           10.00   12    0
+cine_vil_armpump1                 14.00    8    0
+cine_vil_armpump2                 14.00    8    0
+cine_vil_armraise2                12.00    6    0
+cine_vil_armraise3                10.00    6    0
+cine_vil_talkingA                 10.00   12    0
+cine_vil_talkingB                 10.00   12    0
+cine_vil_talkingC                 10.00   12    0
+cine_vil_talkingD                 10.00   12    0
+sark_idle                         10.00   12    0
+cine_vil_kneelidle                10.00   12    0
+S2_attackAReturn                  24.00   10    0
+S2_attackCReturn                  24.00    9    0
+S2_attackA                        72.00   27    0
+S2_attackB                        72.00   29    1
+13   ClearSwipeArray                 
+S2_attackC                        72.00   37    1
+16   ClearSwipeArray                 
+Bend                               8.00    5    0
+Lean                               8.00    6    0
+Swing                             14.00   16    2
+4    WeaponActivate                  
+9    WeaponDeactivate                
+H1_attackA                        68.00   17    0
+H1_attackB                        78.00   38    1
+23   ClearSwipeArray                 
+H1_attackC                        68.00   29    1
+18   ClearSwipeArray                 
+H1_attackAReturn                  32.00   13    0
+S1_PickupLeft                     24.00   12    1
+6    DoStow                          
+S1_PickupLeftHigh                 24.00   12    1
+6    DoStow                          
+S1_DefendTO                       40.00   12    0
+S1_DefendIdle                     10.00   12    0
+S1_Taunt                          12.00   12    0
+CorpseA                           10.00    2    0
+CorpseB                           10.00    2    0
+CorpseC                           10.00    2    0
+S1_BackupAttackA                  95.00   25    0
+S1_BackupAttackB                  95.00   45    1
+17   ClearSwipeArray                 
+S1_BackupAttackAReturn           110.00   63    0
+S1_BackupAttackBReturn           110.00   20    0
+H3_DefendTO                       40.00   12    0
+S2_idle                           10.00   12    0
+S2_StandingAttackA                60.00   13    0
+S2_StandingAttackB                60.00   28    1
+14   ClearSwipeArray                 
+S2_StandingAttackBReturn          60.00   21    0
+S2_DefendTo                       40.00   12    0
+S2_DefendIdle                     10.00   12    0
+S2_PickupLeft                     24.00   12    1
+6    DoStow                          
+S2_PickupLeftHigh                 24.00   12    1
+6    DoStow                          
+S2_StandingattackAreturn          60.00   22    0
+S3_DefendTO                       40.00   12    0
+S3_Defendidle                     10.00   12    0
+S3_PickupLeft                     24.00   12    1
+6    DoStow                          
+S3_PickupLeftHigh                 24.00   12    1
+6    DoStow                          
+S4_walk                           18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S4_walk45right                    18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S4_walk45left                     18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S4_strafeRight                    16.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+S4_strafeLeft                     16.00   12    2
+0    FootStepLeft                    
+6    FootStepRight                   
+S4_backup                         16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+S4_backup45Right                  16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+S4_backup45Left                   16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+S4_StrafeRightAttack              55.00   37    0
+S4_StrafeLeftAttack               55.00   37    0
+S4_backupAttackAreturn           110.00   63    0
+S4_standingAttackA                40.00   13    0
+S4_standingAttackAreturn          40.00   14    0
+S4_standingAttackB                40.00   26    1
+13   ClearSwipeArray                 
+S4_standingAttackBreturn          40.00   22    0
+S4_pickupleft                     24.00   12    1
+6    DoStow                          
+S4_pickuplefthigh                 24.00   12    1
+6    DoStow                          
+S4_throw                          16.00   27    1
+10   DoThrow                         
+S4_pumptrigger                    18.00    9    1
+6    UseNotify                       
+S4_attackA                        70.00   16    0
+S4_attackB                        65.00   41    1
+27   ClearSwipeArray                 
+S4_attackC                        65.00   43    1
+35   ClearSwipeArray                 
+S4_attackCReturn                  65.00   19    0
+s4_attackareturn                  75.00   40    0
+H5_PickupLeft                     24.00   12    1
+6    DoStow                          
+H5_PickupLeftHigh                 24.00   13    1
+7    DoStow                          
+H5_Throw                          18.00   27    1
+12   DoThrow                         
+H5_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+H4_AttackA                        75.00   28    0
+H4_AttackB                        75.00   52    1
+32   ClearSwipeArray                 
+H4_StandingAttackA                54.00   22    0
+H4_StandingAttackB                54.00   31    1
+19   ClearSwipeArray                 
+Cine_Loki_kneelonhands            14.00   11    0
+Cine_Loki_kneelonhandsidle        10.00   12    0
+cine_vil_elder                    15.00 1150    0
+neutral_AttackA                   60.00   16    0
+neutral_AttackB                   60.00   33    0
+neutral_AttackAReturn             30.00   12    0
+neutral_AttackBReturn             50.00   16    0
+H1_StrafeRightAttack              55.00   37    0
+H1_StrafeLeftAttack               55.00   37    0
+H1_StandingAttackA                70.00   14    0
+H1_StandingAttackB                70.00   42    1
+26   ClearSwipeArray                 
+H1_StandingAttackAreturn          55.00   25    0
+H1_StandingAttackBreturn          55.00   28    0
+X1_Idle                           10.00   12    0
+X1_AttackA                        82.00   16    0
+X1_AttackAreturn                  76.00   30    0
+X1_AttackB                        82.00   37    1
+26   ClearSwipeArray                 
+X1_AttackC                        82.00   49    1
+36   ClearSwipeArray                 
+X1_AttackCreturn                  76.00   22    0
+X1_StandingAttackA                76.00   16    0
+X1_StandingAttackAreturn          76.00   28    0
+X1_StandingAttackB                76.00   37    1
+26   ClearSwipeArray                 
+X1_StandingAttackBreturn          76.00   28    0
+X1_DefendTO                       40.00   12    0
+X1_DefendIdle                     10.00   12    0
+X1_PickupLeft                     24.00   12    1
+6    DoStow                          
+X1_PickupLeftHigh                 24.00   12    1
+6    DoStow                          
+X1_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+H3_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+H1_AttackCReturn                  32.00   13    0
+S1_StrafeLeftAttack               54.00   37    0
+S1_StrafeRightAttack              54.00   37    0
+H4_attackAreturn                  50.00   11    0
+H4_attackBreturn                  50.00   12    0
+H4_StandingAttackAreturn          24.00    7    0
+H4_StandingAttackBreturn          18.00    7    0
+X2_attackA                        90.00   28    0
+X2_attackB                        85.00   34    1
+4    ClearSwipeArray                 
+X2_attackC                        85.00   30    1
+10   ClearSwipeArray                 
+X2_attackAreturn                  75.00   23    0
+X2_attackBreturn                  80.00   16    0
+X2_attackCreturn                  68.00   19    0
+X2_idle                           10.00   12    0
+X2_DefendTO                       32.00   12    0
+X2_Defendidle                     10.00   12    0
+X2_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+X2_PickupLeft                     24.00   12    1
+6    DoStow                          
+X2_PickupLeftHigh                 24.00   12    1
+6    DoStow                          
+X2_StandingAttackA                60.00   15    0
+X2_StandingAttackB                50.00   16    1
+2    ClearSwipeArray                 
+X2_StandingAttackAreturn          40.00    7    0
+X2_StandingAttackBreturn          20.00    6    0
+crouch_idle2hands                 10.00   12    0
+crouch_walkforward2hands          14.00   12    2
+1    FootStepLeft                    
+6    FootStepRight                   
+crouch_walkbackward2hands         14.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+crouch_strafeLeft2hands           14.00   12    2
+0    FootStepLeft                    
+6    FootStepRight                   
+crouch_strafeRight2hands          14.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+crouch_walkforward45Left2hands    14.00   12    2
+1    FootStepLeft                    
+6    FootStepRight                   
+crouch_walkforward45Right2hands   14.00   12    2
+1    FootStepLeft                    
+6    FootStepRight                   
+crouch_walkbackward45Left2hands   14.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+crouch_walkbackward45Right2hand   14.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+DeathH                             9.00    9    0
+deathL                            14.00   13    0
+X3_Throw                          16.00   26    1
+12   DoThrow                         
+X3_attackC                        70.00   39    1
+17   ClearSwipeArray                 
+X3_attackB                        75.00   41    1
+20   ClearSwipeArray                 
+X3_attackA                        75.00   24    0
+X3_attackCreturn                  75.00   20    0
+X3_attackBreturn                  75.00   15    0
+X3_attackAreturn                  75.00   22    0
+X4_Backupattack                   50.00   46    0
+X4_StandingAttackAreturn          50.00   20    0
+X4_StandingAttackBreturn          50.00   23    0
+X4_StandingAttackB                50.00   45    1
+23   ClearSwipeArray                 
+X4_StandingAttackA                50.00   16    0
+X4_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+X4_PickupLeftHigh                 24.00   12    1
+6    DoStow                          
+X4_PickupLeft                     24.00   12    1
+6    DoStow                          
+X4_StrafeRightAttack              40.00   35    0
+X4_StrafeLeftAttack               40.00   32    0
+X4_idle                           10.00   12    0
+X4_Backup45Left                   16.00   16    2
+3    FootStepLeft                    
+12   FootStepRight                   
+X4_Backup45Right                  16.00   16    2
+5    FootStepLeft                    
+12   FootStepRight                   
+X4_Backup                         16.00   16    2
+4    FootStepLeft                    
+12   FootStepRight                   
+X4_Straferight                    18.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+X4_Strafeleft                     18.00   12    2
+0    FootStepRight                   
+6    FootStepLeft                    
+X4_walk45Right                    18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+X4_walk45Left                     18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+X4_walk                           18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+X4_attackAreturn                  80.00   39    0
+X4_attackBreturn                  60.00   20    0
+X4_attackCreturn                  50.00   21    0
+SwimPain                          10.00    5    0
+DeathF                            14.00   20    0
+DeathImpact                       20.00   16    0
+DeathBack                         16.00   15    0
+OneHandJumpAttackB                65.00   53    0
+OneHandJumpAttack                 65.00   52    0
+s2_powerup                        22.00    9    0
+TreadPain                         12.00    6    0
+drown                             16.00   63    0
+Dive                              16.00   19    0
+X2_painFront                      18.00   10    0
+X4_painFront                      18.00   10    0
+H5_painFront                      18.00   10    0
+X1_painFront                      18.00   10    0
+S4_painFront                      18.00   10    0
+S3_painFront                      18.00   10    0
+S2_painFront                      18.00   10    0
+S1_painFront                      18.00   10    0
+S1_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+S2_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+S3_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+S1_Powerup                        22.00    8    0
+T_DefendTo                        40.00   12    0
+T_Defendidle                      10.00   12    0
+T_OUTDefendTO                     40.00   12    0
+T_OUTDefendidle                   10.00   12    0
+T_walk45left                      18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+T_walk45right                     18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S5_idle                           10.00   12    0
+S5_PumpTrigger                    18.00    9    1
+6    UseNotify                       
+S5_PickupLeft                     24.00   12    1
+6    DoStow                          
+S5_PickupLeftHigh                 24.00   12    1
+6    DoStow                          
+S5_Throw                          16.00   27    1
+12   DoThrow                         
+S5_Backupattack                   16.00   16    0
+S4_painBack                       18.00    8    0
+S4_painLeft                       18.00    8    0
+S4_painRight                      18.00    8    0
+S5_painRight                      18.00    8    0
+S5_painLeft                       18.00    8    0
+S5_painBack                       18.00    8    0
+S5_painFront                      18.00    9    0
+BendCycle                         10.00    2    0
+LeanCycle                         10.00    2    0
+S5_attackA                        68.00   22    0
+S5_attackB                        68.00   37    1
+18   ClearSwipeArray                 
+S5_attackBreturn                  75.00   31    0
+S5_attackAreturn                  75.00   33    0
+S5_StandingAttackA                68.00   22    0
+S5_StandingAttackB                68.00   37    1
+18   ClearSwipeArray                 
+S5_StandingAttackAreturn          75.00   20    0
+S5_StandingAttackBreturn          75.00   31    0
+H5_painBack                       18.00    8    0
+H5_painLeft                       18.00    8    0
+H5_painRight                      18.00    8    0
+X4_idle                           10.00   12    0
+X4_painRight                      18.00    8    0
+X4_painLeft                       18.00    8    0
+X4_painBack                       18.00    7    0
+DeathFront                        13.00   11    0
+H5_attackAreturn                  60.00   20    0
+H5_attackBreturn                  60.00   30    0
+H5_Powerup                        22.00   10    0
+S3_painBack                       18.00    9    0
+S3_painLeft                       18.00    9    0
+S3_painRight                      18.00    8    0
+X5_attackA                        75.00   25    0
+X5_attackAreturn                  50.00   10    0
+X5_attackB                        75.00   64    1
+46   ClearSwipeArray                 
+X5_attackBreturn                  50.00   11    0
+X5_StandingattackA                50.00   27    0
+X5_StandingattackAreturn          50.00   15    0
+X5_StandingattackB                50.00   35    1
+19   ClearSwipeArray                 
+X5_StandingattackBreturn          50.00   21    0
+X3_StandingAttackA                75.00   16    0
+X3_StandingAttackB                75.00   43    1
+28   ClearSwipeArray                 
+X3_StandingAttackAReturn          75.00   30    0
+X3_StandingAttackBReturn          75.00   30    0
+H2_attackA                        75.00   19    0
+H2_attackB                        75.00   35    1
+20   ClearSwipeArray                 
+H2_attackC                        75.00   35    1
+15   ClearSwipeArray                 
+H2_attackAreturn                  75.00   30    0
+H2_attackBreturn                  75.00   20    0
+H2_attackCreturn                  75.00   28    0
+S3_Powerup                        22.00    7    0
+X1_Powerup                        22.00    8    0
+X2_Powerup                        22.00    8    0
+S5_Powerup                        22.00    8    0
+X4_Powerup                        22.00    8    0
+S4_Powerup                        22.00    8    0
+S1_LeverTrigger                   16.00   10    1
+3    UseNotify                       
+S2_LeverTrigger                   16.00   11    1
+3    UseNotify                       
+S4_LeverTrigger                   16.00   11    1
+3    UseNotify                       
+S3_LeverTrigger                   16.00   11    1
+3    UseNotify                       
+S5_LeverTrigger                   16.00   11    1
+3    UseNotify                       
+X2_LeverTrigger                   16.00   10    1
+3    UseNotify                       
+X1_LeverTrigger                   16.00   10    1
+3    UseNotify                       
+X4_LeverTrigger                   16.00   10    1
+3    UseNotify                       
+H5_LeverTrigger                   16.00   10    1
+3    UseNotify                       
+H3_LeverTrigger                   16.00   10    1
+3    UseNotify                       
+crouch_Defendidle                 10.00   12    0
+s4_taunt                          14.00   17    0
+s5_taunt                          14.00   23    0
+x5_taunt                          14.00   23    0
+s2_taunt                          14.00   19    0
+H5_Jump                           16.00   19    0
+S3_Jump                           16.00   19    0
+S2_attackBReturn                  20.00   11    0
+S3_AttackBreturn                  32.00   21    0
+H5_jumpattack                     65.00   52    0
+H1_AttackBReturn                  40.00   20    0
+DeathKnockback                    18.00   18    0
+Neutral_DefendTO                  40.00   12    0
+H3_attackBreturn                  80.00   20    0
+X4_throw                          20.00   27    1
+12   DoThrow                         
+X1_AttackBreturn                  70.00   20    0
+T_LeverTrigger                    16.00   11    1
+3    UseNotify                       
+T_OUTLeverTrigger                 16.00   11    1
+3    UseNotify                       
+H2_Taunt                          16.00   24    0
+DrownCycle                        10.00    2    0
+H1_Taunt                          16.00   20    0
+EatHigh                           20.00   30    3
+7    DoStow                          
+13   InventorySpecial1               
+22   InventorySpecial2               
+EatLow                            20.00   30    3
+7    DoStow                          
+13   InventorySpecial1               
+22   InventorySpecial2               
+T_BackupAttack                    18.00   16    0
+S2_Throw                          16.00   16    1
+5    DoThrow                         
+S1_Throw                          16.00   16    1
+5    DoThrow                         
+X1_Throw                          16.00   16    1
+5    DoThrow                         
+X2_Throw                          16.00   16    1
+5    DoThrow                         
+T_OUTTaunt                        12.00   16    0
+T_Taunt                           18.00   23    0
+X2_Taunt                          18.00   20    0
+cine_newtalkA                     10.00   12    0
+cine_newtalkB                     10.00   12    0
+cine_newtalkC                     10.00   12    0
+cine_newtalkD                     10.00   12    0
+cine_newtalkE                     10.00   12    0
+cine_newtalkF                     10.00   12    0
+cine_newtalkG                     10.00   12    0
+SigardD                           16.00 1028    0
+cine_Conrack1                     30.00  600    0
+SigardDCycle                      10.00    2    0
+cine_SarkConrack1                 16.00  685    0
+cine_SarkConrack2                 16.00  698    0
+KnockedOut                        16.00   20    0
+KOCycle                           10.00    2    0
+cine_SarkConrack3                 16.00  510    0
+IDL_ALL_breathe1_AA0N             10.00   16    0
+IDL_ALL_breathe1_AA0S             10.00   16    0
+IDL_ALL_breathe1_AN0N             10.00   16    0
+IDL_ALL_breathe1_AN0S             10.00   16    0
+S1_Walk                           18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+JScript06_02a                     16.00  110    0
+Cscript06_01a                     16.00  325    0
+Cscript06_02a                     16.00  100    0
+Cscript06_03a                     16.00  271    0
+Sscript06a                        16.00  200    0
+Uscript06_03a                     16.00   77    0
+KnockedOff                        16.00   65    0
+DrinkHigh                         18.00   29    3
+6    DoStow                          
+14   InventorySpecial1               
+24   InventorySpecial2               
+DrinkLow                          18.00   29    3
+6    DoStow                          
+14   InventorySpecial1               
+24   InventorySpecial2               
+S1_Walk45Left                     18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+S1_Walk45Right                    18.00   12    2
+3    FootStepLeft                    
+9    FootStepRight                   
+X1_Taunt                          16.00   11    0
+X3_Taunt                          16.00   17    0
+X4_Taunt                          16.00   16    0
+T_OUTStandingAttackA              70.00   16    0
+T_OUTStandingAttackAreturn        70.00   15    0
+H5_Taunt                          16.00   17    0
+Attack                            30.00   56    0
+Defend                            30.00   57    0
+Idle                              30.00   12    0

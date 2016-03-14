@@ -1,0 +1,45 @@
+PlayerPawn
+
+Input variables
+===============================================================================
+aLookUp:	Keyboard look up / down, aliased to LookUp / LookDown in game
+aTurn:		?
+
+
+PlayerTick()
+- Called after Tick()
+- PlayerPawn only implements this function in states
+- if bUpdatePosition -> ClientUpdatePosition()
+- Calls PlayerMove()
+
+	PlayerMove()
+	- Scales input axes
+	- Updates rotation (?)
+	- Calculates new acceleration based on input axes
+	- IF CLIENT --> calls ReplicateMove()
+	- IF SERVER --> calls ProcessMove()
+
+		ReplicateMove()
+		- Only ever gets called on the Client, only one implementation
+		- Sets up a linked list of SavedMoves
+		- Calls ProcessMove() to simulate the movement locally
+		- If it's too early to send a new move to the server, breaks here
+		- Otherwise, calls ServerMove()
+		
+			ServerMove()
+			- Called on the server ONLY if replicated from a Client. Never called for standalone
+			- Acts as a receiver from the ReplicateMove() function
+			- Process lost packet if found, and calls MoveAutonomous() for it
+			- Check is player tried to fire, calls Fire() if so
+			- Calls MoveAutonomous() for the current move
+			- If the client has accumulated positional error, call ClientAdjustPosition()
+			
+				ClientAdjustPosition()
+				- Replicated from the server to AutonomousProxies ONLY
+				- Adjusts location / velocity / base to match the server
+				- The only function that sets bUpdatePosition to true
+				- bUpdatePosition = true causes PlayerTick() to call ClientUpdatePosition()
+				
+				ClientUpdatePosition()
+				- Calls MoveAutonomous() for each SavedMove
+				- Turns off bUpdatePosition flag

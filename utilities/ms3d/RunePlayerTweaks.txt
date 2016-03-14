@@ -1,0 +1,102 @@
+//////////////////////////////////////////////////////////////////////////
+//  This is the "tweak file" for making Rune player models using        //
+//  Gwynhala's Rune model exporter for Milkshape 3D, and the            //
+//  SubstituteMesh feature of Rune's ucc compiler. It includes          //
+//  both joint tweak information and sequence tweak information.        //
+//////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////
+//  Joint Tweaks                                                        //
+//                                                                      //
+//  These adjust initial joint positions (if needed), and to set up     //
+//  Rune joint attributes that Milkshape doesn't handle.                //
+//                                                                      //
+//  The format is pretty simple. There's the keyword "Joints:" and      //
+//  then a line of data for each joint. This data must match the order  //
+//  of the joints exactly. The data for each joint is text, consisting  //
+//  of a floating point rotation vector rx, ry, rz, a floating point    //
+//  position vector px, py, pz, a joint group ID and a joint flags      //
+//  value.                                                              //
+//                                                                      //
+//  The rotation and position vectors are normally all zeros. Angles    //
+//  are expressed in degrees.                                           //
+//                                                                      //
+//  The joint group ID is either 0 (joints at or below below waist),    //
+//  1 (joints at or below neck and above waist), or 2 (joints above     //
+//  neck).                                                              //
+//                                                                      //
+//  The joint flags are usually 0, but may be any combination of these  //
+//  bit fields:                                                         //
+//      1 = blended                                                     //
+//      2 = accelerative                                                //
+//      4 = springpoint                                                 //
+//      8 = anchored                                                    //
+//      16 = collision                                                  //
+//      32 = removeable                                                 //
+//      64 = attachpoint                                                //
+//      128 = freepoint                                                 //
+//////////////////////////////////////////////////////////////////////////
+
+Joints: 38
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// Base
+0.0 0.0 0.0 0.0 0.0 0.0 0      1		// pelvis
+0.0 0.0 0.0 0.0 0.0 0.0 0     17		// lhip
+0.0 0.0 0.0 0.0 0.0 0.0 0     17		// lknee
+0.0 0.0 0.0 0.0 0.0 0.0 0      1		// lankle
+0.0 0.0 0.0 0.0 0.0 0.0 0      1		// ltoe
+0.0 0.0 0.0 0.0 0.0 0.0 0     17		// rhip
+0.0 0.0 0.0 0.0 0.0 0.0 0     17		// rknee
+0.0 0.0 0.0 0.0 0.0 0.0 0      1		// rankle
+0.0 0.0 0.0 0.0 0.0 0.0 0      1		// rtoe
+0.0 0.0 0.0 0.0 0.0 0.0 0      1		// base_torso
+0.0 0.0 0.0 0.0 0.0 0.0 1     17		// torso
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// spineb
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// base_chest
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// chest
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// neck
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// base_head
+0.0 0.0 0.0 0.0 0.0 0.0 1     17		// Head (strange...expected group ID 2)
+0.0 0.0 0.0 0.0 0.0 0.0 0      1		// Jaw
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// haira
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// hairb
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// lclav
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// lshoulda
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// lshouldb
+0.0 0.0 0.0 0.0 0.0 0.0 1     17		// lelbow
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// lwrist
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// lhand
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// attach_shielda (strange...expected 65)
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// rclav
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// rshoulda
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// rshouldb
+0.0 0.0 0.0 0.0 0.0 0.0 1     17		// relbow
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// rwrist
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// rhand
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// attach_hand (strange...expected 65)
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// attach_axe (strange...expected 65)
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// attach_hammer (strange...expected 65)
+0.0 0.0 0.0 0.0 0.0 0.0 1      1		// attatch_sword (strange...expected 65)
+
+
+//////////////////////////////////////////////////////////////////////////
+//  Sequence Tweaks                                                     //
+//                                                                      //
+//  These are the sequence and frame tweaks for Ragnar, for use         //
+//  with Gwynhala's Rune-Format Milkshape exporter.                     //
+//                                                                      //
+//  NOTE: This file contains only the tweaks needed when using the      //
+//  SubstituteMesh feature of Rune ucc, to make a player model. If      //
+//  you are making a model with custom animations, include sequence     //
+//  information for the baseframe and each custom sequence.             //
+//                                                                      //
+//  The format of the data is:                                          //
+//                                                                      //
+//  Sequences: <sequence count>                                         //
+//  <sequence name> <frame rate in FPS> <number of frames in sequence>  //
+//                                       <number of events in sequence> //
+//  <zero-based frame number within sequence> <name of event>           //
+//////////////////////////////////////////////////////////////////////////
+
+Sequences:     1
+baseframe 10.0 1 0
