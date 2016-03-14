@@ -259,27 +259,27 @@ function ClientReStart()
 //
 //  For safer coding purposes, do not use GotoState(), use these instead.
 ////////////////////////////////////////////////////////////////////////////////
-function GotoStateNeutral()         { GotoState('Neutral'); }
-function GotoStateAttack()          { GotoState('Attack'); }
-function GotoStateAttackRecover()   { GotoState('AttackRecover'); }
-function GotoStateCheatFlying()     { GotoState('CheatFlying'); }
-function GotoStateDead()            { GotoState('Dead'); }
-function GotoStateDefend()          { GotoState('Defend'); }
-function GotoStateDying()           { GotoState('Dying'); }
-function GotoStateEdgeHanging()     { GotoState('EdgeHanging'); }
-function GotoStateFeigningDeath()   { GotoState('FeigningDeath'); }
-function GotoStateGameEnded()       { GotoState('GameEnded'); }
-function GotoStateGrabbing()        { GotoState('Grabbing'); }
-function GotoStatePain()            { GotoState('Pain'); }
-function GotoStatePainConcuss()     { GotoState('PainConcuss'); }
-function GotoStatePlayerFlying()    { GotoState('PlayerFlying'); }
-function GotoStatePlayerSpectating(){ GotoState('PlayerSpectating'); }
-function GotoStatePlayerSwimming()  { GotoState('PlayerSwimming'); }
-function GotoStatePlayerWaiting()   { GotoState('PlayerWaiting'); }
-function GotoStatePlayerWalking()   { GotoState('PlayerWalking'); }
-function GotoStateSelect()          { GotoState('Select'); }
-function GotoStateStow()            { GotoState('Stow'); }
-function GotoStateUninterrupted()   { GotoState('Uninterrupted'); }
+final function GotoStateNeutral()         { GotoState('Neutral'); }
+final function GotoStateAttack()          { GotoState('Attack'); }
+final function GotoStateAttackRecover()   { GotoState('AttackRecover'); }
+final function GotoStateCheatFlying()     { GotoState('CheatFlying'); }
+final function GotoStateDead()            { GotoState('Dead'); }
+final function GotoStateDefend()          { GotoState('Defend'); }
+final function GotoStateDying()           { GotoState('Dying'); }
+final function GotoStateEdgeHanging()     { GotoState('EdgeHanging'); }
+final function GotoStateFeigningDeath()   { GotoState('FeigningDeath'); }
+final function GotoStateGameEnded()       { GotoState('GameEnded'); }
+final function GotoStateGrabbing()        { GotoState('Grabbing'); }
+final function GotoStatePain()            { GotoState('Pain'); }
+final function GotoStatePainConcuss()     { GotoState('PainConcuss'); }
+final function GotoStatePlayerFlying()    { GotoState('PlayerFlying'); }
+final function GotoStatePlayerSpectating(){ GotoState('PlayerSpectating'); }
+final function GotoStatePlayerSwimming()  { GotoState('PlayerSwimming'); }
+final function GotoStatePlayerWaiting()   { GotoState('PlayerWaiting'); }
+final function GotoStatePlayerWalking()   { GotoState('PlayerWalking'); }
+final function GotoStateSelect()          { GotoState('Select'); }
+final function GotoStateStow()            { GotoState('Stow'); }
+final function GotoStateUninterrupted()   { GotoState('Uninterrupted'); }
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -437,35 +437,6 @@ function PlayStateAnimation() {}
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//  ProcessMove
-////////////////////////////////////////////////////////////////////////////////
-function ProcessMove(
-    float DeltaTime,
-    vector NewAccel,
-    eDodgeDir DodgeMove,
-    rotator DeltaRot)   
-{
-    local vector OldAccel;
-    
-    //PlayMoving();
-    PlayStateAnimation();
-    
-    OldAccel = Acceleration;
-    Acceleration = NewAccel;
-    bIsTurning = ( Abs(DeltaRot.Yaw/DeltaTime) > 10000 ); // RUNE:  was 5000
-    
-    if ( (DodgeMove == DODGE_Active) && (Physics == PHYS_Falling) )
-        DodgeDir = DODGE_Active;
-    else if ( (DodgeMove != DODGE_None) && (DodgeMove < DODGE_Active) )
-        DoDodge(DodgeMove);
-    
-    if(bPressedJump)
-        DoJump();
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 //  PlayerMove
 ////////////////////////////////////////////////////////////////////////////////
 function PlayerMove( float DeltaTime )
@@ -477,7 +448,7 @@ function PlayerMove( float DeltaTime )
     local float Speed2D;
     local bool  bSaveJump;
     local name AnimGroupName;
-    
+
     GetAxes(Rotation,X,Y,Z);
 
     aForward *= 0.4;
@@ -585,6 +556,256 @@ function PlayerMove( float DeltaTime )
     bPressedJump = bSaveJump;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//  ServerMove
+////////////////////////////////////////////////////////////////////////////////
+function ServerMove
+(
+	float TimeStamp, 
+	vector InAccel, 
+	vector ClientLoc,
+	bool NewbRun,
+	bool NewbDuck,
+	bool NewbJumpStatus, 
+	bool bFired,
+	bool bAltFired,
+	bool bForceFire,
+	bool bForceAltFire,
+	eDodgeDir DodgeMove, 
+	byte ClientRoll, 
+	int View,
+	optional byte OldTimeDelta,
+	optional int OldAccel
+)
+{
+	local float DeltaTime, clientErr, OldTimeStamp;
+	local rotator DeltaRot, Rot;
+	local vector Accel, LocDiff;
+	local int maxPitch, ViewPitch, ViewYaw;
+	local actor OldBase;
+
+	local bool NewbPressedJump, OldbRun, OldbDuck;
+	local eDodgeDir OldDodgeMove;
+
+	// If this move is outdated, discard it.
+	if ( CurrentTimeStamp >= TimeStamp )
+		return;
+
+	// Update bReadyToPlay for clients
+	if ( PlayerReplicationInfo != None )
+		PlayerReplicationInfo.bReadyToPlay = bReadyToPlay;
+
+	// if OldTimeDelta corresponds to a lost packet, process it first
+	if (  OldTimeDelta != 0 )
+	{
+		OldTimeStamp = TimeStamp - float(OldTimeDelta)/500 - 0.001;
+		if ( CurrentTimeStamp < OldTimeStamp - 0.001 )
+		{
+			// split out components of lost move (approx)
+			Accel.X = OldAccel >>> 23;
+			if ( Accel.X > 127 )
+				Accel.X = -1 * (Accel.X - 128);
+			Accel.Y = (OldAccel >>> 15) & 255;
+			if ( Accel.Y > 127 )
+				Accel.Y = -1 * (Accel.Y - 128);
+			Accel.Z = (OldAccel >>> 7) & 255;
+			if ( Accel.Z > 127 )
+				Accel.Z = -1 * (Accel.Z - 128);
+			Accel *= 20;
+			
+			OldbRun = ( (OldAccel & 64) != 0 );
+			OldbDuck = ( (OldAccel & 32) != 0 );
+			NewbPressedJump = ( (OldAccel & 16) != 0 );
+			if ( NewbPressedJump )
+				bJumpStatus = NewbJumpStatus;
+
+			switch (OldAccel & 7)
+			{
+				case 0:
+					OldDodgeMove = DODGE_None;
+					break;
+				case 1:
+					OldDodgeMove = DODGE_Left;
+					break;
+				case 2:
+					OldDodgeMove = DODGE_Right;
+					break;
+				case 3:
+					OldDodgeMove = DODGE_Forward;
+					break;
+				case 4:
+					OldDodgeMove = DODGE_Back;
+					break;
+			}
+			MoveAutonomous(
+                OldTimeStamp - CurrentTimeStamp,
+                OldbRun, OldbDuck,
+                NewbPressedJump,
+                OldDodgeMove,
+                Accel,
+                rot(0,0,0));
+			CurrentTimeStamp = OldTimeStamp;
+		}
+	}		
+
+	// View components
+	ViewPitch = View/32768;
+	ViewYaw = 2 * (View - 32768 * ViewPitch);
+	ViewPitch *= 2;
+    
+	// Make acceleration.
+	Accel = InAccel/10;
+
+	NewbPressedJump = (bJumpStatus != NewbJumpStatus);
+	bJumpStatus = NewbJumpStatus;
+
+    // TODO: Why is this handled here and not in processmove?
+	// handle firing and alt-firing
+	if(bFired)
+	{
+		if(bForceFire && (Weapon != None) )
+		{
+//RUNE			Weapon.ForceFire();
+			Fire(0);
+		}
+		else if(bFire == 0)
+		{
+			Fire(0);
+		}
+		bFire = 1;
+	}
+	else
+		bFire = 0;
+
+
+	if(bAltFired)
+	{
+		if(bForceAltFire && (Shield != None))
+			AltFire(0);
+//RUNE			Weapon.ForceAltFire();
+		else if(bAltFire == 0)
+			AltFire(0);
+		bAltFire = 1;
+	}
+	else
+		bAltFire = 0;
+
+	// Save move parameters.
+	DeltaTime = TimeStamp - CurrentTimeStamp;
+	if ( ServerTimeStamp > 0 )
+	{
+		// allow 1% error
+		TimeMargin += DeltaTime - 1.01 * (Level.TimeSeconds - ServerTimeStamp);
+		if ( TimeMargin > MaxTimeMargin )
+		{
+			// player is too far ahead
+			TimeMargin -= DeltaTime;
+			if ( TimeMargin < 0.5 )
+				MaxTimeMargin = Default.MaxTimeMargin;
+			else
+				MaxTimeMargin = 0.5;
+			DeltaTime = 0;
+		}
+	}
+
+	CurrentTimeStamp = TimeStamp;
+	ServerTimeStamp = Level.TimeSeconds;
+	Rot.Roll = 256 * ClientRoll;
+	Rot.Yaw = ViewYaw;
+	if ( (Physics == PHYS_Swimming) || (Physics == PHYS_Flying) )
+		maxPitch = 2;
+	else
+		maxPitch = 1;
+	If ( (ViewPitch > maxPitch * RotationRate.Pitch) && (ViewPitch < 65536 - maxPitch * RotationRate.Pitch) )
+	{
+		If (ViewPitch < 32768) 
+			Rot.Pitch = maxPitch * RotationRate.Pitch;
+		else
+			Rot.Pitch = 65536 - maxPitch * RotationRate.Pitch;
+	}
+	else
+		Rot.Pitch = ViewPitch;
+	DeltaRot = (Rotation - Rot);
+	ViewRotation.Pitch = ViewPitch;
+	ViewRotation.Yaw = ViewYaw;
+	ViewRotation.Roll = 0;
+	SetRotation(Rot);
+
+	OldBase = Base;
+
+	// Perform actual movement.
+	if ( (Level.Pauser == "") && (DeltaTime > 0) )
+		MoveAutonomous(
+            DeltaTime,
+            NewbRun,
+            NewbDuck,
+            NewbPressedJump,
+            DodgeMove,
+            Accel,
+            DeltaRot);
+
+	// Accumulate movement error.
+	if ( Level.TimeSeconds - LastUpdateTime > 500.0/Player.CurrentNetSpeed )
+		ClientErr = 10000;
+	else if ( Level.TimeSeconds - LastUpdateTime > 180.0/Player.CurrentNetSpeed )
+	{
+		LocDiff = Location - ClientLoc;
+		ClientErr = LocDiff Dot LocDiff;
+	}
+
+	// If client has accumulated a noticeable positional error, correct him.
+	if ( ClientErr > 3 )
+	{
+		if ( Mover(Base) != None )
+			ClientLoc = Location - Base.Location;
+		else
+			ClientLoc = Location;
+		LastUpdateTime = Level.TimeSeconds;
+		ClientAdjustPosition
+		(
+			TimeStamp, 
+			GetStateName(), 
+			Physics, 
+			ClientLoc.X, 
+			ClientLoc.Y, 
+			ClientLoc.Z, 
+			Velocity.X, 
+			Velocity.Y, 
+			Velocity.Z,
+			Base
+		);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  ProcessMove
+////////////////////////////////////////////////////////////////////////////////
+function ProcessMove(
+    float DeltaTime,
+    vector NewAccel,
+    eDodgeDir DodgeMove,
+    rotator DeltaRot)   
+{
+    local vector OldAccel;
+    
+    //PlayMoving();
+    PlayStateAnimation();
+    
+    OldAccel = Acceleration;
+    Acceleration = NewAccel;
+    bIsTurning = ( Abs(DeltaRot.Yaw/DeltaTime) > 10000 ); // RUNE:  was 5000
+    
+    if ( (DodgeMove == DODGE_Active) && (Physics == PHYS_Falling) )
+        DodgeDir = DODGE_Active;
+    else if ( (DodgeMove != DODGE_None) && (DodgeMove < DODGE_Active) )
+        DoDodge(DodgeMove);
+    
+    if(bPressedJump)
+        DoJump();
+	
+	if(bJustFired)
+		GotoStateAttack();
+}
 
 
 
@@ -1603,20 +1824,19 @@ state Attack
 {
     function BeginState() // [Attack]
     {
+		bJustFired = false;
+		AttackAnimation = 'X3_attackA';
     }
     
     function VcmdHandleAttack() // [Attack]
     {
         bJustFired = true;
-        //GotoStateAttack();
-        AttackAnimation = 'X3_attackB';
     }
     
     Begin: // [Attack]
         if(AttackAnimation != 'None')
         {
             WeaponActivate();
-            //PlayAnim('X3_attackA', 1.0, 0.0);
             PlayAnim(AttackAnimation, 1.0, 0.0);
             AttackAnimation = 'None';
             FinishAnim();
