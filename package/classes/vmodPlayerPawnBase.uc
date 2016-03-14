@@ -148,27 +148,6 @@ event PreBeginPlay()
     // Attempt to spawn animation proxy
     // TODO: Enable this again once we have animation proxy decoupled
     //SpawnAnimationProxy();
-    
-    // Create some test animation connections
-    CreateMovementConnectionAnim(
-        MD_NEUTRAL | MT_NEUTRAL | VR_0,
-        MD_NEUTRAL | MT_NEUTRAL | VR_0,
-        'X3_attackA');
-    
-    CreateMovementConnectionAnim(
-        MD_NEUTRAL | MT_NEUTRAL | VR_0,
-        MD_LEFT | MT_NEUTRAL | VR_0,
-        'X3_attackB');
-    
-    //CreateMovementConnectionAnim(
-    //  MD_LEFT | MT_NEUTRAL | VR_0,
-    //  MD_LEFT | MT_JUMP | VR_0,
-    //  'X3_attackB');
-    //
-    //CreateMovementConnectionAnim(
-    //  MD_LEFT | MT_JUMP | VR_0,
-    //  MD_RIGHT | MT_JUMP | VR_0,
-    //  'X3_attackC');
 }
 
 event PostBeginPlay()
