@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// vmodPlayerPawnBase.uc
+//  vmodPlayerPawnBase.uc
 //
 //      |---Object
 //          |---Actor
@@ -254,32 +254,7 @@ function ClientReStart()
 ////////////////////////////////////////////////////////////////////////////////
 
 
-////////////////////////////////////////////////////////////////////////////////
-//  State utility functions
-//
-//  For safer coding purposes, do not use GotoState(), use these instead.
-////////////////////////////////////////////////////////////////////////////////
-final function GotoStateNeutral()         { GotoState('Neutral'); }
-final function GotoStateAttack()          { GotoState('Attack'); }
-final function GotoStateAttackRecover()   { GotoState('AttackRecover'); }
-final function GotoStateCheatFlying()     { GotoState('CheatFlying'); }
-final function GotoStateDead()            { GotoState('Dead'); }
-final function GotoStateDefend()          { GotoState('Defend'); }
-final function GotoStateDying()           { GotoState('Dying'); }
-final function GotoStateEdgeHanging()     { GotoState('EdgeHanging'); }
-final function GotoStateFeigningDeath()   { GotoState('FeigningDeath'); }
-final function GotoStateGameEnded()       { GotoState('GameEnded'); }
-final function GotoStateGrabbing()        { GotoState('Grabbing'); }
-final function GotoStatePain()            { GotoState('Pain'); }
-final function GotoStatePainConcuss()     { GotoState('PainConcuss'); }
-final function GotoStatePlayerFlying()    { GotoState('PlayerFlying'); }
-final function GotoStatePlayerSpectating(){ GotoState('PlayerSpectating'); }
-final function GotoStatePlayerSwimming()  { GotoState('PlayerSwimming'); }
-final function GotoStatePlayerWaiting()   { GotoState('PlayerWaiting'); }
-final function GotoStatePlayerWalking()   { GotoState('PlayerWalking'); }
-final function GotoStateSelect()          { GotoState('Select'); }
-final function GotoStateStow()            { GotoState('Stow'); }
-final function GotoStateUninterrupted()   { GotoState('Uninterrupted'); }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1191,7 +1166,6 @@ event PlayerCalcView(
 function UpdateUseActor()
 {
     local Actor A;
-    local Actor UseActorCurr;
     local float dist;
     local float bestDist;
     local int priority;
@@ -1220,9 +1194,180 @@ function UpdateUseActor()
     }
 }
 
-// TODO: Maybe we can restructure this into a subclass handler function and abstract away
-// the different types. It's not a good thing to have 'Runes' and 'Pickup' here
-// TODO: Where does this get called exactly? We need to figure that out
+////////////////////////////////////////////////////////////////////////////////
+//  (Pawn) CanPickUp
+//
+//  Check if this PlayerPawn can pick up an inventory item
+//  Sub-handler functions should be implemented in derived classes
+////////////////////////////////////////////////////////////////////////////////
+function bool CanPickUp(Inventory item)
+{
+    if(item.IsA('Weapon'))      return CanPickUpWeapon(Weapon(item));
+    else if(item.IsA('Shield')) return CanPickUpShield(Shield(item));
+    else if(item.IsA('Runes'))  return CanPickUpRune(Runes(item));
+    else if(item.IsA('Pickup')) return CanPickUpPickup(Pickup(item));
+    return false;
+}
+function bool CanPickUpWeapon(Weapon weaponItem)    { return false; }
+function bool CanPickUpShield(Shield shieldItem)    { return false; }
+function bool CanPickUpRune(Runes runeItem)         { return false; }
+function bool CanPickUpPickup(Pickup pickupItem)    { return false; }
+
+////////////////////////////////////////////////////////////////////////////////
+//  (Pawn) WantsToPickUp
+//
+//  Check if this PlayerPawn wants to pick up an inventory item
+//  Sub-handler functions should be implemented in derived classes
+////////////////////////////////////////////////////////////////////////////////
+function bool WantsToPickUp(Inventory item)
+{
+    if(item.IsA('Weapon'))      return WantsToPickUpWeapon(Weapon(item));
+    else if(item.IsA('Shield')) return WantsToPickUpShield(Shield(item));
+    else if(item.IsA('Runes'))  return WantsToPickUpRune(Runes(item));
+    else if(item.IsA('Pickup')) return WantsToPickUpPickup(Pickup(item));
+    return false;
+}
+function bool WantsToPickUpWeapon(Weapon weaponItem)    { return false; }
+function bool WantsToPickUpShield(Shield shieldItem)    { return false; }
+function bool WantsToPickUpRune(Runes runeItem)         { return false; }
+function bool WantsToPickUpPickup(Pickup pickupItem)    { return false; }
+
+////////////////////////////////////////////////////////////////////////////////
+//  Weapon joint functions
+//
+//  These functions handle attaching / detaching weapons from their skeleton.
+//  Implement in derived classes for each specific skeleton.
+////////////////////////////////////////////////////////////////////////////////
+function AttachWeaponToWeaponJoint(Weapon weaponItem)           { }
+function Weapon DetachWeaponFromWeaponJoint()                   { return None; }
+function AttachWeaponToStowJoint(Weapon weaponItem, optional byte slot) { }
+function Weapon DetachWeaponFromStowJoint(optional byte slot)   { return None; }
+
+////////////////////////////////////////////////////////////////////////////////
+//  EquipWeapon
+//
+//  PlayerPawn has just equipped a new weapon. Perform all "enabling" here.
+////////////////////////////////////////////////////////////////////////////////
+final function EquipWeapon(Weapon weaponItem)
+{
+    DropWeapon();   // Caller's responsibility to stow first
+    AttachWeaponToWeaponJoint(weaponItem);
+    weaponItem.GotoState('Active');
+    Weapon = weaponItem;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  UnequipWeapon
+//
+//  Unequip whatever weapon the Pawn is currently using but do not remove it
+//  from inventory. If the Pawn is not using a weapon, this does nothing.
+////////////////////////////////////////////////////////////////////////////////
+final function Weapon UnequipWeapon()
+{
+    local Weapon w;
+    
+    w = DetachWeaponFromWeaponJoint();
+    if(w == None)
+        return None;
+    
+    Weapon = None;
+    return w;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  StowWeapon
+//
+//  Stow the Pawn's current weapon.
+////////////////////////////////////////////////////////////////////////////////
+function StowWeapon()
+{
+    local Weapon w;
+    
+    w = UnequipWeapon();
+    if(w == None)
+        return;
+    
+    AttachWeaponToStowJoint(w);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DropWeapon
+//
+//  Drops whatever weapon the Pawn is currently holding and removes it from
+//  inventory. If the Pawn is not holding a weapon, this does nothing.
+////////////////////////////////////////////////////////////////////////////////
+function DropWeapon()
+{
+    local Vector vx, vy, vz;
+    local Weapon w;
+    
+    w = UnequipWeapon();
+    if(w == None)
+        return;
+    
+    GetAxes(Rotation, vx, vy, vz);
+    w.DropFrom(Location);
+    w.SetPhysics(PHYS_Falling);
+    w.Velocity = vy * 100 + vx * 75;
+    w.Velocity.Z = 50;
+    w.GotoState('Drop');
+    w.DisableSwipeTrail();
+    
+    DeleteInventory(w);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  Shield joint functions
+//
+//  These functions handle attaching / detaching shields from their skeleton.
+//  Implement in derived classes for each specific skeleton.
+////////////////////////////////////////////////////////////////////////////////
+function AttachShieldToShieldJoint(Shield shieldItem)           { }
+function Shield DetachShieldFromShieldJoint()                   { return None; }
+function AttachShieldToStowJoint(Shield shieldItem, optional byte slot) { }
+function Shield DetachShieldFromStowJoint(optional byte slot)   { return None; }
+
+////////////////////////////////////////////////////////////////////////////////
+//  DropShield
+//
+//  Drops whatever shield the Pawn is currently holding and removes it from
+//  inventory. If the Pawn is not holding a shield, this does nothing.
+////////////////////////////////////////////////////////////////////////////////
+function DropShield()
+{
+    local Vector vx, vy, vz;
+    local Shield s;
+    
+    s = DetachShieldFromShieldJoint();
+    if(s == None)
+        return;
+    
+    Shield = None;
+    
+    GetAxes(Rotation, vx, vy, vz);
+    s.DropFrom(Location);
+    
+    s.SetPhysics(PHYS_Falling);
+    s.Velocity = vy * 100 + vx * 75;
+    s.Velocity.Z = 50;
+    s.GotoState('Drop');
+    
+    DeleteInventory(s);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  EquipShield
+//
+//  PlayerPawn has just equipped a new weapon. Perform all "enabling" here.
+////////////////////////////////////////////////////////////////////////////////
+final function EquipShield(Shield shieldItem)
+{
+    DropShield();   // Caller's responsibility to stow first
+    AttachShieldToShieldJoint(shieldItem);
+    shieldItem.GotoState('Active');
+    Shield = shieldItem;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  (Pawn) AcquireInventory
 //
@@ -1243,13 +1388,42 @@ function AcquireInventory(Inventory item)
     else if(item.IsA('Runes'))      AcquireRune(Runes(item));
     else if(item.IsA('Pickup'))     AcquirePickup(Pickup(item));
 }
-function AcquireWeapon(Weapon weaponItem)   { Weapon = weaponItem; }
-function AcquireShield(Shield shieldItem)   { Shield = shieldItem; }
-function AcquireRune(Runes runeItem)        {}
-function AcquirePickup(Pickup pickupItem)   {}
 
+////////////////////////////////////////////////////////////////////////////////
+//  AcquireWeapon
+//
+//  AcquireInventory sub-handler
+////////////////////////////////////////////////////////////////////////////////
+function AcquireWeapon(Weapon weaponItem)
+{
+    EquipWeapon(weaponItem);
+}
 
+////////////////////////////////////////////////////////////////////////////////
+//  AcquireShield
+//
+//  AcquireInventory sub-handler
+////////////////////////////////////////////////////////////////////////////////
+function AcquireShield(Shield shieldItem)
+{
+    EquipShield(shieldItem);
+}
 
+////////////////////////////////////////////////////////////////////////////////
+//  AcquireRune
+//
+//  AcquireInventory sub-handler
+////////////////////////////////////////////////////////////////////////////////
+function AcquireRune(Runes runeItem)
+{}
+
+////////////////////////////////////////////////////////////////////////////////
+//  AcquirePickup
+//
+//  AcquireInventory sub-handler
+////////////////////////////////////////////////////////////////////////////////
+function AcquirePickup(Pickup pickupItem)
+{}
 
 
 
@@ -1796,6 +1970,34 @@ function VcmdHandleSwitchLevel(string url)
     if( bAdmin || Level.NetMode==NM_Standalone || Level.netMode==NM_ListenServer )
         Level.ServerTravel( URL, false );
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  State utility functions
+//
+//  For safer coding purposes, do not use GotoState(), use these instead.
+////////////////////////////////////////////////////////////////////////////////
+final function GotoStateNeutral()         { GotoState('Neutral'); }
+final function GotoStateAttack()          { GotoState('Attack'); }
+final function GotoStateAttackRecover()   { GotoState('AttackRecover'); }
+final function GotoStateCheatFlying()     { GotoState('CheatFlying'); }
+final function GotoStateDead()            { GotoState('Dead'); }
+final function GotoStateDefend()          { GotoState('Defend'); }
+final function GotoStateDying()           { GotoState('Dying'); }
+final function GotoStateEdgeHanging()     { GotoState('EdgeHanging'); }
+final function GotoStateFeigningDeath()   { GotoState('FeigningDeath'); }
+final function GotoStateGameEnded()       { GotoState('GameEnded'); }
+final function GotoStateGrabbing()        { GotoState('Grabbing'); }
+final function GotoStatePain()            { GotoState('Pain'); }
+final function GotoStatePainConcuss()     { GotoState('PainConcuss'); }
+final function GotoStatePlayerFlying()    { GotoState('PlayerFlying'); }
+final function GotoStatePlayerSpectating(){ GotoState('PlayerSpectating'); }
+final function GotoStatePlayerSwimming()  { GotoState('PlayerSwimming'); }
+final function GotoStatePlayerWaiting()   { GotoState('PlayerWaiting'); }
+final function GotoStatePlayerWalking()   { GotoState('PlayerWalking'); }
+final function GotoStateSelect()          { GotoState('Select'); }
+final function GotoStateStow()            { GotoState('Stow'); }
+final function GotoStateUninterrupted()   { GotoState('Uninterrupted'); }
 
 
 ////////////////////////////////////////////////////////////////////////////////
