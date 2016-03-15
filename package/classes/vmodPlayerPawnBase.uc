@@ -310,6 +310,44 @@ function SetVariationFlags(int vrFlags)
     MovementMask = MovementMask | vrFlags;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//  PLAYER INPUT
+//
+//  Input variables
+//
+//  [Pawn] - Input buttons
+//  bZoom
+//  bRun            Alias Walking = Command="Button bRun"
+//  bLook
+//  bDuck           Alias Duck = Command="Button bDuck | Axis aUp Speed=-300.0"
+//  bSnapLevel
+//  bStrafe         Alias Strafe = Command="Button bStrafe"
+//  bFire           Alias Fire = Command="Button bFire | Fire"
+//  bAltFire        Alias AltFire = Command="Button bAltFire | AltFire"
+//  bFreeLook       Alias FreeLook = Command="Button bFreeLook"
+//  bExtra0         Unused
+//  bExtra1         Unused
+//  bExtra2         Unused
+//  bExtra3         Unused
+//
+//  [PlayerPawn] - Input axes
+//  aBaseX          + TurnRight     - TurnLeft
+//  aBaseY          + MoveForward   - MoveBackward
+//  aBaseZ          Unused
+//  aMouseX
+//  aMouseY
+//  aForward
+//  aTurn
+//  aStrafe         + StrafeRight   - StrafeLeft
+//  aUp             + Jump          - Crouch
+//  aLookUp         + LookUp        - LookDown
+//  aExtra0         Unused
+//  aExtra1         Unused
+//  aExtra2         Unused
+//  aExtra3         Unused
+//  aExtra4         Unused
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //  PlayerInput
