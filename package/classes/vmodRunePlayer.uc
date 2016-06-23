@@ -15,15 +15,37 @@
 //class vmodRunePlayer extends vmodRunePlayerInterface config(user) abstract;
 class vmodRunePlayer extends RunePlayer config(user) abstract;
 
+var bool bReadyToGoLive;
+
 replication
 {
     reliable if ( Role < ROLE_Authority )
         VcmdGameReset,
         VcmdReady,
         VcmdUnready,
-        VcmdEndGame;
+        VcmdEndGame,
+        VcmdClearInventory,
+        VcmdGiveWeapon;
 }
 
+function bool ReadyToGoLive()
+{ return bReadyToGoLive; }
+
+function SetReadyToGoLive(bool B)
+{
+    bReadyToGoLive = B;
+    if(vmodGameInfo(Level.Game) != None)
+    {
+        if(B)
+            vmodGameInfo(Level.Game).PlayerReadyToGoLive(self);
+        else
+            vmodGameInfo(Level.Game).PlayerNotReadyToGoLive(self);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//  Game Notifications
+///////////////////////////////////////////////////////////////////////////////
 function NotifyGamePreGame()
 {
     GotoState('PlayerWalking');
@@ -43,6 +65,18 @@ function NotifyGamePostGame()
     ClientGameEnded();
 }
 
+function NotifyGamePreRound()
+{}
+
+function NotifyGameStartingRound()
+{}
+
+function NotifyGamePostRound()
+{}
+
+///////////////////////////////////////////////////////////////////////////////
+//  Game interface
+///////////////////////////////////////////////////////////////////////////////
 exec final function VcmdGameReset()
 {
     if( bAdmin || Level.NetMode==NM_Standalone || Level.netMode==NM_ListenServer )
@@ -52,20 +86,33 @@ exec final function VcmdGameReset()
 
 exec final function VcmdReady()
 {
-    bReadyToPlay = true;
-    if(vmodGameInfo(Level.Game) != None)
-        vmodGameInfo(Level.Game).PlayerReadied(self);
+    SetReadyToGoLive(true);
 }
 
 exec final function VcmdUnready()
 {
-    bReadyToPlay = false;
-    if(vmodGameInfo(Level.Game) != None)
-        vmodGameInfo(Level.Game).PlayerUnreadied(self);
+    SetReadyToGoLive(false);
 }
 
 exec final function VcmdEndGame()
 {
     if(vmodGameInfo(Level.Game) != None)
         vmodGameInfo(Level.Game).GotoStatePostGame();
+}
+
+exec final function VcmdClearInventory()
+{
+    if(vmodGameInfo(Level.Game) != None)
+        vmodGameInfo(Level.Game).ClearPlayerInventory(self);
+}
+
+exec final function VcmdGiveWeapon(class<Weapon> WeaponClass)
+{
+    if(vmodGameInfo(Level.Game) != None)
+        vmodGameInfo(Level.Game).GivePlayerWeapon(self, WeaponClass);
+}
+
+defaultproperties
+{
+    bReadyToGoLive=false
 }

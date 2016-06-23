@@ -3,7 +3,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 class vmodGameInfo extends GameInfo abstract;
 
-var() globalconfig int  StartDuration;
+var() globalconfig int  StartingDuration;
+var() globalconfig int  StartingCountdownBegin;
 var() globalconfig int	ScoreLimit;
 var() globalconfig int	TimeLimit;
 
@@ -25,6 +26,9 @@ final function GotoStatePostGame()    { GotoState('PostGame'); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  IsRelevant
+//
+//  All Actors pass through this function. At level start up, mark every actor
+//  as "native" to the level, so that the level can be reset later.
 ////////////////////////////////////////////////////////////////////////////////
 function bool IsRelevant(Actor A)
 {
@@ -42,14 +46,9 @@ function bool IsRelevant(Actor A)
 //  These functions mark Actors which are native to the current level. Used for
 //  clean up in between rounds.
 ////////////////////////////////////////////////////////////////////////////////
-function MarkLevelNativeActor(Actor A)
-{ A.bDifficulty3 = true; }
-
-function MarkLevelNonNativeActor(Actor A)
-{ A.bDifficulty3 = false; }
-
-function bool CheckLevelNativeActor(Actor A)
-{ return A.bDifficulty3; }
+function MarkLevelNativeActor(Actor A)          { A.bDifficulty3 = true; }
+function MarkLevelNonNativeActor(Actor A)       { A.bDifficulty3 = false; }
+function bool CheckLevelNativeActor(Actor A)    { return A.bDifficulty3; }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  PreBeginPlay
@@ -75,10 +74,9 @@ function PreBeginPlay()
 ////////////////////////////////////////////////////////////////////////////////
 function PostBeginPlay()
 {
-    Spawn(Class'vmodSpawnNotify');
+    Spawn(Class'vmodSpawnNotify'); // Replaces actors with vmod actors
     
     TimerBroad = 0;
-    TimerLocal = 0;
     
     Super.PostBeginPlay();
 }
@@ -114,77 +112,43 @@ function String GetRules()
     return ResultSet;
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-////  InitGameReplicationInfo
-//////////////////////////////////////////////////////////////////////////////////
-//function InitGameReplicationInfo()
-//{
-//	GameReplicationInfo.bTeamGame = bTeamGame;
-//	GameReplicationInfo.GameName = GameName;
-//	GameReplicationInfo.GameClass = string(Class);
-//	GameReplicationInfo.bClassicDeathmessages = bClassicDeathmessages;
-//    GameReplicationInfo.TimeRemaining = 0;
-//}
-
 ////////////////////////////////////////////////////////////////////////////////
-//  PlayerReady notifications
-//  Implement in states.
-////////////////////////////////////////////////////////////////////////////////
-function PlayerReadied(Pawn ReadyPawn)      { }
-function PlayerUnreadied(Pawn UnreadyPawn)  { }
-
-////////////////////////////////////////////////////////////////////////////////
-//  StartGameCondition
+//  ReadyToGoLive
 //
-//  Checked during PreGame to see if it's time to start.
+//  These functions are used for handling readying and unreadying players.
+//  Override EnoughPlayersToGoLive for custom ready conditions.
 ////////////////////////////////////////////////////////////////////////////////
-function bool StartGameCondition()
-{
-    local int Ready;
-    local int Unready;
-    
-    // The majority of players are ready
-    GetPlayerReadyCounts(Ready, Unready);
-    if(Ready >= Unready)
-        return true;
-    
-    return false;
-}
 
-////////////////////////////////////////////////////////////////////////////////
-//  GetPlayerReadyCounts
-//
-//  Check how many players are ready or not ready.
-////////////////////////////////////////////////////////////////////////////////
-function GetPlayerReadyCounts(out int Ready, out int Unready)
+// These functions are called by the player, and implemented in states only
+function PlayerReadyToGoLive(Pawn ReadyPawn)        { }
+function PlayerNotReadyToGoLive(Pawn UnreadyPawn)   { }
+
+// Return true to switch game state to Starting, which counts into Live
+function bool EnoughPlayersReadyToGoLive()
 {
+    local int ReadyCount;
+    local int UnreadyCount;
     local Pawn P;
     
-    Ready = 0;
-    Unready = 0;
+    // Get ready counts
+    ReadyCount = 0;
+    UnreadyCount = 0;
     
-    for(P = Level.PawnList; P != None; P = P.nextPawn)
+    for(P = Level.PawnList; P != None; P = P.NextPawn)
     {
-        if(PlayerPawn(P) != None && P.bIsPlayer)
+        if(vmodRunePlayer(P) != None && P.bIsPlayer)
         {
-            if(PlayerPawn(P).bReadyToPlay)
-                Ready++;
+            if(vmodRunePlayer(P).ReadyToGoLive())
+                ReadyCount++;
             else
-                Unready++;
+                UnreadyCount++;
         }
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Timer
-////////////////////////////////////////////////////////////////////////////////
-event Timer()
-{
-	Super.Timer();
     
-    TimerBroad++;
-    TimerLocal++;
-    GameReplicationInfo.ElapsedTime = TimerBroad;
+    // Ready count conditions - majority of players are ready
+    if(ReadyCount >= UnreadyCount)
+        return true;
+    return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -201,6 +165,8 @@ function GameReset()
 
 ////////////////////////////////////////////////////////////////////////////////
 //  RestartPlayer
+//
+//  Completely reset a player, including score, trophies, health, power, etc.
 ////////////////////////////////////////////////////////////////////////////////
 function bool RestartPlayer( pawn aPlayer )	
 {
@@ -208,7 +174,6 @@ function bool RestartPlayer( pawn aPlayer )
     local vmodRunePlayer rPlayer;
     local PlayerReplicationInfo PRI;
     
-    BroadcastMessage("RestartPlayer");
     retval = Super.RestartPlayer(aPlayer);
     
     rPlayer = vmodRunePlayer(aPlayer);
@@ -236,17 +201,66 @@ function bool RestartPlayer( pawn aPlayer )
 function bool RestartAllPlayers()
 {
     local Pawn P;
-    BroadcastMessage("RestartAllPlayers");
     for(P = Level.PawnList; P != None; P = P.nextPawn)
         RestartPlayer(P);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  ClearPlayerInventory
+//
+//  Strip a player of their entire inventory.
+////////////////////////////////////////////////////////////////////////////////
+function ClearPlayerInventory(Pawn P)
+{
+    local Inventory Curr;
+    local Inventory Next;
+    
+    // TODO: This looks like a weird iteration, is this right?
+    for(Curr = P.Inventory; Curr != None; Curr = Next)
+    {
+        Next = Curr.Inventory;
+        Curr.Destroy();
+    }
+    
+    P.Weapon = None;
+    P.SelectedItem = None;
+    P.Shield = None;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  GivePlayerInventory
+//
+//  Give an inventory item to a player.
+////////////////////////////////////////////////////////////////////////////////
+function GivePlayerWeapon(Pawn P, class<Weapon> WeaponClass)
+{
+    local Weapon W;
+    
+    W = Spawn(WeaponClass);
+    if(W == None)
+        return;
+    
+    W.bTossedOut = true;
+    W.Instigator = P;
+    W.BecomeItem();
+    P.AddInventory(W);
+    P.AcquireInventory(W);
+    
+    if(vmodRunePlayer(P) != None)
+        vmodRunePlayer(P).StowWeapon(W);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  FindPlayerStart
 //
-//  Find the best player start for a new player spawn.
+//  Find the best player start for a new player spawn. This is copied directly
+//  from RuneMultiplayer.
+//  TODO: Might be able to do something about spawn frags in here
 ////////////////////////////////////////////////////////////////////////////////
-function NavigationPoint FindPlayerStart( Pawn Player, optional byte InTeam, optional string incomingName )
+function NavigationPoint FindPlayerStart(
+    Pawn Player,
+    optional byte InTeam,
+    optional string incomingName )
 {
 	local PlayerStart Dest, Candidate[4], Best;
 	local float Score[4], BestScore, NextDist;
@@ -267,25 +281,11 @@ function NavigationPoint FindPlayerStart( Pawn Player, optional byte InTeam, opt
 	{
 		if ( N.IsA('PlayerStart') && !N.Region.Zone.bWaterZone )
 		{
-			//if(bLevelHasTeamOnly)
-			//{
-			//	if((PlayerStart(N).bTeamOnly && bTeamGame) || (!PlayerStart(N).bTeamOnly && !bTeamGame))
-			//	{
-			//		if(num < 4)
-			//			Candidate[num] = PlayerStart(N);
-			//		else if(Rand(num) < 4)
-			//			Candidate[Rand(4)] = PlayerStart(N);
-			//		num++;
-			//	}
-			//}
-			//else
-			//{
-				if (num<4)
-					Candidate[num] = PlayerStart(N);
-				else if (Rand(num) < 4)
-					Candidate[Rand(4)] = PlayerStart(N);
-				num++;
-			//}
+			if (num<4)
+				Candidate[num] = PlayerStart(N);
+			else if (Rand(num) < 4)
+				Candidate[Rand(4)] = PlayerStart(N);
+			num++;
 		}
 		N = N.nextNavigationPoint;
 	}
@@ -333,6 +333,16 @@ function NavigationPoint FindPlayerStart( Pawn Player, optional byte InTeam, opt
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  Killed
+//
+//  PKiller has just killed PDead.
+////////////////////////////////////////////////////////////////////////////////
+function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
+{
+    Super.Killed(PKiller, PDead, DamageType);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  NativeLevelCleanup
 //
 //  Reset the level to its original state when loaded.
@@ -362,6 +372,65 @@ function NativeLevelCleanup()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  Timer Functions
+////////////////////////////////////////////////////////////////////////////////
+event Timer()
+{
+	Super.Timer();
+    
+    // Update local and broad timers
+    TimerBroad++;
+    TimerLocal++;
+    
+    GameReplicationInfo.ElapsedTime = TimerBroad;
+}
+
+function ResetTimerLocal()
+{
+    TimerLocal = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  Broadcast Functions
+//
+//  TODO: Implement these all as localized messages and incorporate some sounds
+////////////////////////////////////////////////////////////////////////////////
+function BroadcastPreGame()
+{
+    BroadcastMessage("Entered PreGame");
+}
+
+function BroadcastPlayerReadyToGoLive(Pawn P)
+{
+    BroadcastMessage(P.PlayerReplicationInfo.PlayerName $ " is ready");
+}
+
+function BroadcastPlayerNotReadyToGoLive(Pawn P)
+{
+    BroadcastMessage(P.PlayerReplicationInfo.PlayerName $ " is not ready");
+}
+
+function BroadcastGameIsStarting()
+{
+    BroadcastMessage("Game is starting!");
+}
+
+function BroadcastStartingCountdown(int T)
+{
+    BroadcastMessage("Starting in " $ T);
+}
+
+function BroadcastGameIsLive()
+{
+    BroadcastLocalizedMessage(class'vmodMessageGameLive');
+}
+
+function BroadcastPostGame()
+{
+    BroadcastMessage("Game has ended");
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  STATE: PreGame
 //
 //  Waiting for players to ready themselves before the game begins.
@@ -372,39 +441,39 @@ auto state PreGame
     {
         local Pawn P;
         
-        TimerLocal = 0;
-        BroadcastMessage("PreGame");
-        
         // Notify all players about PreGame
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
                 vmodRunePlayer(P).NotifyGamePreGame();
+        
+        ResetTimerLocal();
+        BroadcastPreGame();
     }
     
     ////////////////////////////////////////////////////////////////////////////
-    //  PreGame: PlayerReadied
+    //  PreGame: PlayerReadyToGoLive
     //
     //  A player has switched to ready. Check if enough players in the game are
     //  ready to start.
     ////////////////////////////////////////////////////////////////////////////
-    function PlayerReadied(Pawn ReadyPawn)
+    function PlayerReadyToGoLive(Pawn ReadyPawn)
     {
         local Pawn P;
         
-        BroadcastMessage(ReadyPawn.PlayerReplicationInfo.PlayerName $ " is ready");
+        BroadcastPlayerReadyToGoLive(ReadyPawn);
         
-        if(StartGameCondition())
+        if(EnoughPlayersReadyToGoLive())
             GotoStateStarting();
     }
     
     ////////////////////////////////////////////////////////////////////////////
-    //  PreGame: PlayerUnreadied
+    //  PreGame: PlayerNotReadyToGoLive
     //
     //  A player has switched to not ready.
     ////////////////////////////////////////////////////////////////////////////
-    function PlayerUnreadied(Pawn UnreadyPawn)
+    function PlayerNotReadyToGoLive(Pawn UnreadyPawn)
     {
-        BroadcastMessage(UnreadyPawn.PlayerReplicationInfo.PlayerName $ " is not ready");
+        BroadcastPlayerNotReadyToGoLive(UnreadyPawn);
     }
 }
 
@@ -419,24 +488,36 @@ state Starting
     {
         local Pawn P;
         
-        TimerLocal = 0;
-        BroadcastMessage("Game is starting!");
-        
         // Notify all players about Starting
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
                 vmodRunePlayer(P).NotifyGameStarting();
+        
+        ResetTimerLocal();
+        BroadcastGameIsStarting();
     }
     
+    function EndState()
+    {
+        ResetTimerLocal();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  PreGame: Timer
+    //
+    //  Count down to go Live
+    ////////////////////////////////////////////////////////////////////////////
     function Timer()
     {
         local int TimeRemaining;
         
         Global.Timer();
         
-        TimeRemaining = StartDuration - TimerLocal;
-        if(TimeRemaining <= 5)
-            BroadcastMessage("Starting in " $ TimeRemaining);
+        TimeRemaining = StartingDuration - TimerLocal;
+        
+        if(TimeRemaining <= StartingCountdownBegin)
+            BroadcastStartingCountdown(TimeRemaining);
+        
         if(TimeRemaining <= 0)
             GotoStateLive();
     }
@@ -452,24 +533,23 @@ state Live
     function BeginState()
     {
         local Pawn P;
-        Local PlayerPawn Player;
         
-        TimerLocal = 0;
-        TimeLimit = 20;
-        NativeLevelCleanup();
-        RestartAllPlayers();
-        
-        BroadcastLocalizedMessage(class'vmodMessageGameLive');
-        // TODO: Play a cool Live sound here like in headball
-        
-        // Notify all players about Starting
+        // Notify all players that the game is Live
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
                 vmodRunePlayer(P).NotifyGameLive();
+        
+        TimeLimit = 20; // TODO: Temporary
+        
+        NativeLevelCleanup();
+        RestartAllPlayers();
+        BroadcastGameIsLive();
     }
     
     ////////////////////////////////////////////////////////////////////////////
     //  Live: Timer
+    //
+    //  Calculate remaining time and check for game time out condition.
     ////////////////////////////////////////////////////////////////////////////
     function Timer()
     {
@@ -504,17 +584,6 @@ state PostGame
         local Pawn P;
         local Actor A;
         
-        TimerLocal = 0;
-        
-        // Tell all players that the game ended
-        for(P = Level.PawnList; P != None; P = P.NextPawn)
-            if(vmodRunePlayer(P) != None)
-                vmodRunePlayer(P).NotifyGamePostGame();
-        
-        // Trigger all end game actors
-        foreach AllActors(class'Actor', A, 'EndGame')
-            A.trigger(self, none);
-        
         // Logging
         if (LocalLog != None)
         {
@@ -534,6 +603,28 @@ state PostGame
             WorldLog.Destroy();
             WorldLog = None;
         }
+        
+        // Tell all players that the game ended
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+            if(vmodRunePlayer(P) != None)
+                vmodRunePlayer(P).NotifyGamePostGame();
+        
+        // Trigger all end game actors
+        foreach AllActors(class'Actor', A, 'EndGame')
+            A.trigger(self, none);
+        
+        ResetTimerLocal();
+        BroadcastPostGame();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  PostGame: Timer
+    //
+    //  Calculate post game time.
+    ////////////////////////////////////////////////////////////////////////////
+    function Timer()
+    {
+        Global.Timer();
     }
 }
 
@@ -587,7 +678,8 @@ defaultproperties
     TimerLocal=0
     TimeRemaining=0
     bMarkNativeActors=true
-    StartDuration=5
+    StartingDuration=5
+    StartingCountdownBegin=5
     TimeLimit=1200
     ScoreLimit=20
 	GenericDiedMessage=" died."
