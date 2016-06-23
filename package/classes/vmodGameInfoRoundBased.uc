@@ -20,6 +20,16 @@ final function GotoStateStartingRound()     { GotoState('StartingRound'); }
 final function GotoStatePostRound()         { GotoState('PostRound'); }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  InitGame
+////////////////////////////////////////////////////////////////////////////////
+event InitGame( string Options, out string Error )
+{
+	Super.InitGame(Options, Error);
+    
+    TimeLimitRound = 60 * GetIntOption( Options, "timelimitround", TimeLimitRound );
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  Timer Functions
 ////////////////////////////////////////////////////////////////////////////////
 function ResetTimerLocalRound()
@@ -34,22 +44,27 @@ function ResetTimerLocalRound()
 ////////////////////////////////////////////////////////////////////////////////
 function BroadcastPreRound()
 {
-    BroadcastMessage("Entered PreRound");
+    BroadcastAnnouncement("Prepare for the next round");
 }
 
 function BroadcastStartingRound()
 {
-    BroadcastMessage("The round is about to begin!");
+    //BroadcastAnnouncement("Prepare for the next round");
 }
 
 function BroadcastGameIsLive()
 {
-    BroadcastMessage("The round has started");
+    BroadcastAnnouncement("Round " $ RoundNumber);
+}
+
+function BroadcastStartingRoundCountdown(int T)
+{
+    BroadcastAnnouncement("Next round in " $ T);
 }
 
 function BroadcastPostRound()
 {
-    BroadcastMessage("The round has ended");
+    //BroadcastAnnouncement("The round has ended");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -163,7 +178,7 @@ state StartingRound
         TimeRemaining = StartingRoundDuration - TimerLocalRound;
         
         if(TimeRemaining <= StartingCountdownBegin)
-            BroadcastStartingCountdown(TimeRemaining);
+            BroadcastStartingRoundCountdown(TimeRemaining);
         
         if(TimeRemaining <= 0)
             GotoStateLive();
@@ -186,7 +201,7 @@ state Live
             if(vmodRunePlayer(P) != None)
                 vmodRunePlayer(P).NotifyGameLive();
         
-        TimeLimitRound = 10; // TODO: Temporary
+        //TimeLimitRound = 10; // TODO: Temporary
         BroadcastGameIsLive();
     }
     

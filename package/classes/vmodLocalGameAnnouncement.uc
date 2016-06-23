@@ -1,0 +1,35 @@
+////////////////////////////////////////////////////////////////////////////////
+//  vmodLocalGameAnnouncement
+////////////////////////////////////////////////////////////////////////////////
+class vmodLocalGameAnnouncement extends vmodLocalMessage;
+
+////////////////////////////////////////////////////////////////////////////////
+//  GetColor
+////////////////////////////////////////////////////////////////////////////////
+static function color GetColor(
+	optional int Switch,
+	optional PlayerReplicationInfo RelatedPRI_1, 
+	optional PlayerReplicationInfo RelatedPRI_2
+	)
+{
+    local color MessageColor;
+    
+    MessageColor.R = 255;
+    MessageColor.G = 255;
+    MessageColor.B = 255;
+    
+    return MessageColor;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+defaultproperties
+{
+    CharactersPerSecond=5.000000
+    bIsUnique=True
+    bIsConsoleMessage=True
+    bFadeMessage=True
+    LifeTime=5
+    bFromBottom=False
+    YPos=220.000000
+    bCenter=True
+}

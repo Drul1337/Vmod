@@ -25,7 +25,9 @@ replication
         VcmdUnready,
         VcmdEndGame,
         VcmdClearInventory,
-        VcmdGiveWeapon;
+        VcmdGiveWeapon,
+        VcmdSpectate,
+        VcmdPlay;
 }
 
 function bool ReadyToGoLive()
@@ -112,7 +114,18 @@ exec final function VcmdGiveWeapon(class<Weapon> WeaponClass)
         vmodGameInfo(Level.Game).GivePlayerWeapon(self, WeaponClass);
 }
 
+exec final function VcmdSpectate()
+{
+    GotoState('PlayerSpectating');
+}
+
+exec final function VcmdPlay()
+{
+    GotoState('PlayerWalking');
+}
+
 defaultproperties
 {
     bReadyToGoLive=false
+    PlayerReplicationInfoClass=Class'Vmod.vmodPlayerReplicationInfo'
 }

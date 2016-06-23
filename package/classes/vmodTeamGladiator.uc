@@ -31,6 +31,41 @@ function ClearLevelItems()
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//  STATE: PreRound
+//
+//  The game already begun, waiting for the next round to start.
+////////////////////////////////////////////////////////////////////////////////
+state PreRound
+{
+    function BeginState()
+    {
+        local Pawn P;
+        
+        ResetTimerLocalRound();
+        NativeLevelCleanup();
+        RestartAllPlayers();
+        BroadcastPreRound();
+        RoundNumber++;
+        
+        // Notify all players about PreRound and randomize their inventories
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            if(vmodRunePlayer(P) != None)
+            {
+                ClearPlayerInventory(P);
+                GivePlayerWeapon(P, class'RuneI.VikingShortSword');
+                GivePlayerWeapon(P, class'RuneI.VikingAxe');
+                GivePlayerWeapon(P, class'RuneI.DwarfBattleSword');
+                vmodRunePlayer(P).NotifyGamePreRound();
+            }
+        }
+        
+        // TODO: For now, just go right into starting round
+        GotoStateStartingRound();
+    }
+}
+
 defaultproperties
 {
      bChangeLevels=True

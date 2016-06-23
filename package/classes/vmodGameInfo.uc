@@ -86,15 +86,11 @@ function PostBeginPlay()
 ////////////////////////////////////////////////////////////////////////////////
 event InitGame( string Options, out string Error )
 {
-	local String InOpt;
-
 	Super.InitGame(Options, Error);
 
     // TODO: These options are not working
-    //ScoreLimit = GetIntOption( Options, "FragLimit", ScoreLimit );
-	//TimeLimit = GetIntOption( Options, "TimeLimit", TimeLimit );
-    ScoreLimit = 20;
-    TimeLimit = 1200;
+    ScoreLimit = GetIntOption( Options, "scorelimit", ScoreLimit );
+	TimeLimit = 60 * GetIntOption( Options, "timelimit", TimeLimit );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -206,6 +202,23 @@ function bool RestartAllPlayers()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  SetPlayerReadyToGoLive
+////////////////////////////////////////////////////////////////////////////////
+function SetPlayerReadyToGoLive(Pawn P, bool Ready)
+{
+    if(vmodRunePlayer(P) == None)
+        return;
+    vmodRunePlayer(P).SetReadyToGoLive(Ready);
+}
+
+function SetAllPlayersReadyToGoLive(bool Ready)
+{
+    local Pawn P;
+    for(P = Level.PawnList; P != None; P = P.nextPawn)
+        SetPlayerReadyToGoLive(P, Ready);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  ClearPlayerInventory
 //
 //  Strip a player of their entire inventory.
@@ -228,26 +241,34 @@ function ClearPlayerInventory(Pawn P)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  GivePlayerInventory
+//  GivePlayerWeapon
 //
-//  Give an inventory item to a player.
+//  Give a weapon to a player.
 ////////////////////////////////////////////////////////////////////////////////
 function GivePlayerWeapon(Pawn P, class<Weapon> WeaponClass)
 {
     local Weapon W;
+    local Inventory Inv;
+    
+    for(Inv = P.Inventory; Inv != None; Inv = Inv.Inventory)
+        if(Inv.Class == WeaponClass)
+            return;
     
     W = Spawn(WeaponClass);
     if(W == None)
         return;
     
+    if(P.Weapon != None)
+        if(vmodRunePlayer(P) != None)
+            vmodRunePlayer(P).StowWeapon(P.Weapon);
+    
     W.bTossedOut = true;
     W.Instigator = P;
     W.BecomeItem();
+    W.GotoState('Active');
     P.AddInventory(W);
     P.AcquireInventory(W);
-    
-    if(vmodRunePlayer(P) != None)
-        vmodRunePlayer(P).StowWeapon(W);
+    P.Weapon = W;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -395,39 +416,44 @@ function ResetTimerLocal()
 //
 //  TODO: Implement these all as localized messages and incorporate some sounds
 ////////////////////////////////////////////////////////////////////////////////
+final function BroadcastAnnouncement(coerce String Message)
+{
+    BroadcastMessage(Message,,'vmodGameAnnouncement');
+}
+
 function BroadcastPreGame()
 {
-    BroadcastMessage("Entered PreGame");
+    BroadcastAnnouncement("PreGame");
 }
 
 function BroadcastPlayerReadyToGoLive(Pawn P)
 {
-    BroadcastMessage(P.PlayerReplicationInfo.PlayerName $ " is ready");
+    BroadcastAnnouncement(P.PlayerReplicationInfo.PlayerName $ " is ready");
 }
 
 function BroadcastPlayerNotReadyToGoLive(Pawn P)
 {
-    BroadcastMessage(P.PlayerReplicationInfo.PlayerName $ " is not ready");
+    BroadcastAnnouncement(P.PlayerReplicationInfo.PlayerName $ " is not ready");
 }
 
 function BroadcastGameIsStarting()
 {
-    BroadcastMessage("Game is starting!");
+    BroadcastAnnouncement("Game is starting!");
 }
 
 function BroadcastStartingCountdown(int T)
 {
-    BroadcastMessage("Starting in " $ T);
+    BroadcastAnnouncement("Starting in " $ T);
 }
 
 function BroadcastGameIsLive()
 {
-    BroadcastLocalizedMessage(class'vmodMessageGameLive');
+    BroadcastAnnouncement("Game is live!");
 }
 
 function BroadcastPostGame()
 {
-    BroadcastMessage("Game has ended");
+    BroadcastAnnouncement("Game has ended");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -443,8 +469,13 @@ auto state PreGame
         
         // Notify all players about PreGame
         for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
             if(vmodRunePlayer(P) != None)
+            {
                 vmodRunePlayer(P).NotifyGamePreGame();
+                SetPlayerReadyToGoLive(P, false);
+            }
+        }
         
         ResetTimerLocal();
         BroadcastPreGame();
@@ -539,7 +570,7 @@ state Live
             if(vmodRunePlayer(P) != None)
                 vmodRunePlayer(P).NotifyGameLive();
         
-        TimeLimit = 20; // TODO: Temporary
+        //TimeLimit = 20; // TODO: Temporary
         
         NativeLevelCleanup();
         RestartAllPlayers();
