@@ -1,7 +1,7 @@
 //=============================================================================
-// vmodRuneMultiPlayer
+// vmodTeamDeathMatch
 //=============================================================================
-class vmodRuneMultiPlayer extends vmodRuneGameInfo;
+class vmodTeamDeathMatch extends vmodGameInfo;
 
 var() globalconfig int	FragLimit;
 var() globalconfig int	TimeLimit; // time limit in minutes
@@ -14,13 +14,6 @@ var bool	bDontRestart;
 var bool	bAlreadyChanged;
 var bool	bFirstBlood;
 var int		RemainingTime;
-
-// Bot related info
-//var   int			NumBots;
-//var	int			RemainingBots;
-//var() globalconfig int	InitialBots;
-//var		BotInfo		BotConfig;
-//var class<BotInfo> BotConfigType;
 
 var localized string GlobalNameChange;
 var localized string NoNameChange;
@@ -46,7 +39,6 @@ var NavigationPoint LastStartSpot;
 
 var bool bLevelHasTeamOnly;			//Keeps track of if level has team-only PlayerStarts
 
-
 function PostBeginPlay()
 {
 	local string NextPlayerClass;
@@ -58,8 +50,6 @@ function PostBeginPlay()
 //	if ( (Level.NetMode == NM_Standalone) || bMultiPlayerBots )
 //		RemainingBots = InitialBots;
 	Super.PostBeginPlay();
-
-	GameReplicationInfo.RemainingTime = RemainingTime;
 
 	//Addition to allow TEAM-based maps to also be used correctly in regular DM
 	for(N = Level.NavigationPointList; N != None; N = N.nextNavigationPoint)
@@ -774,5 +764,5 @@ defaultproperties
      MapListType=Class'RuneI.DMmaplist'
      MapPrefix="DM"
      BeaconName="DM"
-     GameName="Vmod Deathmatch"
+     GameName="[Vmod] Team Death Match"
 }

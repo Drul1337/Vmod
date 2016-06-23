@@ -20,12 +20,12 @@ const JOINT_ATTACH_BACK_RIGHT   = 'attach_axe';
 const JOINT_ATTACH_HIP_LEFT     = 'attach_hammer';
 const JOINT_ATTACH_HIP_RIGHT    = 'attach_sword';
 
-// Weapon classifications for RunePlayer
-const WC_UNCLASSIFIED   = -1;   // Unknown / unclassified weapon
-const WC_PRIMARY_TWOH   = 0;    // Two handed primary weapon
-const WC_PRIMARY_ONEH   = 1;    // One handed primary (shield / dual wield capable)
-const WC_SECONDARY      = 2;    // Secondary weapon
-const WC_THROWER        = 3;    // Small scale throwing weapon
+// Weapon grades
+const WG_NONE                   = 0;    // No grade
+const WG_PRIMARY_TWOH           = 1;    // Two handed primary weapon
+const WG_PRIMARY_ONEH           = 2;    // One handed primary weapon
+const WG_SECONDARY              = 3;    // Secondary weapon
+const WG_THROWER                = 4;    // Small throwing weapons
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -147,27 +147,96 @@ function PlayTakeHit(
 //function PlayLanded(float impactVelocity) {}
 //function PlaySwimming() {}
 
+////////////////////////////////////////////////////////////////////////////////
+//  GetWeaponGrade
+//
+//  Get the grade associated with a weapon.
+////////////////////////////////////////////////////////////////////////////////
+function int GetWeaponGrade(Weapon weaponItem)
+{
+    // Axes
+    if(weaponItem.IsA('Handaxe'))               return WG_THROWER;
+    else if(weaponItem.IsA('GoblinAxe'))        return WG_SECONDARY;
+    else if(weaponItem.IsA('VikingAxe'))        return WG_PRIMARY_ONEH;
+    else if(weaponItem.IsA('SigurdAxe'))        return WG_PRIMARY_TWOH;
+    else if(weaponItem.IsA('DwarfBattleAxe'))   return WG_PRIMARY_TWOH;
+    // Swords
+    else if(weaponItem.IsA('VikingShortSword')) return WG_THROWER;
+    else if(weaponItem.IsA('RomanSword'))       return WG_SECONDARY;
+    else if(weaponItem.IsA('VikingBroadSword')) return WG_PRIMARY_ONEH;
+    else if(weaponItem.IsA('DwarfWorkSword'))   return WG_PRIMARY_TWOH;
+    else if(weaponItem.IsA('DwarfBattleSword')) return WG_PRIMARY_TWOH;
+    // Maces
+    else if(weaponItem.IsA('RustyMace'))        return WG_THROWER;
+    else if(weaponItem.IsA('BoneClub'))         return WG_SECONDARY;
+    else if(weaponItem.IsA('TrialPitMace'))     return WG_PRIMARY_ONEH;
+    else if(weaponItem.IsA('DwarfWorkHammer'))  return WG_PRIMARY_TWOH;
+    else if(weaponItem.IsA('DwarfBattleHammer'))return WG_PRIMARY_TWOH;
+    
+    // Unknown weapon
+    return WG_NONE;
+}
 
+////////////////////////////////////////////////////////////////////////////////
+//  GetWeaponGradeCount
+//
+//  Count how many weapons of the specified grade this Pawn has in inventory.
+////////////////////////////////////////////////////////////////////////////////
+function int GetWeaponGradeCount(int grade)
+{
+    local int gradeCount;
+    local Actor inv;
+    
+    gradeCount = 0;
+    for(inv = Inventory; inv != None; inv = inv.Inventory)
+        if(inv.IsA('Weapon'))
+            if(GetWeaponGrade(Weapon(inv)) == grade)
+                gradeCount = gradeCount + 1;
+    
+    return gradeCount;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  CanPickUp inventory handlers
 ////////////////////////////////////////////////////////////////////////////////
 function bool CanPickUpWeapon(Weapon weaponItem)
 {
-    local Actor link;
-    local int c;
+    local int grade;
+    local int gradeCount;
     
-    c = GetWeaponClassification(weaponItem);
-    if(c == WC_UNCLASSIFIED)
-        return false;
+    grade = GetWeaponGrade(weaponItem);
+    gradeCount = GetWeaponGradeCount(grade);
     
-    // If we already have a weapon of this size, then we cannot pick up
-    for(link = Self; link != None; link = link.Inventory)
-        if(link.Inventory.IsA('Weapon'))
-            if(GetWeaponClassification(Weapon(link.Inventory)) == c)
+    switch(grade)
+    {
+        case WG_NONE:
+            return false;
+            break;
+        
+        case WG_SECONDARY:
+            if(gradeCount > 0)
                 return false;
+            return true;
+            break;
+        
+        case WG_PRIMARY_ONEH:
+            if(gradeCount > 1)
+                return false;
+            if(GetWeaponGradeCount(WG_PRIMARY_TWOH) > 0)
+                return false;
+            return true;
+            break;
+        
+        case WG_PRIMARY_TWOH:
+            if(gradeCount > 0)
+                return false;
+            if(GetWeaponGradeCount(WG_PRIMARY_ONEH) > 0)
+                return false;
+            return true;
+            break;
+    }
     
-    return true;
+    return false;
 }
 
 function bool CanPickUpShield(Shield shieldItem)
@@ -422,32 +491,29 @@ exec function PleaseDropShield()
     DropShield();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//  AcquireWeapon
+//
+//  AcquireInventory sub-handler
+////////////////////////////////////////////////////////////////////////////////
+function AcquireWeapon(Weapon weaponItem)
+{
+    // Stow current weapon
+    if(Weapon != None)
+        StowWeapon();
+    Super.AcquireWeapon(weaponItem);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
-//  GetWeaponClassification
+//  AcquireShield
+//
+//  AcquireInventory sub-handler
 ////////////////////////////////////////////////////////////////////////////////
-function int GetWeaponClassification(Weapon weaponItem)
+function AcquireShield(Shield shieldItem)
 {
-    // Axes
-    if      (weaponItem.IsA('Handaxe'))             return WC_THROWER;
-    else if (weaponItem.IsA('GoblinAxe'))           return WC_SECONDARY;
-    else if (weaponItem.IsA('VikingAxe'))           return WC_PRIMARY_ONEH;
-    else if (weaponItem.IsA('SigurdAxe'))           return WC_PRIMARY_TWOH;
-    else if (weaponItem.IsA('DwarfBattleAxe'))      return WC_PRIMARY_TWOH;
-    // Swords
-    else if (weaponItem.IsA('VikingShortSword'))    return WC_THROWER;
-    else if (weaponItem.IsA('RomanSword'))          return WC_SECONDARY;
-    else if (weaponItem.IsA('VikingBroadSword'))    return WC_PRIMARY_ONEH;
-    else if (weaponItem.IsA('DwarfWorkSword'))      return WC_PRIMARY_TWOH;
-    else if (weaponItem.IsA('DwarfBattleSword'))    return WC_PRIMARY_TWOH;
-    // Maces
-    else if (weaponItem.IsA('RustyMace'))           return WC_THROWER;
-    else if (weaponItem.IsA('BoneClub'))            return WC_SECONDARY;
-    else if (weaponItem.IsA('TrialPitMace'))        return WC_PRIMARY_ONEH;
-    else if (weaponItem.IsA('DwarfWorkHammer'))     return WC_PRIMARY_TWOH;
-    else if (weaponItem.IsA('DwarfBattleHammer'))   return WC_PRIMARY_TWOH;
-    
-    return WC_UNCLASSIFIED;
+    // Drop current shield
+    DropShield();
+    Super.AcquireShield(shieldItem);
 }
 
 

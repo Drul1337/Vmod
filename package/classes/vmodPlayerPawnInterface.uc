@@ -75,6 +75,7 @@ exec final function VcmdCauseEvent(name n)      { VcmdHandleCauseEvent(n); }
 exec final function VcmdBanPlayerName(string n)     { VcmdHandleBanPlayerName(n); }
 exec final function VcmdEnableCheats(optional int id){ VcmdHandleEnableCheats(id); }
 exec final function VcmdKickPlayerName(string n)    { VcmdHandleKickPlayerName(n); }
+exec final function VcmdResetGame()                 { VcmdHandleResetGame(); }
 exec final function VcmdSwitchLevel(string url)     { VcmdHandleSwitchLevel(url); }
 
 
