@@ -77,8 +77,6 @@ state PreGame
     function BeginState()
     {
         Super.BeginState();
-        
-        RoundLimit = 5;
         RoundNumber = 0;
     }
 }
@@ -90,6 +88,40 @@ state PreGame
 ////////////////////////////////////////////////////////////////////////////////
 state Starting
 {
+    function BeginState()
+    {
+        local Pawn P;
+        
+        ResetTimerLocal();
+        
+        // Perform actions on all players
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            if(vmodRunePlayer(P) == None)
+                continue;
+            
+            vmodRunePlayer(P).NotifyGameStarting();
+        }
+        
+        BroadcastGameIsStarting();
+    }
+    
+    function EndState()
+    {
+        local Pawn P;
+        
+        ResetTimerLocal();
+        
+        // Perform actions on all players
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            if(vmodRunePlayer(P) == None)
+                continue;
+            
+            ResetPlayerStatistics(P);
+        }
+    }
+    
     ////////////////////////////////////////////////////////////////////////////
     //  PreGame: Timer
     //
@@ -122,19 +154,38 @@ state PreRound
     {
         local Pawn P;
         
+        ResetTimerLocalRound();
+        
         // Notify all players about PreRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
-            if(vmodRunePlayer(P) != None)
-                vmodRunePlayer(P).NotifyGamePreRound();
+        {
+            if(vmodRunePlayer(P) == None)
+                continue;
+            
+            vmodRunePlayer(P).NotifyGamePreRound();
+        }
         
-        ResetTimerLocalRound();
-        NativeLevelCleanup();
-        RestartAllPlayers();
         BroadcastPreRound();
         RoundNumber++;
         
-        // TODO: For now, just go right into starting round
         GotoStateStartingRound();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  PreRound: ReduceDamage
+    //
+    //  Pawns are invulnerable during PreRound
+    ////////////////////////////////////////////////////////////////////////////
+    function ReduceDamage(
+        out int BluntDamage,
+        out int SeverDamage,
+        name DamageType,
+        pawn injured,
+        pawn instigatedBy)
+    {
+        BluntDamage = 0;
+        SeverDamage = 0;
+        DamageType = 'None';
     }
 }
 
@@ -149,12 +200,19 @@ state StartingRound
     {
         local Pawn P;
         
+        ResetTimerLocalRound();
+        NativeLevelCleanup();
+        
         // Notify all players about StartingRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
-            if(vmodRunePlayer(P) != None)
-                vmodRunePlayer(P).NotifyGameStartingRound();
+        {
+            if(vmodRunePlayer(P) == None)
+                continue;
+            
+            RestartPlayer(P);
+            vmodRunePlayer(P).NotifyGameStartingRound();
+        }
         
-        ResetTimerLocalRound();
         BroadcastStartingRound();
     }
     
@@ -164,7 +222,7 @@ state StartingRound
     }
     
     ////////////////////////////////////////////////////////////////////////////
-    //  PreGame: Timer
+    //  StartingRound: Timer
     //
     //  Count down to the next Live Round
     ////////////////////////////////////////////////////////////////////////////
@@ -182,6 +240,23 @@ state StartingRound
         
         if(TimeRemaining <= 0)
             GotoStateLive();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  StartingRound: ReduceDamage
+    //
+    //  Pawns are invulnerable during StartingRound
+    ////////////////////////////////////////////////////////////////////////////
+    function ReduceDamage(
+        out int BluntDamage,
+        out int SeverDamage,
+        name DamageType,
+        pawn injured,
+        pawn instigatedBy)
+    {
+        BluntDamage = 0;
+        SeverDamage = 0;
+        DamageType = 'None';
     }
 }
 
@@ -201,7 +276,6 @@ state Live
             if(vmodRunePlayer(P) != None)
                 vmodRunePlayer(P).NotifyGameLive();
         
-        //TimeLimitRound = 10; // TODO: Temporary
         BroadcastGameIsLive();
     }
     
@@ -218,10 +292,10 @@ state Live
         TimerLocalRound++;
         
         // Check if time limit has been reached
-        if(TimeLimit > 0)
+        if(TimeLimitRound > 0)
         {
             TimeRemaining = TimeLimitRound - TimerLocalRound;
-            GameReplicationInfo.RemainingTime = TimeRemaining;
+            vmodGameReplicationInfo(GameReplicationInfo).GameTimer = TimeRemaining;
             if(TimeRemaining <= 0)
             {
                 GotoStatePostRound();
@@ -270,6 +344,23 @@ state PostRound
             }
         }
         GotoStatePreRound();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  StartingRound: PostRound
+    //
+    //  Pawns are invulnerable during PostRound
+    ////////////////////////////////////////////////////////////////////////////
+    function ReduceDamage(
+        out int BluntDamage,
+        out int SeverDamage,
+        name DamageType,
+        pawn injured,
+        pawn instigatedBy)
+    {
+        BluntDamage = 0;
+        SeverDamage = 0;
+        DamageType = 'None';
     }
 }
 

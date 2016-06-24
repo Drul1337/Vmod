@@ -17,6 +17,37 @@ simulated function Tick(float DT)
 simulated function PostRender(Canvas C)
 {
     Super.PostRender(C);
+    
+    DrawRemainingTime(C, 0, 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DrawRemainingTime
+////////////////////////////////////////////////////////////////////////////////
+simulated function DrawRemainingTime(canvas Canvas, int x, int y)
+{
+	local int timeleft;
+	local int Hours, Minutes, Seconds;
+
+	if (PlayerPawn(Owner)==None || PlayerPawn(Owner).GameReplicationInfo==None)
+		return;
+
+	timeleft = vmodGameReplicationInfo(PlayerPawn(Owner).GameReplicationInfo).GameTimer;
+	Hours   = timeleft / 3600;
+	Minutes = timeleft / 60;
+	Seconds = timeleft % 60;
+	//FONT ALTER
+	//Canvas.Font = Canvas.LargeFont;
+	if(MyFonts != None)
+		Canvas.Font = MyFonts.GetStaticLargeFont();
+	else
+		Canvas.Font = Canvas.LargeFont;
+
+	Canvas.SetPos(x, y);
+	if (timeleft <= 30)
+		Canvas.SetColor(255,0,0);
+	Canvas.DrawText(TwoDigitString(Minutes)$":"$TwoDigitString(Seconds), true);
+	Canvas.SetColor(255,255,255);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

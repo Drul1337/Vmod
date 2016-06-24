@@ -36,12 +36,13 @@ function bool ReadyToGoLive()
 function SetReadyToGoLive(bool B)
 {
     bReadyToGoLive = B;
+    
     if(vmodGameInfo(Level.Game) != None)
     {
         if(B)
-            vmodGameInfo(Level.Game).PlayerReadyToGoLive(self);
+            B = vmodGameInfo(Level.Game).PlayerReadyToGoLive(self);
         else
-            vmodGameInfo(Level.Game).PlayerNotReadyToGoLive(self);
+            B = vmodGameInfo(Level.Game).PlayerNotReadyToGoLive(self);
     }
 }
 

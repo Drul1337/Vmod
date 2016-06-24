@@ -32,11 +32,11 @@ function ClearLevelItems()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  STATE: PreRound
+//  STATE: StartingRound
 //
-//  The game already begun, waiting for the next round to start.
+//  The game already begun, and the next round is about to begin.
 ////////////////////////////////////////////////////////////////////////////////
-state PreRound
+state StartingRound
 {
     function BeginState()
     {
@@ -44,25 +44,67 @@ state PreRound
         
         ResetTimerLocalRound();
         NativeLevelCleanup();
-        RestartAllPlayers();
-        BroadcastPreRound();
-        RoundNumber++;
         
-        // Notify all players about PreRound and randomize their inventories
+        // Notify all players about StartingRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            if(vmodRunePlayer(P) != None)
-            {
-                ClearPlayerInventory(P);
-                GivePlayerWeapon(P, class'RuneI.VikingShortSword');
-                GivePlayerWeapon(P, class'RuneI.VikingAxe');
-                GivePlayerWeapon(P, class'RuneI.DwarfBattleSword');
-                vmodRunePlayer(P).NotifyGamePreRound();
-            }
+            if(vmodRunePlayer(P) == None)
+                continue;
+            
+            RestartPlayer(P);
+            ClearPlayerInventory(P);
+            GivePlayerWeapon(P, class'RuneI.VikingShortSword');
+            GivePlayerWeapon(P, class'RuneI.VikingAxe');
+            GivePlayerWeapon(P, class'RuneI.DwarfBattleSword');
+            vmodRunePlayer(P).NotifyGameStartingRound();
         }
         
-        // TODO: For now, just go right into starting round
-        GotoStateStartingRound();
+        BroadcastStartingRound();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  STATE: Live
+//
+//  In round-based play, "Live" means that the current round is in live action.
+////////////////////////////////////////////////////////////////////////////////
+state Live
+{
+    ////////////////////////////////////////////////////////////////////////////
+    //  Killed
+    //
+    //  PKiller has just killed PDead.
+    ////////////////////////////////////////////////////////////////////////////
+    function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
+    {
+        local Pawn P;
+        local int PlayersAliveCount;
+        
+        if(vmodRunePlayer(PDead) != None)
+        {
+            Super.Killed(PKiller, PDead, DamageType);
+            
+            vmodRunePlayer(PDead).bCanRestart = false;
+            // TODO: Go spectator mode here
+            
+            // Round end condition
+            PlayersAliveCount = 0;
+            for(P = Level.PawnList; P != None; P = P.NextPawn)
+            {
+                if(vmodRunePlayer(P) == None)
+                    continue;
+                
+                if(vmodRunePlayer(P).Health > 0)
+                {
+                    PlayersAliveCount++;
+                    if(PlayersAliveCount >= 2)
+                        break;
+                }
+            }
+            if(PlayersAliveCount == 1)
+                GotoStatePostRound();
+            
+        }
     }
 }
 
@@ -102,7 +144,6 @@ defaultproperties
      bPauseable=False
      bDeathMatch=True
      DefaultWeapon=Class'RuneI.Handaxe'
-     ScoreBoardType=Class'RuneI.RuneScoreboard'
      RulesMenuType="RMenu.RuneMenuRulesScrollClient"
      SettingsMenuType="RMenu.RuneMenuSettingsScrollClient"
      MutatorMenuType="RMenu.RuneMenuMutatorScrollClient"
