@@ -4,10 +4,16 @@
 // class vmodHUD extends HUD;
 class vmodHUD extends RuneHUD;
 
+var color RedColor;
+var color BlueColor;
+var color GreenColor;
+var color GoldColor;
+
 struct vmodHUDLocalizedMessage_s
 {
     var Class<LocalMessage>     MessageClass;
     var String                  MessageString;
+    var String                  MessageStringAdditional;
 	var PlayerReplicationInfo   PRI1;
     var PlayerReplicationInfo   PRI2;
     var float                   LifeStart;
@@ -125,6 +131,7 @@ simulated function DrawMessageQueue(Canvas C)
     local float lenX, lenY;
     local int i, j;
     local float T;
+    local int MessageCount;
     
     if(MessageQueue[MessageQueueFront].LifeEnd <= Level.TimeSeconds)
         return;
@@ -138,29 +145,46 @@ simulated function DrawMessageQueue(Canvas C)
     C.Style = ERenderStyle.STY_Translucent;
     C.bCenter = false;
     
-    for(i = 0; i < 6; i++)
+    // TODO: Clean this up
+    // Determine how many messages will be drawn
+    MessageCount = 0;
+    while(MessageCount < 12)
+    {
+        i = (MessageQueueFront - MessageCount);
+        if(i < 0)
+            i += MESSAGE_QUEUE_SIZE;
+        if(Level.TimeSeconds >= MessageQueue[i].LifeEnd)
+            break;
+        MessageCount++;
+    }
+    
+    for(i = 0; i < MessageCount; i++)
     {
         j = MessageQueueFront - i;
         if(j < 0)
             j += MESSAGE_QUEUE_SIZE;
         
-        // Reached the back of the queue
-        if(Level.TimeSeconds >= MessageQueue[j].LifeEnd)
-            break;
-        
         T = GetMessageFadeInterpolation(MessageQueue[j]);
-        C.DrawColor = WhiteColor * T;
+        //C.DrawColor = WhiteColor * T;
         
-        C.SetPos(C.ClipX * 0.075, C.ClipY * 0.985 - 32 - (i * 16));
+        //C.SetPos(C.ClipX * 0.075, C.ClipY * 0.985 - 32 - (i * 16));
+        //C.SetPos(C.ClipX * 0.01, C.ClipY * 0.01 + ((MessageCount - i) * 16));
         
         switch(MessageQueue[j].MessageClass)
         {
             case Class'RuneI.SayMessage':
                 if(MessageQueue[j].PRI1 != None)
                 {
-                    C.SetPos(C.ClipX * 0.075, C.ClipY * 0.985 - 32 - (i * 16));
-                    C.DrawText(MessageQueue[j].PRI1.PlayerName);
-                    C.SetPos(C.ClipX * 0.075 + 128, C.ClipY * 0.985 - 32 - (i * 16));
+                    // Player Name
+                    //C.SetPos(C.ClipX * 0.075, C.ClipY * 0.985 - 32 - (i * 16));
+                    C.DrawColor = MessageQueue[j].MessageColor * T;
+                    C.SetPos(C.ClipX * 0.01, C.ClipY * 0.01 + ((MessageCount - i) * 16));
+                    C.DrawText(MessageQueue[j].MessageStringAdditional);
+                    
+                    // Player Message
+                    //C.SetPos(C.ClipX * 0.075 + 128, C.ClipY * 0.985 - 32 - (i * 16));
+                    C.DrawColor = WhiteColor * T;
+                    C.SetPos(C.ClipX * 0.01 + 128, C.ClipY * 0.01 + ((MessageCount - i) * 16));
                     C.DrawText(MessageQueue[j].MessageString, false);
                 }
                 else
@@ -282,7 +306,18 @@ simulated function MangleMessagePlayerReady(out vmodHUDLocalizedMessage_s M)
 {}
 
 simulated function MangleMessageSay(out vmodHUDLocalizedMessage_s M)
-{}
+{
+    // TODO: Clean up
+    M.MessageStringAdditional = M.PRI1.PlayerName;
+    switch(M.PRI1.Team)
+    {
+        case 0: M.MessageColor = RedColor; return;
+        case 1: M.MessageColor = BlueColor; return;
+        case 2: M.MessageColor = GreenColor; return;
+        case 3: M.MessageColor = GoldColor; return;
+    }
+    M.MessageColor = WhiteColor;
+}
 
 simulated function MangleMessageGameNotificationPersistent(out vmodHUDLocalizedMessage_s M)
 {
@@ -416,6 +451,10 @@ simulated function Class<LocalMessage> DetermineClass(name MsgType)
 defaultproperties
 {
     WhiteColor=(R=255,G=255,b=255)
+    RedColor=(R=255,G=0,B=0)
+    BlueColor=(R=0,G=0,B=255)
+    GreenColor=(R=0,G=255,B=0)
+    GoldColor=(R=255,G=255,B=0)
     MessageLifeTime=2.0
     MessageGlowRate=0.5
     MessageQueueLifeTime=8.0
