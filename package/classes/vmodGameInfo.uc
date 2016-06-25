@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 // vmodGameInfo
 ////////////////////////////////////////////////////////////////////////////////
-//class vmodGameInfo extends GameInfo abstract;
-class vmodGameInfo extends RuneGameInfo;
+class vmodGameInfo extends GameInfo abstract;
+//class vmodGameInfo extends RuneGameInfo;
 
 var() globalconfig int  StartingDuration;
 var() globalconfig int  StartingCountdownBegin;
@@ -24,6 +24,7 @@ var() globalconfig String MessageNotEnoughPlayersToStart;
 var int TimerBroad; // Time since the server switched to this game
 var int TimerLocal; // Local time used between states
 
+var private bool bScoreTracking;
 var private bool bPawnsTakeDamage;
 
 var string EndGameReason;
@@ -84,7 +85,7 @@ function PreBeginPlay()
 
 function InitGameReplicationInfo()
 {
-    vmodGameReplicationInfo(GameReplicationInfo).GameTimer = 0;
+    GRISetGameTimer(0);
     
     Super.InitGameReplicationInfo();
 }
@@ -382,7 +383,7 @@ function bool EnoughPlayersReadyToGoLive()
     {
         if(vmodRunePlayer(P) != None && P.bIsPlayer)
         {
-            if(vmodRunePlayer(P).ReadyToGoLive())
+            if(PlayerIsReadyToGoLive(P))
                 ReadyCount++;
             else
                 UnreadyCount++;
@@ -393,6 +394,13 @@ function bool EnoughPlayersReadyToGoLive()
     if(ReadyCount >= UnreadyCount)
         return true;
     return false;
+}
+
+function bool PlayerIsReadyToGoLive(Pawn P)
+{
+    if(vmodRunePlayer(P) == None)
+        return false;
+    return vmodRunePlayer(P).ReadyToGoLive();;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -691,16 +699,6 @@ function NavigationPoint FindPlayerStart(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  Killed
-//
-//  PKiller has just killed PDead.
-////////////////////////////////////////////////////////////////////////////////
-function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
-{
-    Super.Killed(PKiller, PDead, DamageType);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 //  NativeLevelCleanup
 //
 //  Reset the level to its original state when loaded.
@@ -747,6 +745,29 @@ function ResetTimerLocal()
 {
     TimerLocal = 0;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//  Killed
+//
+//  PKiller has just killed PDead. Need to check for frag related end game
+//  conditions.
+////////////////////////////////////////////////////////////////////////////////
+function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
+{
+    // TODO: Super.Killed calls ScoreKill
+    // Will need to handle kill messages and everything between these two
+    Super.Killed(PKiller, PDead, DamageType);
+}
+
+function ScoreKill(Pawn PKiller, Pawn PDead)
+{
+    if(bScoreTracking)
+        Super.ScoreKill(PKiller, PDead);
+    else
+        return;
+}
+function GameEnableScoreTracking()  { bScoreTracking = true; }
+function GameDisableScoreTracking() { bScoreTracking = false; }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  ReduceDamage
@@ -848,6 +869,16 @@ function Class<LocalMessage> GetMessageTypeClassPlayerReady()
 { return GetMessageTypeClass('PlayerReady'); }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  GameReplicationInfo update functions
+////////////////////////////////////////////////////////////////////////////////
+function GRISetGameTimer(int t)
+{
+    if(t < 0)
+        t = 0;
+    vmodGameReplicationInfo(GameReplicationInfo).GameTimer = t;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  PlayerGameStateNotification
 //
 //  This function acts as an event dispatcher for all players. When the game
@@ -869,6 +900,7 @@ auto state PreGame
     {
         local Pawn P;
         
+        GameDisableScoreTracking();
         GameEnablePawnDamage();
         ResetTimerLocal();
         
@@ -882,7 +914,7 @@ auto state PreGame
             PlayerGameStateNotification(P);
         }
         
-        vmodGameReplicationInfo(GameReplicationInfo).GameTimer = 0;
+        GRISetGameTimer(0);
     }
     
     function EndState()
@@ -933,6 +965,13 @@ auto state PreGame
             return;
         }
         
+        // If the player is already ready, just return
+        if(PlayerIsReadyToGoLive(P))
+        {
+            // TODO: Optionally play a "waiting on other players" here
+            return;
+        }
+        
         // Notify the player that they are ready
         vmodRunePlayer(PReady).NotifyReadyToGoLive();
         
@@ -976,6 +1015,15 @@ auto state PreGame
     {
         local Pawn P;
         
+        // If the player is already not ready, just return
+        if(!PlayerIsReadyToGoLive(P))
+        {
+            return;
+        }
+        
+        // Notify the player that they are not ready
+        vmodRunePlayer(PUnready).NotifyNotReadyToGoLive();
+        
         // Send PlayerNotReady message to all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
@@ -1004,6 +1052,7 @@ state Starting
     {
         local Pawn P;
         
+        GameDisableScoreTracking();
         GameDisablePawnDamage();
         ResetTimerLocal();
         NativeLevelCleanup();
@@ -1082,6 +1131,7 @@ state Live
     {
         local Pawn P;
         
+        GameEnableScoreTracking();
         GameEnablePawnDamage();
         
         // Notify all players that the game is Live
@@ -1118,7 +1168,7 @@ state Live
         if(TimeLimit > 0)
         {
             TimeRemaining = TimeLimit - TimerLocal;
-            vmodGameReplicationInfo(GameReplicationInfo).GameTimer = TimeRemaining;
+            GRISetGameTimer(TimeRemaining);
             if(TimeRemaining <= 0)
             {
                 EndGameReason = "timelimit";
@@ -1126,6 +1176,31 @@ state Live
                 return;
             }
         }
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  Live: ScoreKill
+    //
+    //  Increment score and check if score limit has been reached.
+    //  TODO: When the global functions change, make sure this is updated as well
+    ////////////////////////////////////////////////////////////////////////////
+    function ScoreKill(Pawn PKiller, Pawn PDead)
+    {
+        if(bScoreTracking)
+        {
+            Global.ScoreKill(PKiller, PDead);
+            
+            if(ScoreLimit > 0)
+            {
+                if(PKiller.PlayerReplicationInfo.Score >= ScoreLimit)
+                {
+                    EndGameReason = "scorelimit";
+                    GotoStatePostGame();
+                }
+            }
+        }
+        else
+            return;
     }
 }
 
@@ -1161,6 +1236,7 @@ state PostGame
             WorldLog = None;
         }
         
+        GameDisableScoreTracking();
         GameDisablePawnDamage();
         
         // Tell all players that the game ended
@@ -1173,6 +1249,7 @@ state PostGame
             A.trigger(self, none);
         
         ResetTimerLocal();
+        GRISetGameTimer(0);
     }
     
     function PlayerGameStateNotification(Pawn P)
@@ -1253,7 +1330,6 @@ defaultproperties
     StartingCountdownBegin=5
     TimeLimit=1200
     ScoreLimit=20
-	GenericDiedMessage=" died."
     HUDType=Class'Vmod.vmodHUD'
     GameReplicationInfoClass=Class'Vmod.vmodGameReplicationInfo'
     
@@ -1266,6 +1342,7 @@ defaultproperties
     MessagePlayerReady="is ready"
     MessagePlayerNotReady="is not ready"
     MessageNotEnoughPlayersToStart="Waiting for more players"
-    bPawnsTakeDamage=false
-    MinimumPlayersRequiredForStart=1
+    bPawnsTakeDamage=true
+    bScoreTracking=true
+    MinimumPlayersRequiredForStart=2
 }

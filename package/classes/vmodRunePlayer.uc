@@ -23,7 +23,7 @@ replication
     reliable if ( Role < ROLE_Authority )
         VcmdGameReset,
         VcmdReady,
-        VcmdUnready,
+        VcmdNotReady,
         VcmdEndGame,
         VcmdClearInventory,
         VcmdGiveWeapon,
@@ -47,8 +47,8 @@ function SetReadyToGoLive(bool B)
 ///////////////////////////////////////////////////////////////////////////////
 function NotifyGamePreGame()
 {
-    //GotoState('PlayerWalking');
-    GotoState('PlayerSpectating');
+    GotoState('PlayerWalking');
+    //GotoState('PlayerSpectating');
 }
 
 function NotifyGameStarting()
@@ -97,7 +97,7 @@ exec final function VcmdReady()
     SetReadyToGoLive(true);
 }
 
-exec final function VcmdUnready()
+exec final function VcmdNotReady()
 {
     SetReadyToGoLive(false);
 }

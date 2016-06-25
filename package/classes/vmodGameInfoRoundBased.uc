@@ -115,6 +115,7 @@ state Starting
     {
         local Pawn P;
         
+        GameDisableScoreTracking();
         GameDisablePawnDamage();
         ResetTimerLocal();
         
@@ -172,6 +173,7 @@ state PreRound
     {
         local Pawn P;
         
+        GameDisableScoreTracking();
         GameDisablePawnDamage();
         ResetTimerLocalRound();
         
@@ -211,6 +213,7 @@ state StartingRound
     {
         local Pawn P;
         
+        GameDisableScoreTracking();
         GameDisablePawnDamage();
         ResetTimerLocalRound();
         NativeLevelCleanup();
@@ -286,6 +289,7 @@ state Live
     {
         local Pawn P;
         
+        GameEnableScoreTracking();
         GameEnablePawnDamage();
         
         // Notify all players that the round is Live
@@ -357,6 +361,7 @@ state PostRound
     {
         local Pawn P;
         
+        GameDisableScoreTracking();
         GameDisablePawnDamage();
         
         // Notify all players about PostRound

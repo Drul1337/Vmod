@@ -42,6 +42,7 @@ state StartingRound
     {
         local Pawn P;
         
+        GameDisableScoreTracking();
         GameDisablePawnDamage();
         ResetTimerLocalRound();
         NativeLevelCleanup();

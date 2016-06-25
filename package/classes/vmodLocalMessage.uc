@@ -39,7 +39,6 @@ static function string GetString(
 ////////////////////////////////////////////////////////////////////////////////
 defaultproperties
 {
-    CharactersPerSecond=5.000000
     bIsUnique=True
     bIsConsoleMessage=True
     bFadeMessage=False

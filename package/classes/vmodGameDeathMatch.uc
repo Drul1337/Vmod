@@ -9,4 +9,5 @@ defaultproperties
      MapPrefix="DM"
      BeaconName="DM"
      GameName="[Vmod] Death Match"
+     MinimumPlayersRequiredForStart=2
 }
