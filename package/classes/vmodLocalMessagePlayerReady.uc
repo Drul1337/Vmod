@@ -1,4 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////
-// vmodPlayerReplicationInfo
+//  vmodLocalMessagePlayerReady
 ////////////////////////////////////////////////////////////////////////////////
-class vmodPlayerReplicationInfo expands PlayerReplicationInfo;
+class vmodLocalMessagePlayerReady extends vmodLocalMessageGameNotification;
+
+defaultproperties
+{
+    LifeTime=2
+}

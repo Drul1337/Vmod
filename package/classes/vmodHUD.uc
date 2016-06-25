@@ -4,6 +4,31 @@
 // class vmodHUD extends HUD;
 class vmodHUD extends RuneHUD;
 
+struct vmodHUDLocalizedMessage_s
+{
+    var Class<LocalMessage>     MessageClass;
+    var String                  MessageString;
+	var PlayerReplicationInfo   PRI1;
+    var PlayerReplicationInfo   PRI2;
+    var float                   LifeStart;
+    var float                   LifeEnd;
+    var Color                   MessageColor;
+};
+
+var vmodHUDLocalizedMessage_s MessageGameNotification;
+var vmodHUDLocalizedMessage_s MessageGameNotificationPersistent;
+
+const MESSAGE_QUEUE_SIZE = 64;
+var vmodHUDLocalizedMessage_s MessageQueue[64];
+var private int MessageQueueFront;
+
+var float MessageLifeTime;
+var float MessageQueueLifeTime;
+var float MessageGlowRate;
+
+////////////////////////////////////////////////////////////////////////////////
+//  Tick
+////////////////////////////////////////////////////////////////////////////////
 simulated function Tick(float DT)
 {
     Super.Tick(DT);
@@ -22,6 +47,145 @@ simulated function PostRender(Canvas C)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  Interpolation functions
+////////////////////////////////////////////////////////////////////////////////
+simulated function float GetMessageFadeInterpolation(vmodHUDLocalizedMessage_s M)
+{
+    local float t, b, c, d;
+    
+    // Quadratic tween
+    t = Level.TimeSeconds - M.LifeStart;
+    b = 0.0;
+    c = 1.0;
+    d = M.LifeEnd - M.LifeStart;
+    
+    t = t / d;
+    return 1.0 - (c * t * t + b);
+}
+
+simulated function float GetMessageGlowInterpolation()
+{
+    local float t;
+    
+    // Sin wave glow
+    t = 2.0 * Pi * Level.TimeSeconds * MessageGlowRate;
+    t = Sin(t);
+    
+    return t * 0.4 + (1.0 - 0.4);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DrawMessageGameNotifications
+////////////////////////////////////////////////////////////////////////////////
+simulated function DrawMessageGameNotifications(Canvas C)
+{
+    local float T;
+    
+    // Draw primary game notification
+    if( MessageGameNotification.LifeEnd > Level.TimeSeconds &&
+        MessageGameNotification.MessageString != "")
+    {
+        if(MyFonts != None)
+            C.Font = MyFonts.GetStaticBigFont();
+        else
+            C.Font = C.BigFont;
+        
+        T = GetMessageFadeInterpolation(MessageGameNotification);
+        
+        C.Style = ERenderStyle.STY_Translucent;
+        C.bCenter = true;
+        C.SetPos(0, C.ClipY * 0.4);
+        C.DrawColor = MessageGameNotification.MessageColor * T;
+        C.DrawText(MessageGameNotification.MessageString, false);
+    }
+    
+    // Draw persistent game notification
+    if(MessageGameNotificationPersistent.MessageString != "")
+    {
+        if(MyFonts != None)
+            C.Font = MyFonts.GetStaticBigFont();
+        else
+            C.Font = C.BigFont;
+        
+        T = GetMessageGlowInterpolation();
+        
+        C.Style = ERenderStyle.STY_Translucent;
+        C.bCenter = true;
+        C.SetPos(0, C.ClipY * 0.9);
+        C.DrawColor = MessageGameNotificationPersistent.MessageColor * T;
+        C.DrawText(MessageGameNotificationPersistent.MessageString, false);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DrawMessageQueue
+////////////////////////////////////////////////////////////////////////////////
+simulated function DrawMessageQueue(Canvas C)
+{
+    local float lenX, lenY;
+    local int i, j;
+    local float T;
+    
+    if(MessageQueue[MessageQueueFront].LifeEnd <= Level.TimeSeconds)
+        return;
+    
+    // Set font
+    if(MyFonts != None)
+		C.Font = MyFonts.GetStaticBigFont();
+	else
+		C.Font = C.BigFont;
+    
+    C.Style = ERenderStyle.STY_Translucent;
+    C.bCenter = false;
+    
+    for(i = 0; i < 6; i++)
+    {
+        j = MessageQueueFront - i;
+        if(j < 0)
+            j += MESSAGE_QUEUE_SIZE;
+        
+        // Reached the back of the queue
+        if(Level.TimeSeconds >= MessageQueue[j].LifeEnd)
+            break;
+        
+        T = GetMessageFadeInterpolation(MessageQueue[j]);
+        C.DrawColor = WhiteColor * T;
+        
+        C.SetPos(C.ClipX * 0.075, C.ClipY * 0.985 - 32 - (i * 16));
+        
+        switch(MessageQueue[j].MessageClass)
+        {
+            case Class'RuneI.SayMessage':
+                if(MessageQueue[j].PRI1 != None)
+                {
+                    C.SetPos(C.ClipX * 0.075, C.ClipY * 0.985 - 32 - (i * 16));
+                    C.DrawText(MessageQueue[j].PRI1.PlayerName);
+                    C.SetPos(C.ClipX * 0.075 + 128, C.ClipY * 0.985 - 32 - (i * 16));
+                    C.DrawText(MessageQueue[j].MessageString, false);
+                }
+                else
+                {
+                    C.DrawText(MessageQueue[j].MessageString, false);
+                }
+                break;
+                
+            default:
+                C.DrawText(MessageQueue[j].MessageString, false);
+                break;
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DrawMessages
+////////////////////////////////////////////////////////////////////////////////
+simulated function DrawMessages(canvas C)
+{
+    DrawMessageGameNotifications(C);
+    DrawMessageQueue(C);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  DrawRemainingTime
 ////////////////////////////////////////////////////////////////////////////////
 simulated function DrawRemainingTime(canvas Canvas, int x, int y)
@@ -33,6 +197,12 @@ simulated function DrawRemainingTime(canvas Canvas, int x, int y)
 		return;
 
 	timeleft = vmodGameReplicationInfo(PlayerPawn(Owner).GameReplicationInfo).GameTimer;
+    
+    if(timeleft <= 0)
+        return;
+    
+    Canvas.bCenter = true;
+    
 	Hours   = timeleft / 3600;
 	Minutes = timeleft / 60;
 	Seconds = timeleft % 60;
@@ -48,81 +218,159 @@ simulated function DrawRemainingTime(canvas Canvas, int x, int y)
 		Canvas.SetColor(255,0,0);
 	Canvas.DrawText(TwoDigitString(Minutes)$":"$TwoDigitString(Seconds), true);
 	Canvas.SetColor(255,255,255);
+    
+    Canvas.bCenter = false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DrawFragCount
+////////////////////////////////////////////////////////////////////////////////
+simulated function DrawFragCount(canvas Canvas, int x, int y)
+{
+    // Do nothing for now
+    return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  QueuePushMessage
+//
+//  Push a message onto the general message queue.
+////////////////////////////////////////////////////////////////////////////////
+simulated function QueuePushMessage(vmodHUDLocalizedMessage_s M)
+{
+    MessageQueueFront = (MessageQueueFront + 1) % MESSAGE_QUEUE_SIZE;
+    MessageQueue[MessageQueueFront] = M;
+    MessageQueue[MessageQueueFront].LifeStart = Level.TimeSeconds;
+    MessageQueue[MessageQueueFront].LifeEnd =
+        MessageQueue[MessageQueueFront].LifeStart + MessageQueueLifeTime;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  MangleMessage
+//
+//  After a message has been received by LocalizedMessage, it is constructed
+//  based on message defaults. Then it is passed through a mangler function
+//  corresponding to its class for further modification.
+////////////////////////////////////////////////////////////////////////////////
+simulated function MangleMessagePreGame(out vmodHUDLocalizedMessage_s M)
+{
+    M.MessageColor.G = 0;
+}
+
+simulated function MangleMessageStartingGame(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessageLiveGame(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessagePostGame(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessagePreRound(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessageStartingRound(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessagePostRound(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessageGameNotification(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessagePlayerReady(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessageSay(out vmodHUDLocalizedMessage_s M)
+{}
+
+simulated function MangleMessageGameNotificationPersistent(out vmodHUDLocalizedMessage_s M)
+{
+    M.MessageColor.R = 0;
+    M.MessageColor.G = 255;
+    M.MessageColor.B = 255;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  LocalizedMessage
+//
+//  HUD received a localized message.
 ////////////////////////////////////////////////////////////////////////////////
 simulated function LocalizedMessage(
-    class<LocalMessage> MessageClass,
-    optional int Switch,
-    optional PlayerReplicationInfo RelatedPRI_1,
-    optional PlayerReplicationInfo RelatedPRI_2,
-    optional Object OptionalObject,
-    optional String CriticalString )
+    class<LocalMessage>             MessageClass,
+    optional int                    Switch,
+    optional PlayerReplicationInfo  RelatedPRI1,
+    optional PlayerReplicationInfo  RelatedPRI2,
+    optional Object                 OptionalObject,
+    optional String                 CriticalString)
 {
-	local int i;
+    local vmodHUDLocalizedMessage_s Message;
     
-	if ( MessageClass.Static.KillMessage() )
-		return;
-
-	if ( CriticalString == "" )
-		CriticalString = MessageClass.Static.GetString(Switch, RelatedPRI_1, RelatedPRI_2, OptionalObject);
-
-	MessageClass.Static.MangleString(CriticalString, RelatedPRI_1, RelatedPRI_2, OptionalObject);
-
-	if ( MessageClass.Default.bIsUnique )
-	{	// If unique, stomp any identical existing message
-		for (i=0; i<QueueSize; i++)
-		{
-			if (MessageQueue[i].Message != None)
-			{
-				if (MessageQueue[i].Message == MessageClass)
-				{
-					MessageQueue[i].Message = MessageClass;
-					MessageQueue[i].Switch = Switch;
-					MessageQueue[i].RelatedPRI = RelatedPRI_1;
-					MessageQueue[i].OptionalObject = OptionalObject;
-					MessageQueue[i].LifeTime = MessageClass.Static.GetLifeTime(CriticalString);
-					MessageQueue[i].EndOfLife = MessageQueue[i].LifeTime + Level.TimeSeconds;
-					MessageQueue[i].StringMessage = CriticalString;
-					MessageQueue[i].DrawColor = MessageClass.Static.GetColor(Switch, RelatedPRI_1, RelatedPRI_2);
-					MessageQueue[i].XL = 0;
-					return;
-				}
-			}
-		}
-	}
-	for (i=0; i<QueueSize; i++)
-	{
-		if (MessageQueue[i].Message == None)
-		{
-			MessageQueue[i].Message = MessageClass;
-			MessageQueue[i].Switch = Switch;
-			MessageQueue[i].RelatedPRI = RelatedPRI_1;
-			MessageQueue[i].OptionalObject = OptionalObject;
-			MessageQueue[i].LifeTime = MessageClass.Static.GetLifeTime(CriticalString);
-			MessageQueue[i].EndOfLife = MessageQueue[i].LifeTime + Level.TimeSeconds;
-			MessageQueue[i].StringMessage = CriticalString;
-			MessageQueue[i].DrawColor = MessageClass.Static.GetColor(Switch, RelatedPRI_1, RelatedPRI_2);
-			MessageQueue[i].XL = 0;
-			return;
-		}
-	}
-
-	// No empty slots.  Force a message out.
-	for (i=0; i<QueueSize-1; i++)
-		CopyMessage(MessageQueue[i],MessageQueue[i+1]);
-
-	MessageQueue[QueueSize-1].Message = MessageClass;
-	MessageQueue[QueueSize-1].Switch = Switch;
-	MessageQueue[QueueSize-1].RelatedPRI = RelatedPRI_1;
-	MessageQueue[QueueSize-1].OptionalObject = OptionalObject;
-	MessageQueue[QueueSize-1].LifeTime = MessageClass.Static.GetLifeTime(CriticalString);
-	MessageQueue[QueueSize-1].EndOfLife = MessageQueue[QueueSize-1].LifeTime + Level.TimeSeconds;
-	MessageQueue[QueueSize-1].StringMessage = CriticalString;
-	MessageQueue[QueueSize-1].DrawColor = MessageClass.Static.GetColor(Switch, RelatedPRI_1, RelatedPRI_2);				
-	MessageQueue[QueueSize-1].XL = 0;
+    if(MessageClass == None)    return;
+    if(CriticalString == "")    return;
+    
+    // Construct new message
+    Message.MessageClass    = MessageClass;
+    Message.MessageString   = CriticalString;
+    Message.PRI1            = RelatedPRI1;
+    Message.PRI2            = RelatedPRI2;
+    Message.LifeStart       = Level.TimeSeconds;
+    Message.LifeEnd         = Message.LifeStart + MessageLifeTime;
+    Message.MessageColor    = WhiteColor;
+    
+    // Handle GameNotification messages
+    if(ClassIsChildOf(MessageClass, Class'Vmod.vmodLocalMessageGameNotification'))
+    {
+        switch(MessageClass)
+        {
+            case Class'Vmod.vmodLocalMessagePreGame':
+                MangleMessagePreGame(Message);
+                break;
+            case Class'Vmod.vmodLocalMessageStartingGame':
+                MangleMessageStartingGame(Message);
+                break;
+            case Class'Vmod.vmodLocalMessageLiveGame':
+                MangleMessageLiveGame(Message);
+                break;
+            case Class'Vmod.vmodLocalMessagePostGame':
+                MangleMessagePostGame(Message);
+                break;
+            case Class'Vmod.vmodLocalMessagePreRound':
+                MangleMessagePreRound(Message);
+                break;
+            case Class'Vmod.vmodLocalMessageStartingRound':
+                MangleMessageStartingRound(Message);
+                break;
+            case Class'Vmod.vmodLocalMessagePostRound':
+                MangleMessagePostRound(Message);
+                break;
+            case Class'Vmod.vmodLocalMessageGameNotification':
+                MangleMessageGameNotification(Message);
+                break;
+            case Class'Vmod.vmodLocalMessagePlayerReady':
+                MangleMessagePlayerReady(Message);
+                break;
+            case Class'Vmod.vmodLocalMessageGameNotificationPersistent':
+                MangleMessageGameNotificationPersistent(Message);
+                MessageGameNotificationPersistent = Message;
+                return;
+        }
+        
+        MessageGameNotification = Message;
+        return;
+    }
+    // Handle all other messages
+    else
+    {
+        switch(MessageClass)
+        {
+            case Class'RuneI.SayMessage':
+                MangleMessageSay(Message);
+                break;
+        }
+        
+        QueuePushMessage(Message);
+    }
 }
 
 
@@ -132,34 +380,44 @@ simulated function LocalizedMessage(
 simulated function Class<LocalMessage> DetermineClass(name MsgType)
 {
 	local Class<LocalMessage> MessageClass;
+    
+    switch(MsgType)
+    {
+        // Messages from vmodGameInfo
+        case 'PreGame':         return Class'Vmod.vmodLocalMessagePreGame';
+        case 'StartingGame':    return Class'Vmod.vmodLocalMessageStartingGame';
+        case 'LiveGame':        return Class'Vmod.vmodLocalMessageLiveGame';
+        case 'PostGame':        return Class'Vmod.vmodLocalMessagePostGame';
+        case 'PlayerReady':     return Class'Vmod.vmodLocalMessagePlayerReady';
+        
+        // Messages from vmodGameInfoRoundBased
+        case 'PreRound':        return Class'Vmod.vmodLocalMessagePreRound';
+        case 'StartingRound':   return Class'Vmod.vmodLocalMessageStartingRound';
+        case 'PostRound':       return Class'Vmod.vmodLocalMessagePostRound';
+        
+        // Other messages
+        case 'Subtitle':        return Class'SubtitleMessage';
+        case 'RedSubtitle':     return Class'SubtitleRed';
+        case 'Pickup':          return Class'PickupMessage';
+        case 'Say':             return Class'SayMessage';
+        case 'TeamSay':         return Class'SayMessage';
+        case 'NoRunePower':     return Class'NoRunePowerMessage';
+        
+        // Defaults
+        case 'CriticalEvent':
+        case 'DeathMessage':
+        case 'Event':
+        default:                return Class'GenericMessage';
+    }
+    
+    return MessageClass;
+}
 
-	switch (MsgType)
-	{
-        case 'vmodGameAnnouncement':
-            MessageClass=class'vmodLocalGameAnnouncement';
-            break;
-		case 'Subtitle':
-			MessageClass=class'SubtitleMessage';
-			break;
-		case 'RedSubtitle':
-			MessageClass=class'SubtitleRed';
-			break;
-		case 'Pickup':
-			MessageClass=class'PickupMessage';
-			break;
-		case 'Say':
-		case 'TeamSay':
-			MessageClass=class'SayMessage';
-			break;
-		case 'NoRunePower':
-			MessageClass=class'NoRunePowerMessage';
-			break;
-		case 'CriticalEvent':
-		case 'DeathMessage':
-		case 'Event':
-		default:
-			MessageClass=class'GenericMessage';
-			break;
-	}
-	return MessageClass;
+defaultproperties
+{
+    WhiteColor=(R=255,G=255,b=255)
+    MessageLifeTime=2.0
+    MessageGlowRate=0.5
+    MessageQueueLifeTime=8.0
+    MessageQueueFront=0
 }

@@ -61,7 +61,7 @@ function DrawPlayerInfo( canvas Canvas, PlayerReplicationInfo PRI, float XOffset
 		Canvas.Font = RegFont;
 
     // Draw ready
-    if(vmodPlayerReplicationInfo(PRI).bReadyToGoLive)
+    if(vmodPlayerReplicationInfo(PRI).bReadyToPlay)
     {
         Canvas.SetPos(Canvas.ClipX*0.3, YOffset);
         Canvas.DrawColor = GreenColor;

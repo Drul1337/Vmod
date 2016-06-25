@@ -1,4 +1,4 @@
 ////////////////////////////////////////////////////////////////////////////////
-// vmodPlayerReplicationInfo
+//  vmodLocalMessageGameNotificationPersistent
 ////////////////////////////////////////////////////////////////////////////////
-class vmodPlayerReplicationInfo expands PlayerReplicationInfo;
+class vmodLocalMessageGameNotificationPersistent extends vmodLocalMessageGameNotification;

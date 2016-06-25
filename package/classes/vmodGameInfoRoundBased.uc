@@ -8,6 +8,11 @@ var() globalconfig int StartingRoundCountdownBegin;
 var() globalconfig int TimeLimitRound;
 var() globalconfig int RoundLimit;
 
+var() globalconfig String MessagePreRound;
+var() globalconfig String MessageStartingRound;
+var() globalconfig String MessageStartingRoundCountdown;
+var() globalconfig String MessagePostRound;
+
 var int TimerLocalRound;
 
 var int RoundNumber;
@@ -38,33 +43,28 @@ function ResetTimerLocalRound()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  Broadcast Functions
-//
-//  TODO: Implement these all as localized messages and incorporate some sounds
+//  MessageType Name / Class Relationships
 ////////////////////////////////////////////////////////////////////////////////
-function BroadcastPreRound()
+function Name GetMessageTypeName(class<LocalMessage> MessageClass)
 {
-    BroadcastAnnouncement("Prepare for the next round");
+    switch(MessageClass)
+    {
+        case Class'Vmod.vmodLocalMessagePreRound':      return 'PreRound';
+        case Class'Vmod.vmodLocalMessageStartingRound': return 'StartingRound';
+        case Class'Vmod.vmodLocalMessagePostRound':     return 'PostRound';
+    }
+    return Super.GetMessageTypeName(MessageClass);
 }
 
-function BroadcastStartingRound()
+function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
 {
-    //BroadcastAnnouncement("Prepare for the next round");
-}
-
-function BroadcastGameIsLive()
-{
-    BroadcastAnnouncement("Round " $ RoundNumber);
-}
-
-function BroadcastStartingRoundCountdown(int T)
-{
-    BroadcastAnnouncement("Next round in " $ T);
-}
-
-function BroadcastPostRound()
-{
-    //BroadcastAnnouncement("The round has ended");
+    switch(MessageName)
+    {
+        case 'PreRound':        return Class'Vmod.vmodLocalMessagePreRound';
+        case 'StartingRound':   return Class'Vmod.vmodLocalMessageStartingRound';
+        case 'PostRound':       return Class'Vmod.vmodLocalMessagePostRound';
+    }
+    return Super.GetMessageTypeClass(MessageName);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -172,6 +172,17 @@ state PreRound
     }
     
     ////////////////////////////////////////////////////////////////////////////
+    //  PreRound: Broadcast Functions
+    ////////////////////////////////////////////////////////////////////////////
+    function BroadcastPreRound()
+    {
+        if(MessagePreRound != "")
+            BroadcastMessage(
+                MessagePreRound,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessagePreRound'));
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
     //  PreRound: ReduceDamage
     //
     //  Pawns are invulnerable during PreRound
@@ -219,6 +230,25 @@ state StartingRound
     function EndState()
     {
         ResetTimerLocalRound();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  StartingRound: Broadcast Functions
+    ////////////////////////////////////////////////////////////////////////////
+    function BroadcastStartingRound()
+    {
+        if(MessageStartingRound != "")
+            BroadcastMessage(
+                MessageStartingRound,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingRound'));
+    }
+    
+    function BroadcastStartingRoundCountdown(int T)
+    {
+        if(MessageStartingRoundCountdown != "")
+            BroadcastMessage(
+                MessageStartingRoundCountdown $ " " $ T,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingRound'));
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -277,6 +307,17 @@ state Live
                 vmodRunePlayer(P).NotifyGameLive();
         
         BroadcastGameIsLive();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  Live: Broadcast Functions
+    ////////////////////////////////////////////////////////////////////////////
+    function BroadcastGameIsLive()
+    {
+        if(MessageLiveGame != "")
+            BroadcastMessage(
+                MessageLiveGame $ " " $ RoundNumber,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessageLiveGame'));
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -347,7 +388,18 @@ state PostRound
     }
     
     ////////////////////////////////////////////////////////////////////////////
-    //  StartingRound: PostRound
+    //  PostRound: Broadcast Functions
+    ////////////////////////////////////////////////////////////////////////////
+    function BroadcastPreRound()
+    {
+        if(MessagePreRound != "")
+            BroadcastMessage(
+                MessagePreRound,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessagePreRound'));
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  PostRound: ReduceDamage
     //
     //  Pawns are invulnerable during PostRound
     ////////////////////////////////////////////////////////////////////////////
@@ -371,4 +423,9 @@ defaultproperties
     StartingRoundCountdownBegin=5
     TimerLocalRound=0
     RoundNumber=0
+    MessageLiveGame="Round"
+    MessagePreRound="Prepare for the next round"
+    MessageStartingRound="The round is starting"
+    MessageStartingRoundCountdown="Round begins in"
+    MessagePostRound="The round has ended"
 }

@@ -8,6 +8,15 @@ var() globalconfig int  StartingCountdownBegin;
 var() globalconfig int	ScoreLimit;
 var() globalconfig int	TimeLimit;
 
+var() globalconfig String MessagePreGame;
+var() globalconfig String MessagePreGamePersistent;
+var() globalconfig String MessageStartingGame;
+var() globalconfig String MessageStartingCountDown;
+var() globalconfig String MessageLiveGame;
+var() globalconfig String MessagePostGame;
+var() globalconfig String MessagePlayerReady;
+var() globalconfig String MessagePlayerNotReady;
+
 var int TimerBroad; // Time since the server switched to this game
 var int TimerLocal; // Local time used between states
 
@@ -278,6 +287,19 @@ event playerpawn Login
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  Logout
+//
+//  Player is leaving the game. Handle game mode updates.
+////////////////////////////////////////////////////////////////////////////////
+function Logout(Pawn P)
+{
+    Super.Logout(P);
+    
+    if(NumPlayers <= 1)
+        GotoStatePreGame();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  ReadyToGoLive
 //
 //  These functions are used for handling readying and unreadying players.
@@ -308,6 +330,15 @@ function bool EnoughPlayersReadyToGoLive()
             else
                 UnreadyCount++;
         }
+    }
+    
+    // 1 on 1 game requires both players to be ready
+    if(NumPlayers == 2)
+    {
+        if(ReadyCount == 2)
+            return true;
+        else
+            return false;
     }
     
     // Ready count conditions - majority of players are ready
@@ -517,6 +548,7 @@ function GivePlayerWeapon(Pawn P, class<Weapon> WeaponClass)
     
     if(P.Weapon != None)
         if(vmodRunePlayer(P) != None)
+            //vmodRunePlayer(P).StowWeapon();
             vmodRunePlayer(P).StowWeapon(P.Weapon);
     
     W.bTossedOut = true;
@@ -669,48 +701,36 @@ function ResetTimerLocal()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  Broadcast Functions
-//
-//  TODO: Implement these all as localized messages and incorporate some sounds
+//  MessageType Name / Class Relationships
 ////////////////////////////////////////////////////////////////////////////////
-final function BroadcastAnnouncement(coerce String Message)
+function Name GetMessageTypeName(class<LocalMessage> MessageClass)
 {
-    BroadcastMessage(Message,,'vmodGameAnnouncement');
+    switch(MessageClass)
+    {
+        case Class'Vmod.vmodLocalMessagePreGame':       return 'PreGame';
+        case Class'Vmod.vmodLocalMessageStartingGame':  return 'StartingGame';
+        case Class'Vmod.vmodLocalMessageLiveGame':      return 'LiveGame';
+        case Class'Vmod.vmodLocalMessagePostGame':      return 'PostGame';
+        case Class'Vmod.vmodLocalMessagePlayerReady':   return 'PlayerReady';
+        case Class'Vmod.vmodLocalMessageGameNotificationPersistent':
+            return 'GameNotificationPersistent';
+    }
+    return 'Default'; // Default type name
 }
 
-function BroadcastPreGame()
+function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
 {
-    BroadcastAnnouncement("PreGame");
-}
-
-function BroadcastPlayerReadyToGoLive(Pawn P)
-{
-    BroadcastAnnouncement(P.PlayerReplicationInfo.PlayerName $ " is ready");
-}
-
-function BroadcastPlayerNotReadyToGoLive(Pawn P)
-{
-    BroadcastAnnouncement(P.PlayerReplicationInfo.PlayerName $ " is not ready");
-}
-
-function BroadcastGameIsStarting()
-{
-    BroadcastAnnouncement("Game is starting!");
-}
-
-function BroadcastStartingCountdown(int T)
-{
-    BroadcastAnnouncement("Starting in " $ T);
-}
-
-function BroadcastGameIsLive()
-{
-    BroadcastAnnouncement("Game is live!");
-}
-
-function BroadcastPostGame()
-{
-    BroadcastAnnouncement("Game has ended");
+    switch(MessageName)
+    {
+        case 'PreGame':         return Class'Vmod.vmodLocalMessagePreGame';
+        case 'StartingGame':    return Class'Vmod.vmodLocalMessageStartingGame';
+        case 'LiveGame':        return Class'Vmod.vmodLocalMessageLiveGame';
+        case 'PostGame':        return Class'Vmod.vmodLocalMessagePostGame';
+        case 'PlayerReady':     return Class'Vmod.vmodLocalMessagePlayerReady';
+        case 'GameNotificationPersistent':
+            return Class'Vmod.vmodLocalMessageGameNotificationPersistent';
+    }
+    return Class'LocalMessage'; // Default class name
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -740,17 +760,50 @@ auto state PreGame
         BroadcastPreGame();
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  PreGame: PostLogin
-    //
-    //  A new player just entered the game, handle how this effects the game's
-    //  ready state.
-    ////////////////////////////////////////////////////////////////////////////
-    event PostLogin(PlayerPawn P)
+    function EndState()
     {
-        Global.PostLogin(P);
+        local Pawn P;
         
-        BroadcastMessage("" $ NumPlayers $ " current players");
+        // Perform actions on all players
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            if(vmodRunePlayer(P) == None)
+                continue;
+            
+            vmodRunePlayer(P).bReadyToPlay = false;
+        }
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  PreGame: Broadcast Functions
+    ////////////////////////////////////////////////////////////////////////////
+    function BroadcastPreGame()
+    {
+        if(MessagePreGame != "")
+            BroadcastMessage(
+                MessagePreGame,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessagePreGame'));
+        
+        if(MessagePreGamePersistent != "")
+            BroadcastMessage(
+                MessagePreGamePersistent,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessageGameNotificationPersistent'));
+    }
+    
+    function BroadcastPlayerReadyToGoLive(Pawn P)
+    {
+        if(MessagePlayerReady != "")
+            BroadcastMessage(
+                P.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerReady,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerReady'));
+    }
+    
+    function BroadcastPlayerNotReadyToGoLive(Pawn P)
+    {
+        if(MessagePlayerNotReady != "")
+            BroadcastMessage(
+                P.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerNotReady,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerReady'));
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -766,12 +819,11 @@ auto state PreGame
         if(NumPlayers < 1)
         {
             // TODO: Send "waiting for more players" message to pawn
-            ReadyPawn.ClientMessage("Waiting for more players to joing");
+            ReadyPawn.ClientMessage("Waiting for more players to join");
             return false;
         }
         
         BroadcastPlayerReadyToGoLive(ReadyPawn);
-        vmodPlayerReplicationInfo(ReadyPawn.PlayerReplicationInfo).bReadyToGoLive = true;
         
         if(EnoughPlayersReadyToGoLive())
             GotoStateStarting();
@@ -821,6 +873,25 @@ state Starting
     function EndState()
     {
         ResetTimerLocal();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  Starting: Broadcast Functions
+    ////////////////////////////////////////////////////////////////////////////
+    function BroadcastGameIsStarting()
+    {
+        if(MessageStartingGame != "")
+            BroadcastMessage(
+                MessageStartingGame,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingGame'));
+    }
+    
+    function BroadcastStartingCountdown(int T)
+    {
+        if(MessageStartingCountDown != "")
+            BroadcastMessage(
+                MessageStartingCountDown $ " " $ T,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingGame'));
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -878,6 +949,17 @@ state Live
                 vmodRunePlayer(P).NotifyGameLive();
         
         BroadcastGameIsLive();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  Live: Broadcast Functions
+    ////////////////////////////////////////////////////////////////////////////
+    function BroadcastGameIsLive()
+    {
+        if(MessageLiveGame != "")
+            BroadcastMessage(
+                MessageLiveGame,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessageLiveGame'));
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -952,6 +1034,17 @@ state PostGame
     }
     
     ////////////////////////////////////////////////////////////////////////////
+    //  PostGame: Broadcast Functions
+    ////////////////////////////////////////////////////////////////////////////
+    function BroadcastPostGame()
+    {
+        if(MessagePostGame != "")
+            BroadcastMessage(
+                MessagePostGame,,
+                GetMessageTypeName(Class'Vmod.vmodLocalMessagePostGame'));
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
     //  PostGame: Timer
     //
     //  Calculate post game time.
@@ -1019,4 +1112,13 @@ defaultproperties
 	GenericDiedMessage=" died."
     HUDType=Class'Vmod.vmodHUD'
     GameReplicationInfoClass=Class'Vmod.vmodGameReplicationInfo'
+    
+    MessagePreGame="PreGame"
+    MessagePreGamePersistent="Type VcmdReady in console to ready yourself"
+    MessageStartingGame="The game is starting"
+    MessageStartingCountDown="Game begins in"
+    MessageLiveGame="Live!"
+    MessagePostGame="PostGame"
+    MessagePlayerReady="is ready"
+    MessagePlayerNotReady="is not ready"
 }

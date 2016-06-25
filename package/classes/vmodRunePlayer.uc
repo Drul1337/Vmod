@@ -15,7 +15,7 @@
 //class vmodRunePlayer extends vmodRunePlayerInterface config(user) abstract;
 class vmodRunePlayer extends RunePlayer config(user) abstract;
 
-var bool bReadyToGoLive;
+var bool bCanRestart;
 
 replication
 {
@@ -31,11 +31,11 @@ replication
 }
 
 function bool ReadyToGoLive()
-{ return bReadyToGoLive; }
+{ return bReadyToPlay; }
 
 function SetReadyToGoLive(bool B)
 {
-    bReadyToGoLive = B;
+    bReadyToPlay = B;
     
     if(vmodGameInfo(Level.Game) != None)
     {
@@ -125,8 +125,11 @@ exec final function VcmdPlay()
     GotoState('PlayerWalking');
 }
 
+//function StowWeapon(Weapon I)
+//{}
+
 defaultproperties
 {
-    bReadyToGoLive=false
+    bReadyToPlay=false
     PlayerReplicationInfoClass=Class'Vmod.vmodPlayerReplicationInfo'
 }
