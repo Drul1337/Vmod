@@ -1,12 +1,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 // vmodGameInfo
 ////////////////////////////////////////////////////////////////////////////////
-class vmodGameInfo extends GameInfo abstract;
+//class vmodGameInfo extends GameInfo abstract;
+class vmodGameInfo extends RuneGameInfo;
 
 var() globalconfig int  StartingDuration;
 var() globalconfig int  StartingCountdownBegin;
 var() globalconfig int	ScoreLimit;
 var() globalconfig int	TimeLimit;
+
+var() globalconfig int  MinimumPlayersRequiredForStart;
 
 var() globalconfig String MessagePreGame;
 var() globalconfig String MessagePreGamePersistent;
@@ -16,11 +19,14 @@ var() globalconfig String MessageLiveGame;
 var() globalconfig String MessagePostGame;
 var() globalconfig String MessagePlayerReady;
 var() globalconfig String MessagePlayerNotReady;
+var() globalconfig String MessageNotEnoughPlayersToStart;
 
 var int TimerBroad; // Time since the server switched to this game
 var int TimerLocal; // Local time used between states
 
-var localized string GenericDiedMessage;
+//var localized string GenericDiedMessage;
+
+var private bool bPawnsTakeDamage;
 
 var string EndGameReason;
 var bool bMarkNativeActors;
@@ -73,9 +79,16 @@ function PreBeginPlay()
         GameReplicationInfoClass = class'Vmod.vmodGameReplicationInfo';
     GameReplicationInfo = Spawn(GameReplicationInfoClass);
     
-    InitGameReplicationInfo();
-    
     bMarkNativeActors = false;
+    
+    InitGameReplicationInfo();
+}
+
+function InitGameReplicationInfo()
+{
+    vmodGameReplicationInfo(GameReplicationInfo).GameTimer = 0;
+    
+    Super.InitGameReplicationInfo();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -90,32 +103,32 @@ function PostBeginPlay()
     Super.PostBeginPlay();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//  InitGame
-////////////////////////////////////////////////////////////////////////////////
-event InitGame( string Options, out string Error )
-{
-	Super.InitGame(Options, Error);
-
-    // Parse game options from command line
-    ScoreLimit = GetIntOption( Options, "scorelimit", ScoreLimit );
-	TimeLimit = 60 * GetIntOption( Options, "timelimit", TimeLimit );
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  GetRules
-////////////////////////////////////////////////////////////////////////////////
-function String GetRules()
-{
-    local String ResultSet;
-    
-    ResultSet = Super.GetRules();
-    
-    ResultSet = ResultSet $ "\\timelimit\\" $ TimeLimit;
-    ResultSet = ResultSet $ "\\scorelimit\\" $ ScoreLimit;
-    
-    return ResultSet;
-}
+//////////////////////////////////////////////////////////////////////////////////
+////  InitGame
+//////////////////////////////////////////////////////////////////////////////////
+//event InitGame( string Options, out string Error )
+//{
+//	Super.InitGame(Options, Error);
+//
+//    // Parse game options from command line
+//    ScoreLimit = GetIntOption( Options, "scorelimit", ScoreLimit );
+//	TimeLimit = 60 * GetIntOption( Options, "timelimit", TimeLimit );
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////
+////  GetRules
+//////////////////////////////////////////////////////////////////////////////////
+//function String GetRules()
+//{
+//    local String ResultSet;
+//    
+//    ResultSet = Super.GetRules();
+//    
+//    ResultSet = ResultSet $ "\\timelimit\\" $ TimeLimit;
+//    ResultSet = ResultSet $ "\\scorelimit\\" $ ScoreLimit;
+//    
+//    return ResultSet;
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Login
@@ -125,178 +138,224 @@ function String GetRules()
 //  PreLogin is called before Login, but significant game time may pass before
 //  Login is called, especially if content is downloaded.
 ////////////////////////////////////////////////////////////////////////////////
-function bool GameAtCapacity()
-{
-    if(MaxPlayers <= 0)
-        return false;
-    if(NumPlayers < MaxPlayers)
-        return false;
-    return true;
-}
-
-event playerpawn Login
-(
-	string Portal,
-	string Options,
-	out string Error,
-	class<playerpawn> SpawnClass
-)
-{
-	local NavigationPoint StartSpot;
-	local PlayerPawn      NewPlayer, TestPlayer;
-	local Pawn            PawnLink;
-	local string          InName, InPassword, InSkin, InFace, InChecksum;
-	local byte            InTeam;
-
-    // Check capacity (may have changed since PreLogin)
-    // Note: No longer distinguishing between players and spectators
-    if(Level.NetMode != NM_Standalone)
-    {
-        if(GameAtCapacity())
-        {
-            Error = MaxedOutMessage;
-            return None;
-        }
-    }
-
-	// Get URL options.
-	InName     = Left(ParseOption ( Options, "Name"), 20);
-	InTeam     = GetIntOption( Options, "Team", 255 ); // default to "no team"
-	InPassword = ParseOption ( Options, "Password" );
-	InSkin	   = ParseOption ( Options, "Skin"    );
-	InFace     = ParseOption ( Options, "Face"    );
-	InChecksum = ParseOption ( Options, "Checksum" );
-
-	log( "Login:" @ InName );
-	if( InPassword != "" )
-		log( "Password"@InPassword );
-	 
-	// Find a start spot.
-	StartSpot = FindPlayerStart( None, InTeam, Portal );
-
-	if( StartSpot == None )
-	{
-		Error = FailedPlaceMessage;
-		return None;
-	}
-
-	// Try to match up to existing unoccupied player in level,
-	// for savegames and coop level switching.
-	for( PawnLink=Level.PawnList; PawnLink!=None; PawnLink=PawnLink.NextPawn )
-	{
-		TestPlayer = PlayerPawn(PawnLink);
-		if
-		(	TestPlayer!=None
-		&&	TestPlayer.Player==None 
-		&&  TestPlayer.PlayerReplicationInfo != None
-		&&  TestPlayer.bIsPlayer
-		&&	TestPlayer.PlayerReplicationInfo.PlayerName != class'PlayerReplicationInfo'.default.PlayerName
-		)
-		{
-			if
-			(	(Level.NetMode==NM_Standalone)
-			||	(TestPlayer.PlayerReplicationInfo.PlayerName~=InName && TestPlayer.Password~=InPassword) )
-			{
-				// Found matching unoccupied player, so use this one.
-				NewPlayer = TestPlayer;
-				NewPlayer.Tag = 'Player';
-				break;
-			}
-		}
-	}
-
-	// In not found, spawn a new player.
-	if( NewPlayer==None )
-	{
-		// Make sure this kind of player is allowed.
-		if ( (bHumansOnly || Level.bHumansOnly) && !SpawnClass.Default.bIsHuman
-			&& !ClassIsChildOf(SpawnClass, class'Spectator') )
-			SpawnClass = DefaultPlayerClass;
-
-		NewPlayer = Spawn(SpawnClass,,'Player',StartSpot.Location,StartSpot.Rotation);
-		if( NewPlayer!=None )
-		{
-			NewPlayer.ViewRotation = StartSpot.Rotation;
-
-			// Save the playerstart event for later firing
-			NewPlayer.StartEvent = StartSpot.Event;
-
-			NewPlayer.bJustSpawned = true;
-		}
-	}
-	else
-	{
-		NewPlayer.bJustSpawned = false;
-	}
-
-	// Handle spawn failure.
-	if( NewPlayer == None )
-	{
-		log("Couldn't spawn player at "$StartSpot);
-		Error = FailedSpawnMessage;
-		return None;
-	}
-
-	NewPlayer.CurrentSkin = int(InSkin);
-	NewPlayer.static.SetSkinActor(NewPlayer, int(InSkin));
-
-	// Set the player's ID.
-	NewPlayer.PlayerReplicationInfo.PlayerID = CurrentID++;
-
-	// Init player's information.
-	NewPlayer.ClientSetRotation(NewPlayer.Rotation);
-	if( InName=="" )
-		InName=DefaultPlayerName;
-	if( Level.NetMode!=NM_Standalone || NewPlayer.PlayerReplicationInfo.PlayerName==DefaultPlayerName )
-		ChangeName( NewPlayer, InName, false );
-
-	// Change player's team.
-	if ( !ChangeTeam(newPlayer, InTeam) )
-	{
-		Error = FailedTeamMessage;
-		return None;
-	}
-
-	if( NewPlayer.IsA('Spectator') && (Level.NetMode == NM_DedicatedServer) )
-		NumSpectators++;
-
-	// Init player's administrative privileges
-	//NewPlayer.Password = InPassword;
-	//NewPlayer.bAdmin = AdminPassword!="" && caps(InPassword)==caps(AdminPassword);
-	//NewPlayer.PlayerReplicationInfo.bAdmin = NewPlayer.bAdmin;
-	//if( NewPlayer.bAdmin )
-	//	log( "Administrator logged in!" );
-
-	// Init player's replication info
-	NewPlayer.GameReplicationInfo = GameReplicationInfo;
-
-	// If we are a server, broadcast a welcome message.
-	if( Level.NetMode==NM_DedicatedServer || Level.NetMode==NM_ListenServer )
-		BroadcastMessage( NewPlayer.PlayerReplicationInfo.PlayerName$EnteredMessage, false );
-
-	// Log it.
-	if ( LocalLog != None )
-		LocalLog.LogPlayerConnect(NewPlayer);
-	if ( WorldLog != None )
-		WorldLog.LogPlayerConnect(NewPlayer, InChecksum);
-
-	if ( !NewPlayer.IsA('Spectator') )
-		NumPlayers++;
-		
-	return newPlayer;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Logout
+//function bool GameAtCapacity()
+//{
+//    if(MaxPlayers <= 0)
+//        return false;
+//    if(NumPlayers < MaxPlayers)
+//        return false;
+//    return true;
+//}
 //
-//  Player is leaving the game. Handle game mode updates.
+//event playerpawn Login
+//(
+//	string Portal,
+//	string Options,
+//	out string Error,
+//	class<playerpawn> SpawnClass
+//)
+//{
+//	local NavigationPoint StartSpot;
+//	local PlayerPawn      NewPlayer, TestPlayer;
+//	local Pawn            PawnLink;
+//	local string          InName, InPassword, InSkin, InFace, InChecksum;
+//	local byte            InTeam;
+//
+//    // Check capacity (may have changed since PreLogin)
+//    // Note: No longer distinguishing between players and spectators
+//    if(Level.NetMode != NM_Standalone)
+//    {
+//        if(GameAtCapacity())
+//        {
+//            Error = MaxedOutMessage;
+//            return None;
+//        }
+//    }
+//
+//	// Get URL options.
+//	InName     = Left(ParseOption ( Options, "Name"), 20);
+//	InTeam     = GetIntOption( Options, "Team", 255 ); // default to "no team"
+//	InPassword = ParseOption ( Options, "Password" );
+//	InSkin	   = ParseOption ( Options, "Skin"    );
+//	InFace     = ParseOption ( Options, "Face"    );
+//	InChecksum = ParseOption ( Options, "Checksum" );
+//
+//	log( "Login:" @ InName );
+//	if( InPassword != "" )
+//		log( "Password"@InPassword );
+//	 
+//	// Find a start spot.
+//	StartSpot = FindPlayerStart( None, InTeam, Portal );
+//
+//	if( StartSpot == None )
+//	{
+//		Error = FailedPlaceMessage;
+//		return None;
+//	}
+//
+//	// Try to match up to existing unoccupied player in level,
+//	// for savegames and coop level switching.
+//	for( PawnLink=Level.PawnList; PawnLink!=None; PawnLink=PawnLink.NextPawn )
+//	{
+//		TestPlayer = PlayerPawn(PawnLink);
+//		if
+//		(	TestPlayer!=None
+//		&&	TestPlayer.Player==None 
+//		&&  TestPlayer.PlayerReplicationInfo != None
+//		&&  TestPlayer.bIsPlayer
+//		&&	TestPlayer.PlayerReplicationInfo.PlayerName != class'PlayerReplicationInfo'.default.PlayerName
+//		)
+//		{
+//			if
+//			(	(Level.NetMode==NM_Standalone)
+//			||	(TestPlayer.PlayerReplicationInfo.PlayerName~=InName && TestPlayer.Password~=InPassword) )
+//			{
+//				// Found matching unoccupied player, so use this one.
+//				NewPlayer = TestPlayer;
+//				NewPlayer.Tag = 'Player';
+//				break;
+//			}
+//		}
+//	}
+//
+//	// In not found, spawn a new player.
+//	if( NewPlayer==None )
+//	{
+//		// Make sure this kind of player is allowed.
+//		if ( (bHumansOnly || Level.bHumansOnly) && !SpawnClass.Default.bIsHuman
+//			&& !ClassIsChildOf(SpawnClass, class'Spectator') )
+//			SpawnClass = DefaultPlayerClass;
+//
+//		NewPlayer = Spawn(SpawnClass,,'Player',StartSpot.Location,StartSpot.Rotation);
+//		if( NewPlayer!=None )
+//		{
+//			NewPlayer.ViewRotation = StartSpot.Rotation;
+//
+//			// Save the playerstart event for later firing
+//			NewPlayer.StartEvent = StartSpot.Event;
+//
+//			NewPlayer.bJustSpawned = true;
+//		}
+//	}
+//	else
+//	{
+//		NewPlayer.bJustSpawned = false;
+//	}
+//
+//	// Handle spawn failure.
+//	if( NewPlayer == None )
+//	{
+//		log("Couldn't spawn player at "$StartSpot);
+//		Error = FailedSpawnMessage;
+//		return None;
+//	}
+//
+//	NewPlayer.CurrentSkin = int(InSkin);
+//	NewPlayer.static.SetSkinActor(NewPlayer, int(InSkin));
+//
+//	// Set the player's ID.
+//	NewPlayer.PlayerReplicationInfo.PlayerID = CurrentID++;
+//
+//	// Init player's information.
+//	NewPlayer.ClientSetRotation(NewPlayer.Rotation);
+//	if( InName=="" )
+//		InName=DefaultPlayerName;
+//	if( Level.NetMode!=NM_Standalone || NewPlayer.PlayerReplicationInfo.PlayerName==DefaultPlayerName )
+//		ChangeName( NewPlayer, InName, false );
+//
+//	// Change player's team.
+//	if ( !ChangeTeam(newPlayer, InTeam) )
+//	{
+//		Error = FailedTeamMessage;
+//		return None;
+//	}
+//
+//	if( NewPlayer.IsA('Spectator') && (Level.NetMode == NM_DedicatedServer) )
+//		NumSpectators++;
+//
+//	// Init player's administrative privileges
+//	//NewPlayer.Password = InPassword;
+//	//NewPlayer.bAdmin = AdminPassword!="" && caps(InPassword)==caps(AdminPassword);
+//	//NewPlayer.PlayerReplicationInfo.bAdmin = NewPlayer.bAdmin;
+//	//if( NewPlayer.bAdmin )
+//	//	log( "Administrator logged in!" );
+//
+//	// Init player's replication info
+//	NewPlayer.GameReplicationInfo = GameReplicationInfo;
+//
+//	// If we are a server, broadcast a welcome message.
+//	if( Level.NetMode==NM_DedicatedServer || Level.NetMode==NM_ListenServer )
+//		BroadcastMessage( NewPlayer.PlayerReplicationInfo.PlayerName$EnteredMessage, false );
+//
+//	// Log it.
+//	if ( LocalLog != None )
+//		LocalLog.LogPlayerConnect(NewPlayer);
+//	if ( WorldLog != None )
+//		WorldLog.LogPlayerConnect(NewPlayer, InChecksum);
+//
+//	if ( !NewPlayer.IsA('Spectator') )
+//		NumPlayers++;
+//		
+//	return newPlayer;
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////
+////  Logout
+////
+////  Player is leaving the game. Handle game mode updates.
+//////////////////////////////////////////////////////////////////////////////////
+//function Logout(Pawn P)
+//{
+//    Super.Logout(P);
+//    
+//    if(NumPlayers <= MinimumPlayersRequiredForStart)
+//        GotoStatePreGame();
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////
+////  PostLogin
+////
+////  Called after a successful login. This is the first place
+////  it is safe to call replicated functions on the PlayerPawn.
+//////////////////////////////////////////////////////////////////////////////////
+//event PostLogin( playerpawn NewPlayer )
+//{
+//	local Pawn P;
+//	// Start player's music.
+//	NewPlayer.ClientSetMusic( Level.Song, Level.SongSection, Level.CdTrack, MTRAN_Fade );
+//	if ( Level.NetMode != NM_Standalone )
+//	{
+//		// replicate skins
+//		for ( P=Level.PawnList; P!=None; P=P.NextPawn )
+//			if ( P.bIsPlayer && (P != NewPlayer) )
+//			{
+//				if ( P.bIsMultiSkinned )
+//					NewPlayer.ClientReplicateSkins(P.MultiSkins[0], P.MultiSkins[1], P.MultiSkins[2], P.MultiSkins[3]);
+//				else
+//					NewPlayer.ClientReplicateSkins(P.Skin);	
+//					
+//				if ( (P.PlayerReplicationInfo != None) && P.PlayerReplicationInfo.bWaitingPlayer && P.IsA('PlayerPawn') )
+//				{
+//					if ( NewPlayer.bIsMultiSkinned )
+//						PlayerPawn(P).ClientReplicateSkins(NewPlayer.MultiSkins[0], NewPlayer.MultiSkins[1], NewPlayer.MultiSkins[2], NewPlayer.MultiSkins[3]);
+//					else
+//						PlayerPawn(P).ClientReplicateSkins(NewPlayer.Skin);	
+//				}						
+//			}
+//	}
+//    
+//    // Notify the pawn of the current game state
+//    PlayerGameStateNotification(NewPlayer);
+//}
+
 ////////////////////////////////////////////////////////////////////////////////
-function Logout(Pawn P)
+//  EnoughPlayersToStart
+//
+//  The game cannot start until there are enough players present.
+////////////////////////////////////////////////////////////////////////////////
+function bool EnoughPlayersToStart()
 {
-    Super.Logout(P);
-    
-    if(NumPlayers <= 1)
-        GotoStatePreGame();
+    return NumPlayers >= MinimumPlayersRequiredForStart;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -307,8 +366,8 @@ function Logout(Pawn P)
 ////////////////////////////////////////////////////////////////////////////////
 
 // These functions are called by the player, and implemented in states only
-function bool PlayerReadyToGoLive(Pawn ReadyPawn)        { return false; }
-function bool PlayerNotReadyToGoLive(Pawn UnreadyPawn)   { return false; }
+function PlayerRequestingToGoReady(Pawn ReadyPawn)      { }
+function PlayerRequestingToGoNotReady(Pawn UnreadyPawn) { }
 
 // Return true to switch game state to Starting, which counts into Live
 function bool EnoughPlayersReadyToGoLive()
@@ -321,25 +380,16 @@ function bool EnoughPlayersReadyToGoLive()
     ReadyCount = 0;
     UnreadyCount = 0;
     
-    for(P = Level.PawnList; P != None; P = P.NextPawn)
-    {
-        if(vmodRunePlayer(P) != None && P.bIsPlayer)
-        {
-            if(vmodRunePlayer(P).ReadyToGoLive())
-                ReadyCount++;
-            else
-                UnreadyCount++;
-        }
-    }
-    
-    // 1 on 1 game requires both players to be ready
-    if(NumPlayers == 2)
-    {
-        if(ReadyCount == 2)
-            return true;
-        else
-            return false;
-    }
+    //for(P = Level.PawnList; P != None; P = P.NextPawn)
+    //{
+    //    if(vmodRunePlayer(P) != None && P.bIsPlayer)
+    //    {
+    //        if(vmodRunePlayer(P).ReadyToGoLive())
+    //            ReadyCount++;
+    //        else
+    //            UnreadyCount++;
+    //    }
+    //}
     
     // Ready count conditions - majority of players are ready
     if(ReadyCount >= UnreadyCount)
@@ -358,9 +408,9 @@ function GameReset()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  ResetPlayerStatistics
+//  PlayerResetStatistics
 ////////////////////////////////////////////////////////////////////////////////
-function ResetPlayerStatistics(Pawn P)
+function PlayerResetStatistics(Pawn P)
 {
     local vmodPlayerReplicationInfo PRI;
     
@@ -381,113 +431,113 @@ function ResetPlayerStatistics(Pawn P)
 //
 //  Completely reset a player, including score, trophies, health, power, etc.
 ////////////////////////////////////////////////////////////////////////////////
-function bool RestartPlayer( pawn aPlayer )	
-{
-	local NavigationPoint startSpot;
-	local bool foundStart;
-	local int i;
-	local actor A;
-    local vmodRunePlayer rPlayer;
-
-	if( bRestartLevel && Level.NetMode!=NM_DedicatedServer && Level.NetMode!=NM_ListenServer )
-		return true;
-
-	startSpot = FindPlayerStart(aPlayer, 255);
-	if( startSpot == None )
-	{
-		log(" Player start not found!!!");
-		return false;
-	}
-		
-	foundStart = aPlayer.SetLocation(startSpot.Location);
-	if( foundStart )
-	{
-		startSpot.PlayTeleportEffect(aPlayer, true);
-		aPlayer.SetRotation(startSpot.Rotation);
-		aPlayer.ViewRotation = aPlayer.Rotation;
-		aPlayer.Acceleration = vect(0,0,0);
-		aPlayer.Velocity = vect(0,0,0);
-		aPlayer.Health = aPlayer.Default.Health;
-		aPlayer.SetCollision( true, true, true );
-		aPlayer.bCollideWorld = true;
-		aPlayer.SetCollisionSize(aPlayer.Default.CollisionRadius, aPlayer.Default.CollisionHeight);
-		aPlayer.ClientSetLocation( startSpot.Location, startSpot.Rotation );
-		aPlayer.bHidden = false;
-		aPlayer.DamageScaling = aPlayer.Default.DamageScaling;
-		aPlayer.SoundDampening = aPlayer.Default.SoundDampening;
-
-		// Team games require this
-		if (bTeamGame)
-			aPlayer.DesiredColorAdjust = GetTeamVectorColor(aPlayer.PlayerReplicationInfo.Team);
-		else
-			aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
-
-		if (PlayerPawn(aPlayer)!=None)
-		{
-			PlayerPawn(aPlayer).DesiredPolyColorAdjust = PlayerPawn(aPlayer).Default.DesiredPolyColorAdjust;
-			PlayerPawn(aPlayer).PolyColorAdjust = PlayerPawn(aPlayer).Default.PolyColorAdjust;
-		}
-
-		aPlayer.ReducedDamageType = aPlayer.Default.ReducedDamageType;
-		aPlayer.ReducedDamagePct = aPlayer.Default.ReducedDamagePct;
-		aPlayer.Style = aPlayer.Default.Style;
-		aPlayer.bInvisible = aPlayer.Default.bInvisible;
-		aPlayer.SpeedScale = SS_Circular;
-		aPlayer.bLookFocusPlayer = aPlayer.Default.bLookFocusPlayer;
-		aPlayer.bAlignToFloor = aPlayer.Default.bAlignToFloor;
-		aPlayer.ColorAdjust = aPlayer.Default.ColorAdjust;
-		aPlayer.ScaleGlow = aPlayer.Default.ScaleGlow;
-		aPlayer.Fatness = aPlayer.Default.Fatness;
-		aPlayer.BlendAnimSequence = aPlayer.Default.BlendAnimSequence;
-		aPlayer.DesiredFatness = aPlayer.Default.DesiredFatness;
-		aPlayer.MaxHealth = aPlayer.Default.MaxHealth;
-		aPlayer.Strength = aPlayer.Default.Strength;
-		aPlayer.MaxStrength = aPlayer.Default.MaxStrength;
-		aPlayer.RunePower = aPlayer.Default.RunePower;
-		aPlayer.MaxPower = aPlayer.Default.MaxPower;
-		aPlayer.GroundSpeed = aPlayer.Default.GroundSpeed;
-		aPlayer.SetDefaultPolyGroups();
-		aPlayer.SetDefaultJointFlags();
-        
-        ClearPlayerAttachments(aPlayer);
-        
-		for (i=0; i<NUM_BODYPARTS; i++)
-		{	// Restore body part health
-			aPlayer.BodyPartHealth[i] = aPlayer.Default.BodyPartHealth[i];
-		}
-		// Restore joint flags
-		aPlayer.SetDefaultJointFlags();
-		for (i=0; i<16; i++)
-		{	// Restore polygroup skins/properties
-			aPlayer.SkelGroupSkins[i] = aPlayer.Default.SkelGroupSkins[i];
-			aPlayer.SkelGroupFlags[i] = aPlayer.Default.SkelGroupFlags[i];
-		}
-		aPlayer.SetSkinActor(aPlayer, aPlayer.CurrentSkin);
-
-		// Reset anim proxy vars
-		if(PlayerPawn(aPlayer) != None && PlayerPawn(aPlayer).AnimProxy != None)
-		{
-			PlayerPawn(aPlayer).AnimProxy.GotoState('Idle');
-		}
-	}
-	else
-		log(startspot$" Player start not useable!!!");
-    
-    
-    
-    rPlayer = vmodRunePlayer(aPlayer);
-	if (rPlayer!=None)
-	{
-		rPlayer.OldCameraStart = rPlayer.Location;
-		rPlayer.OldCameraStart.Z += rPlayer.CameraHeight;
-		rPlayer.CurrentDist = rPlayer.CameraDist;
-		rPlayer.LastTime = 0;
-		rPlayer.CurrentTime = 0;
-		rPlayer.CurrentRotation = rPlayer.Rotation;
-	}
-
-	return foundStart;
-}
+//function bool RestartPlayer( pawn aPlayer )	
+//{
+//	local NavigationPoint startSpot;
+//	local bool foundStart;
+//	local int i;
+//	local actor A;
+//    local vmodRunePlayer rPlayer;
+//
+//	if( bRestartLevel && Level.NetMode!=NM_DedicatedServer && Level.NetMode!=NM_ListenServer )
+//		return true;
+//
+//	startSpot = FindPlayerStart(aPlayer, 255);
+//	if( startSpot == None )
+//	{
+//		log(" Player start not found!!!");
+//		return false;
+//	}
+//		
+//	foundStart = aPlayer.SetLocation(startSpot.Location);
+//	if( foundStart )
+//	{
+//		startSpot.PlayTeleportEffect(aPlayer, true);
+//		aPlayer.SetRotation(startSpot.Rotation);
+//		aPlayer.ViewRotation = aPlayer.Rotation;
+//		aPlayer.Acceleration = vect(0,0,0);
+//		aPlayer.Velocity = vect(0,0,0);
+//		aPlayer.Health = aPlayer.Default.Health;
+//		aPlayer.SetCollision( true, true, true );
+//		aPlayer.bCollideWorld = true;
+//		aPlayer.SetCollisionSize(aPlayer.Default.CollisionRadius, aPlayer.Default.CollisionHeight);
+//		aPlayer.ClientSetLocation( startSpot.Location, startSpot.Rotation );
+//		aPlayer.bHidden = false;
+//		aPlayer.DamageScaling = aPlayer.Default.DamageScaling;
+//		aPlayer.SoundDampening = aPlayer.Default.SoundDampening;
+//
+//		// Team games require this
+//		if (bTeamGame)
+//			aPlayer.DesiredColorAdjust = GetTeamVectorColor(aPlayer.PlayerReplicationInfo.Team);
+//		else
+//			aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
+//
+//		if (PlayerPawn(aPlayer)!=None)
+//		{
+//			PlayerPawn(aPlayer).DesiredPolyColorAdjust = PlayerPawn(aPlayer).Default.DesiredPolyColorAdjust;
+//			PlayerPawn(aPlayer).PolyColorAdjust = PlayerPawn(aPlayer).Default.PolyColorAdjust;
+//		}
+//
+//		aPlayer.ReducedDamageType = aPlayer.Default.ReducedDamageType;
+//		aPlayer.ReducedDamagePct = aPlayer.Default.ReducedDamagePct;
+//		aPlayer.Style = aPlayer.Default.Style;
+//		aPlayer.bInvisible = aPlayer.Default.bInvisible;
+//		aPlayer.SpeedScale = SS_Circular;
+//		aPlayer.bLookFocusPlayer = aPlayer.Default.bLookFocusPlayer;
+//		aPlayer.bAlignToFloor = aPlayer.Default.bAlignToFloor;
+//		aPlayer.ColorAdjust = aPlayer.Default.ColorAdjust;
+//		aPlayer.ScaleGlow = aPlayer.Default.ScaleGlow;
+//		aPlayer.Fatness = aPlayer.Default.Fatness;
+//		aPlayer.BlendAnimSequence = aPlayer.Default.BlendAnimSequence;
+//		aPlayer.DesiredFatness = aPlayer.Default.DesiredFatness;
+//		aPlayer.MaxHealth = aPlayer.Default.MaxHealth;
+//		aPlayer.Strength = aPlayer.Default.Strength;
+//		aPlayer.MaxStrength = aPlayer.Default.MaxStrength;
+//		aPlayer.RunePower = aPlayer.Default.RunePower;
+//		aPlayer.MaxPower = aPlayer.Default.MaxPower;
+//		aPlayer.GroundSpeed = aPlayer.Default.GroundSpeed;
+//		aPlayer.SetDefaultPolyGroups();
+//		aPlayer.SetDefaultJointFlags();
+//        
+//        ClearPlayerAttachments(aPlayer);
+//        
+//		for (i=0; i<NUM_BODYPARTS; i++)
+//		{	// Restore body part health
+//			aPlayer.BodyPartHealth[i] = aPlayer.Default.BodyPartHealth[i];
+//		}
+//		// Restore joint flags
+//		aPlayer.SetDefaultJointFlags();
+//		for (i=0; i<16; i++)
+//		{	// Restore polygroup skins/properties
+//			aPlayer.SkelGroupSkins[i] = aPlayer.Default.SkelGroupSkins[i];
+//			aPlayer.SkelGroupFlags[i] = aPlayer.Default.SkelGroupFlags[i];
+//		}
+//		aPlayer.SetSkinActor(aPlayer, aPlayer.CurrentSkin);
+//
+//		// Reset anim proxy vars
+//		if(PlayerPawn(aPlayer) != None && PlayerPawn(aPlayer).AnimProxy != None)
+//		{
+//			PlayerPawn(aPlayer).AnimProxy.GotoState('Idle');
+//		}
+//	}
+//	else
+//		log(startspot$" Player start not useable!!!");
+//    
+//    
+//    
+//    //rPlayer = vmodRunePlayer(aPlayer);
+//	//if (rPlayer!=None)
+//	//{
+//	//	rPlayer.OldCameraStart = rPlayer.Location;
+//	//	rPlayer.OldCameraStart.Z += rPlayer.CameraHeight;
+//	//	rPlayer.CurrentDist = rPlayer.CameraDist;
+//	//	rPlayer.LastTime = 0;
+//	//	rPlayer.CurrentTime = 0;
+//	//	rPlayer.CurrentRotation = rPlayer.Rotation;
+//	//}
+//
+//	return foundStart;
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  ClearPlayerInventory
@@ -546,10 +596,10 @@ function GivePlayerWeapon(Pawn P, class<Weapon> WeaponClass)
     if(W == None)
         return;
     
-    if(P.Weapon != None)
-        if(vmodRunePlayer(P) != None)
-            //vmodRunePlayer(P).StowWeapon();
-            vmodRunePlayer(P).StowWeapon(P.Weapon);
+    //if(P.Weapon != None)
+    //    if(vmodRunePlayer(P) != None)
+    //        //vmodRunePlayer(P).StowWeapon();
+    //        vmodRunePlayer(P).StowWeapon(P.Weapon);
     
     W.bTossedOut = true;
     W.Instigator = P;
@@ -701,7 +751,44 @@ function ResetTimerLocal()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  MessageType Name / Class Relationships
+//  ReduceDamage
+//
+//  Responsible for modifying all damage done to pawns according to the game's
+//  settings. See the Enable and Disable functions below to see how damage
+//  may be modified. This is general utilized in game states.
+////////////////////////////////////////////////////////////////////////////////
+function ReduceDamage(
+    out int BluntDamage,
+    out int SeverDamage,
+    name DamageType,
+    pawn injured,
+    pawn instigatedBy)
+{
+    if(!bPawnsTakeDamage)
+    {
+        BluntDamage = 0;
+        SeverDamage = 0;
+        DamageType = 'None';
+    }
+    else
+    {
+        Super.ReduceDamage(
+            BluntDamage,
+            SeverDamage,
+            DamageType,
+            injured,
+            instigatedBy);
+    }
+}
+function GameEnablePawnDamage()     { bPawnsTakeDamage = true; }
+function GameDisablePawnDamage()    { bPawnsTakeDamage = false; }
+// TODO: Some more functions to implement:
+//  function GameEnableTeamDamage()
+//  function GameDisableTeamDamage()
+//  function GameSetTeamDamageFactor(float f)
+
+////////////////////////////////////////////////////////////////////////////////
+//  MessageTypeNames
 ////////////////////////////////////////////////////////////////////////////////
 function Name GetMessageTypeName(class<LocalMessage> MessageClass)
 {
@@ -712,12 +799,28 @@ function Name GetMessageTypeName(class<LocalMessage> MessageClass)
         case Class'Vmod.vmodLocalMessageLiveGame':      return 'LiveGame';
         case Class'Vmod.vmodLocalMessagePostGame':      return 'PostGame';
         case Class'Vmod.vmodLocalMessagePlayerReady':   return 'PlayerReady';
-        case Class'Vmod.vmodLocalMessageGameNotificationPersistent':
-            return 'GameNotificationPersistent';
     }
     return 'Default'; // Default type name
 }
 
+function Name GetMessageTypeNamePreGame()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePreGame'); }
+
+function Name GetMessageTypeNameStartingGame()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingGame'); }
+
+function Name GetMessageTypeNameLiveGame()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessageLiveGame'); }
+
+function Name GetMessageTypeNamePostGame()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePostGame'); }
+
+function Name GetMessageTypeNamePlayerReady()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerReady'); }
+
+////////////////////////////////////////////////////////////////////////////////
+//  MessageTypeClasses
+////////////////////////////////////////////////////////////////////////////////
 function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
 {
     switch(MessageName)
@@ -727,11 +830,35 @@ function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
         case 'LiveGame':        return Class'Vmod.vmodLocalMessageLiveGame';
         case 'PostGame':        return Class'Vmod.vmodLocalMessagePostGame';
         case 'PlayerReady':     return Class'Vmod.vmodLocalMessagePlayerReady';
-        case 'GameNotificationPersistent':
-            return Class'Vmod.vmodLocalMessageGameNotificationPersistent';
     }
     return Class'LocalMessage'; // Default class name
 }
+
+function Class<LocalMessage> GetMessageTypeClassPreGame()
+{ return GetMessageTypeClass('PreGame'); }
+
+function Class<LocalMessage> GetMessageTypeClassStartingGame()
+{ return GetMessageTypeClass('StartingGame'); }
+
+function Class<LocalMessage> GetMessageTypeClassLiveGame()
+{ return GetMessageTypeClass('LiveGame'); }
+
+function Class<LocalMessage> GetMessageTypeClassPostGame()
+{ return GetMessageTypeClass('PostGame'); }
+
+function Class<LocalMessage> GetMessageTypeClassPlayerReady()
+{ return GetMessageTypeClass('PlayerReady'); }
+
+////////////////////////////////////////////////////////////////////////////////
+//  PlayerGameStateNotification
+//
+//  This function acts as an event dispatcher for all players. When the game
+//  changes states or when a player first joins the server they receive
+//  messages, sounds, and whatever else through this function.
+//
+//  Implement in states.
+////////////////////////////////////////////////////////////////////////////////
+function PlayerGameStateNotification(Pawn P) { }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  STATE: PreGame
@@ -744,6 +871,7 @@ auto state PreGame
     {
         local Pawn P;
         
+        GameEnablePawnDamage();
         ResetTimerLocal();
         
         // Perform actions on all players
@@ -752,12 +880,11 @@ auto state PreGame
             if(vmodRunePlayer(P) == None)
                 continue;
             
-            ResetPlayerStatistics(P);
-            vmodRunePlayer(P).NotifyGamePreGame();
-            vmodGameReplicationInfo(GameReplicationInfo).GameTimer = 0;
+            PlayerResetStatistics(P);
+            PlayerGameStateNotification(P);
         }
         
-        BroadcastPreGame();
+        vmodGameReplicationInfo(GameReplicationInfo).GameTimer = 0;
     }
     
     function EndState()
@@ -774,71 +901,97 @@ auto state PreGame
         }
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  PreGame: Broadcast Functions
-    ////////////////////////////////////////////////////////////////////////////
-    function BroadcastPreGame()
+    function PlayerGameStateNotification(Pawn P)
     {
-        if(MessagePreGame != "")
-            BroadcastMessage(
-                MessagePreGame,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessagePreGame'));
+        // Send PreGame event to player
+        //vmodRunePlayer(P).NotifyGamePreGame();
         
-        if(MessagePreGamePersistent != "")
-            BroadcastMessage(
-                MessagePreGamePersistent,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessageGameNotificationPersistent'));
-    }
-    
-    function BroadcastPlayerReadyToGoLive(Pawn P)
-    {
-        if(MessagePlayerReady != "")
-            BroadcastMessage(
-                P.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerReady,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerReady'));
-    }
-    
-    function BroadcastPlayerNotReadyToGoLive(Pawn P)
-    {
-        if(MessagePlayerNotReady != "")
-            BroadcastMessage(
-                P.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerNotReady,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerReady'));
+        // Unready the player
+        //vmodRunePlayer(P).NotifyNotReadyToGoLive();
+        
+        // Send PreGame message to player
+        if(MessagePreGame != "")
+            P.ClientMessage(
+                MessagePreGame,
+                GetMessageTypeNamePreGame(),
+                false);
     }
     
     ////////////////////////////////////////////////////////////////////////////
-    //  PreGame: PlayerReadyToGoLive
+    //  PreGame: PlayerRequestingToGoReady
     //
-    //  A player has switched to ready. Check if enough players in the game are
-    //  ready to start. This is only valid in PreGame.
+    //  A player has requested to go ready.
     ////////////////////////////////////////////////////////////////////////////
-    function bool PlayerReadyToGoLive(Pawn ReadyPawn)
+    function PlayerRequestingToGoReady(Pawn PReady)
     {
         local Pawn P;
         
-        if(NumPlayers < 1)
+        // If there are not enough players in the game, player cannot ready up
+        if(!EnoughPlayersToStart())
         {
-            // TODO: Send "waiting for more players" message to pawn
-            ReadyPawn.ClientMessage("Waiting for more players to join");
-            return false;
+            PlayerMessageNotEnoughPlayersToStart(
+                PReady,
+                MinimumPlayersRequiredForStart);
+            return;
         }
         
-        BroadcastPlayerReadyToGoLive(ReadyPawn);
+        // Notify the player that they are ready
+        //vmodRunePlayer(PReady).NotifyReadyToGoLive();
         
+        // Send PlayerReady message to all players
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            PlayerMessagePlayerReady(P, PReady);
+        }
+        
+        // If enough players have readied up, start the game
         if(EnoughPlayersReadyToGoLive())
+        {
             GotoStateStarting();
-        return true;
+        }
+    }
+    
+    function PlayerMessagePlayerReady(Pawn P, Pawn PReady)
+    {
+        if(MessagePlayerReady != "")
+            P.ClientMessage(
+                PReady.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerReady,
+                GetMessageTypeNamePlayerReady(),
+                false);
+    }
+    
+    function PlayerMessageNotEnoughPlayersToStart(Pawn P, int Required)
+    {
+        if(MessageNotEnoughPlayersToStart != "")
+            P.ClientMessage(
+                MessageNotEnoughPlayersToStart,
+                GetMessageTypeNamePlayerReady(),
+                false);
     }
     
     ////////////////////////////////////////////////////////////////////////////
-    //  PreGame: PlayerNotReadyToGoLive
+    //  PreGame: PlayerRequestingToGoNotReady
     //
     //  A player has switched to not ready. This is only valid in PreGame.
     ////////////////////////////////////////////////////////////////////////////
-    function bool PlayerNotReadyToGoLive(Pawn UnreadyPawn)
+    function PlayerRequestingToGoNotReady(Pawn PUnready)
     {
-        BroadcastPlayerNotReadyToGoLive(UnreadyPawn);
-        return false;
+        local Pawn P;
+        
+        // Send PlayerNotReady message to all players
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            PlayerMessagePlayerNotReady(P, PUnready);
+        }
+    }
+    
+    function PlayerMessagePlayerNotReady(Pawn P, Pawn PUnready)
+    {
+        if(MessagePlayerNotReady != "")
+            P.ClientMessage(
+                PUnready.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerNotReady,
+                GetMessageTypeNamePlayerReady(),
+                false);
     }
 }
 
@@ -853,6 +1006,7 @@ state Starting
     {
         local Pawn P;
         
+        GameDisablePawnDamage();
         ResetTimerLocal();
         NativeLevelCleanup();
         
@@ -862,12 +1016,10 @@ state Starting
             if(vmodRunePlayer(P) == None)
                 continue;
             
-            ResetPlayerStatistics(P);
-            vmodRunePlayer(P).NotifyGameStarting();
+            PlayerResetStatistics(P);
             RestartPlayer(P);
+            PlayerGameStateNotification(P);
         }
-        
-        BroadcastGameIsStarting();
     }
     
     function EndState()
@@ -875,23 +1027,17 @@ state Starting
         ResetTimerLocal();
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  Starting: Broadcast Functions
-    ////////////////////////////////////////////////////////////////////////////
-    function BroadcastGameIsStarting()
+    function PlayerGameStateNotification(Pawn P)
     {
+        // Send Starting event to player
+        //vmodRunePlayer(P).NotifyGameStarting();
+        
+        // Send Starting message to player
         if(MessageStartingGame != "")
-            BroadcastMessage(
-                MessageStartingGame,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingGame'));
-    }
-    
-    function BroadcastStartingCountdown(int T)
-    {
-        if(MessageStartingCountDown != "")
-            BroadcastMessage(
-                MessageStartingCountDown $ " " $ T,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingGame'));
+            P.ClientMessage(
+                MessageStartingGame,
+                GetMessageTypeNameStartingGame(),
+                false);
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -901,6 +1047,7 @@ state Starting
     ////////////////////////////////////////////////////////////////////////////
     function Timer()
     {
+        local Pawn P;
         local int TimeRemaining;
         
         Global.Timer();
@@ -908,27 +1055,21 @@ state Starting
         TimeRemaining = StartingDuration - TimerLocal;
         
         if(TimeRemaining <= StartingCountdownBegin)
-            BroadcastStartingCountdown(TimeRemaining);
-        
+            for(P = Level.PawnList; P != None; P = P.NextPawn)
+                PlayerMessageStartingCountdown(P, TimeRemaining);
+
         if(TimeRemaining <= 0)
             GotoStateLive();
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  Starting: ReduceDamage
-    //
-    //  Pawns are invulnerable during Starting
-    ////////////////////////////////////////////////////////////////////////////
-    function ReduceDamage(
-        out int BluntDamage,
-        out int SeverDamage,
-        name DamageType,
-        pawn injured,
-        pawn instigatedBy)
+    function PlayerMessageStartingCountdown(Pawn P, int TimeRemaining)
     {
-        BluntDamage = 0;
-        SeverDamage = 0;
-        DamageType = 'None';
+        // Send StartingCountdown message to player
+        if(MessageStartingCountDown != "")
+            P.ClientMessage(
+                MessageStartingCountDown $ " " $ TimeRemaining,
+                GetMessageTypeNameStartingGame(),
+                false);
     }
 }
 
@@ -943,23 +1084,25 @@ state Live
     {
         local Pawn P;
         
+        GameEnablePawnDamage();
+        
         // Notify all players that the game is Live
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
-                vmodRunePlayer(P).NotifyGameLive();
-        
-        BroadcastGameIsLive();
+                PlayerGameStateNotification(P);
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  Live: Broadcast Functions
-    ////////////////////////////////////////////////////////////////////////////
-    function BroadcastGameIsLive()
+    function PlayerGameStateNotification(Pawn P)
     {
+        // Send Live event to player
+        //vmodRunePlayer(P).NotifyGameLive();
+        
+        // Send Live message to player
         if(MessageLiveGame != "")
-            BroadcastMessage(
-                MessageLiveGame,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessageLiveGame'));
+            P.ClientMessage(
+                MessageLiveGame,
+                GetMessageTypeNameLiveGame(),
+                false);
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -1020,28 +1163,31 @@ state PostGame
             WorldLog = None;
         }
         
+        GameDisablePawnDamage();
+        
         // Tell all players that the game ended
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
-                vmodRunePlayer(P).NotifyGamePostGame();
+                PlayerGameStateNotification(P);
         
         // Trigger all end game actors
         foreach AllActors(class'Actor', A, 'EndGame')
             A.trigger(self, none);
         
         ResetTimerLocal();
-        BroadcastPostGame();
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  PostGame: Broadcast Functions
-    ////////////////////////////////////////////////////////////////////////////
-    function BroadcastPostGame()
+    function PlayerGameStateNotification(Pawn P)
     {
+        // Send PostGame event to player
+        //vmodRunePlayer(P).NotifyGamePostGame();
+        
+        // Send Live message to player
         if(MessagePostGame != "")
-            BroadcastMessage(
-                MessagePostGame,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessagePostGame'));
+            P.ClientMessage(
+                MessagePostGame,
+                GetMessageTypeNamePostGame(),
+                false);
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -1121,4 +1267,7 @@ defaultproperties
     MessagePostGame="PostGame"
     MessagePlayerReady="is ready"
     MessagePlayerNotReady="is not ready"
+    MessageNotEnoughPlayersToStart="Waiting for more players"
+    bPawnsTakeDamage=false
+    MinimumPlayersRequiredForStart=1
 }

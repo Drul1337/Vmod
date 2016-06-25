@@ -1,3 +1,4 @@
 [Public]
-Object=(Name=Vmod.vmodTeamDeathMatch,Class=Class,MetaClass=Engine.Gameinfo)
-Object=(Name=Vmod.vmodTeamGladiator,Class=Class,MetaClass=Engine.Gameinfo)
+Object=(Name=Vmod.vmodGameDeathMatch,Class=Class,MetaClass=Engine.Gameinfo)
+Object=(Name=Vmod.vmodGameTeamDeathMatch,Class=Class,MetaClass=Engine.Gameinfo)
+Object=(Name=Vmod.vmodGameTeamGladiator,Class=Class,MetaClass=Engine.Gameinfo)

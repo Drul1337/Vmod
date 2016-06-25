@@ -1,7 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 // vmodGameInfoRoundBased
 ////////////////////////////////////////////////////////////////////////////////
-class vmodGameInfoRoundBased extends vmodGameInfo abstract;
+//class vmodGameInfoRoundBased extends vmodGameInfo abstract;
+class vmodGameInfoRoundBased extends vmodGameInfo;
 
 var() globalconfig int StartingRoundDuration;
 var() globalconfig int StartingRoundCountdownBegin;
@@ -11,6 +12,7 @@ var() globalconfig int RoundLimit;
 var() globalconfig String MessagePreRound;
 var() globalconfig String MessageStartingRound;
 var() globalconfig String MessageStartingRoundCountdown;
+var() globalconfig String MessageLiveRound;
 var() globalconfig String MessagePostRound;
 
 var int TimerLocalRound;
@@ -43,7 +45,7 @@ function ResetTimerLocalRound()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  MessageType Name / Class Relationships
+//  MessageTypeNames
 ////////////////////////////////////////////////////////////////////////////////
 function Name GetMessageTypeName(class<LocalMessage> MessageClass)
 {
@@ -56,6 +58,18 @@ function Name GetMessageTypeName(class<LocalMessage> MessageClass)
     return Super.GetMessageTypeName(MessageClass);
 }
 
+function Name GetMessageTypeNamePreRound()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePreRound'); }
+
+function Name GetMessageTypeNameStartingRound()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingRound'); }
+
+function Name GetMessageTypeNamePostRound()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePostRound'); }
+
+////////////////////////////////////////////////////////////////////////////////
+//  MessageTypeClasses
+////////////////////////////////////////////////////////////////////////////////
 function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
 {
     switch(MessageName)
@@ -66,6 +80,15 @@ function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
     }
     return Super.GetMessageTypeClass(MessageName);
 }
+
+function Class<LocalMessage> GetMessageTypeClassPreRound()
+{ return GetMessageTypeClass('PreRound'); }
+
+function Class<LocalMessage> GetMessageTypeClassStartingRound()
+{ return GetMessageTypeClass('StartingRound'); }
+
+function Class<LocalMessage> GetMessageTypeClassPostRound()
+{ return GetMessageTypeClass('PostRound'); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  STATE: PreGame
@@ -92,18 +115,14 @@ state Starting
     {
         local Pawn P;
         
+        GameDisablePawnDamage();
         ResetTimerLocal();
         
         // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            if(vmodRunePlayer(P) == None)
-                continue;
-            
-            vmodRunePlayer(P).NotifyGameStarting();
+            PlayerGameStateNotification(P);
         }
-        
-        BroadcastGameIsStarting();
     }
     
     function EndState()
@@ -115,10 +134,7 @@ state Starting
         // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            if(vmodRunePlayer(P) == None)
-                continue;
-            
-            ResetPlayerStatistics(P);
+            PlayerResetStatistics(P);
         }
     }
     
@@ -129,6 +145,7 @@ state Starting
     ////////////////////////////////////////////////////////////////////////////
     function Timer()
     {
+        local Pawn P;
         local int TimeRemaining;
         
         Global.Timer();
@@ -136,7 +153,8 @@ state Starting
         TimeRemaining = StartingDuration - TimerLocal;
         
         if(TimeRemaining <= StartingCountdownBegin)
-            BroadcastStartingCountdown(TimeRemaining);
+            for(P = Level.PawnList; P != None; P = P.NextPawn)
+                PlayerMessageStartingCountdown(P, TimeRemaining);
         
         if(TimeRemaining <= 0)
             GotoStatePreRound();
@@ -154,49 +172,31 @@ state PreRound
     {
         local Pawn P;
         
+        GameDisablePawnDamage();
         ResetTimerLocalRound();
         
         // Notify all players about PreRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            if(vmodRunePlayer(P) == None)
-                continue;
-            
-            vmodRunePlayer(P).NotifyGamePreRound();
+            PlayerGameStateNotification(P);
         }
         
-        BroadcastPreRound();
         RoundNumber++;
         
         GotoStateStartingRound();
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  PreRound: Broadcast Functions
-    ////////////////////////////////////////////////////////////////////////////
-    function BroadcastPreRound()
+    function PlayerGameStateNotification(Pawn P)
     {
+        // Send PreRound event to player
+        //vmodRunePlayer(P).NotifyGamePreRound();
+        
+        // Send PreRound message to player
         if(MessagePreRound != "")
-            BroadcastMessage(
-                MessagePreRound,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessagePreRound'));
-    }
-    
-    ////////////////////////////////////////////////////////////////////////////
-    //  PreRound: ReduceDamage
-    //
-    //  Pawns are invulnerable during PreRound
-    ////////////////////////////////////////////////////////////////////////////
-    function ReduceDamage(
-        out int BluntDamage,
-        out int SeverDamage,
-        name DamageType,
-        pawn injured,
-        pawn instigatedBy)
-    {
-        BluntDamage = 0;
-        SeverDamage = 0;
-        DamageType = 'None';
+            P.ClientMessage(
+                MessagePreRound,
+                GetMessageTypeNamePreRound(),
+                false);
     }
 }
 
@@ -211,20 +211,16 @@ state StartingRound
     {
         local Pawn P;
         
+        GameDisablePawnDamage();
         ResetTimerLocalRound();
         NativeLevelCleanup();
         
         // Notify all players about StartingRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            if(vmodRunePlayer(P) == None)
-                continue;
-            
             RestartPlayer(P);
-            vmodRunePlayer(P).NotifyGameStartingRound();
+            PlayerGameStateNotification(P);
         }
-        
-        BroadcastStartingRound();
     }
     
     function EndState()
@@ -232,23 +228,17 @@ state StartingRound
         ResetTimerLocalRound();
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  StartingRound: Broadcast Functions
-    ////////////////////////////////////////////////////////////////////////////
-    function BroadcastStartingRound()
+    function PlayerGameStateNotification(Pawn P)
     {
+        // Send StartingRound event to player
+        //vmodRunePlayer(P).NotifyGameStartingRound();
+        
+        // Send StartingRound message to player
         if(MessageStartingRound != "")
-            BroadcastMessage(
-                MessageStartingRound,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingRound'));
-    }
-    
-    function BroadcastStartingRoundCountdown(int T)
-    {
-        if(MessageStartingRoundCountdown != "")
-            BroadcastMessage(
-                MessageStartingRoundCountdown $ " " $ T,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingRound'));
+            P.ClientMessage(
+                MessageStartingRound,
+                GetMessageTypeNameStartingRound(),
+                false);
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -258,6 +248,7 @@ state StartingRound
     ////////////////////////////////////////////////////////////////////////////
     function Timer()
     {
+        local Pawn P;
         local int TimeRemaining;
         
         Global.Timer();
@@ -266,27 +257,21 @@ state StartingRound
         TimeRemaining = StartingRoundDuration - TimerLocalRound;
         
         if(TimeRemaining <= StartingCountdownBegin)
-            BroadcastStartingRoundCountdown(TimeRemaining);
+            for(P = Level.PawnList; P != None; P = P.NextPawn)
+                PlayerMessageStartingRoundCountdown(P, TimeRemaining);
         
         if(TimeRemaining <= 0)
             GotoStateLive();
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  StartingRound: ReduceDamage
-    //
-    //  Pawns are invulnerable during StartingRound
-    ////////////////////////////////////////////////////////////////////////////
-    function ReduceDamage(
-        out int BluntDamage,
-        out int SeverDamage,
-        name DamageType,
-        pawn injured,
-        pawn instigatedBy)
+    function PlayerMessageStartingRoundCountdown(Pawn P, int TimeRemaining)
     {
-        BluntDamage = 0;
-        SeverDamage = 0;
-        DamageType = 'None';
+        // Send StartingRoundCountdown message to player
+        if(MessageStartingRoundCountDown != "")
+            P.ClientMessage(
+                MessageStartingRoundCountDown $ " " $ TimeRemaining,
+                GetMessageTypeNameStartingRound(),
+                false);
     }
 }
 
@@ -301,23 +286,25 @@ state Live
     {
         local Pawn P;
         
+        GameEnablePawnDamage();
+        
         // Notify all players that the round is Live
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
-                vmodRunePlayer(P).NotifyGameLive();
-        
-        BroadcastGameIsLive();
+                PlayerGameStateNotification(P);
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  Live: Broadcast Functions
-    ////////////////////////////////////////////////////////////////////////////
-    function BroadcastGameIsLive()
+    function PlayerGameStateNotification(Pawn P)
     {
-        if(MessageLiveGame != "")
-            BroadcastMessage(
-                MessageLiveGame $ " " $ RoundNumber,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessageLiveGame'));
+        // Send Live event to player
+        //vmodRunePlayer(P).NotifyGameLive();
+        
+        // Send Live message to player
+        if(MessageLiveRound != "")
+            P.ClientMessage(
+                MessageLiveRound,
+                GetMessageTypeNameLiveGame(),
+                false);
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -352,8 +339,8 @@ state Live
     ////////////////////////////////////////////////////////////////////////////
     function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
     {
-        if(vmodRunePlayer(PDead) != None)
-            vmodRunePlayer(PDead).bCanRestart = false;
+        //if(vmodRunePlayer(PDead) != None)
+        //    vmodRunePlayer(PDead).bCanRestart = false;
         
         Super.Killed(PKiller, PDead, DamageType);
     }
@@ -370,10 +357,12 @@ state PostRound
     {
         local Pawn P;
         
+        GameDisablePawnDamage();
+        
         // Notify all players about PostRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
-                vmodRunePlayer(P).NotifyGamePostRound();
+                PlayerGameStateNotification(P);
         
         if(RoundLimit > 0)
         {
@@ -387,32 +376,9 @@ state PostRound
         GotoStatePreRound();
     }
     
-    ////////////////////////////////////////////////////////////////////////////
-    //  PostRound: Broadcast Functions
-    ////////////////////////////////////////////////////////////////////////////
-    function BroadcastPreRound()
+    function PlayerGameStateNotification(Pawn P)
     {
-        if(MessagePreRound != "")
-            BroadcastMessage(
-                MessagePreRound,,
-                GetMessageTypeName(Class'Vmod.vmodLocalMessagePreRound'));
-    }
-    
-    ////////////////////////////////////////////////////////////////////////////
-    //  PostRound: ReduceDamage
-    //
-    //  Pawns are invulnerable during PostRound
-    ////////////////////////////////////////////////////////////////////////////
-    function ReduceDamage(
-        out int BluntDamage,
-        out int SeverDamage,
-        name DamageType,
-        pawn injured,
-        pawn instigatedBy)
-    {
-        BluntDamage = 0;
-        SeverDamage = 0;
-        DamageType = 'None';
+        //vmodRunePlayer(P).NotifyGamePostRound();
     }
 }
 
@@ -423,7 +389,7 @@ defaultproperties
     StartingRoundCountdownBegin=5
     TimerLocalRound=0
     RoundNumber=0
-    MessageLiveGame="Round"
+    MessageLiveRound="Round"
     MessagePreRound="Prepare for the next round"
     MessageStartingRound="The round is starting"
     MessageStartingRoundCountdown="Round begins in"

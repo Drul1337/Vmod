@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
-// vmodTeamGladiator
+// vmodGameTeamGladiator
 ////////////////////////////////////////////////////////////////////////////////
-class vmodTeamGladiator extends vmodGameInfoRoundBased;
+class vmodGameTeamGladiator extends vmodGameInfoRoundBased;
 
 ////////////////////////////////////////////////////////////////////////////////
 //  PostBeginPlay
@@ -42,24 +42,20 @@ state StartingRound
     {
         local Pawn P;
         
+        GameDisablePawnDamage();
         ResetTimerLocalRound();
         NativeLevelCleanup();
         
         // Notify all players about StartingRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            if(vmodRunePlayer(P) == None)
-                continue;
-            
             RestartPlayer(P);
             ClearPlayerInventory(P);
             GivePlayerWeapon(P, class'RuneI.VikingShortSword');
             GivePlayerWeapon(P, class'RuneI.VikingAxe');
             GivePlayerWeapon(P, class'RuneI.DwarfBattleSword');
-            vmodRunePlayer(P).NotifyGameStartingRound();
+            PlayerGameStateNotification(P);
         }
-        
-        BroadcastStartingRound();
     }
 }
 
@@ -84,7 +80,7 @@ state Live
         {
             Super.Killed(PKiller, PDead, DamageType);
             
-            vmodRunePlayer(PDead).bCanRestart = false;
+            //vmodRunePlayer(PDead).bCanRestart = false;
             // TODO: Go spectator mode here
             
             // Round end condition
