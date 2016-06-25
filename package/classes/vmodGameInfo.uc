@@ -24,8 +24,6 @@ var() globalconfig String MessageNotEnoughPlayersToStart;
 var int TimerBroad; // Time since the server switched to this game
 var int TimerLocal; // Local time used between states
 
-//var localized string GenericDiedMessage;
-
 var private bool bPawnsTakeDamage;
 
 var string EndGameReason;
@@ -103,32 +101,32 @@ function PostBeginPlay()
     Super.PostBeginPlay();
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-////  InitGame
-//////////////////////////////////////////////////////////////////////////////////
-//event InitGame( string Options, out string Error )
-//{
-//	Super.InitGame(Options, Error);
-//
-//    // Parse game options from command line
-//    ScoreLimit = GetIntOption( Options, "scorelimit", ScoreLimit );
-//	TimeLimit = 60 * GetIntOption( Options, "timelimit", TimeLimit );
-//}
-//
-//////////////////////////////////////////////////////////////////////////////////
-////  GetRules
-//////////////////////////////////////////////////////////////////////////////////
-//function String GetRules()
-//{
-//    local String ResultSet;
-//    
-//    ResultSet = Super.GetRules();
-//    
-//    ResultSet = ResultSet $ "\\timelimit\\" $ TimeLimit;
-//    ResultSet = ResultSet $ "\\scorelimit\\" $ ScoreLimit;
-//    
-//    return ResultSet;
-//}
+////////////////////////////////////////////////////////////////////////////////
+//  InitGame
+////////////////////////////////////////////////////////////////////////////////
+event InitGame( string Options, out string Error )
+{
+	Super.InitGame(Options, Error);
+
+    // Parse game options from command line
+    ScoreLimit = GetIntOption( Options, "scorelimit", ScoreLimit );
+	TimeLimit = 60 * GetIntOption( Options, "timelimit", TimeLimit );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  GetRules
+////////////////////////////////////////////////////////////////////////////////
+function String GetRules()
+{
+    local String ResultSet;
+    
+    ResultSet = Super.GetRules();
+    
+    ResultSet = ResultSet $ "\\timelimit\\" $ TimeLimit;
+    ResultSet = ResultSet $ "\\scorelimit\\" $ ScoreLimit;
+    
+    return ResultSet;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Login
@@ -138,215 +136,215 @@ function PostBeginPlay()
 //  PreLogin is called before Login, but significant game time may pass before
 //  Login is called, especially if content is downloaded.
 ////////////////////////////////////////////////////////////////////////////////
-//function bool GameAtCapacity()
-//{
-//    if(MaxPlayers <= 0)
-//        return false;
-//    if(NumPlayers < MaxPlayers)
-//        return false;
-//    return true;
-//}
+function bool GameAtCapacity()
+{
+    if(MaxPlayers <= 0)
+        return false;
+    if(NumPlayers < MaxPlayers)
+        return false;
+    return true;
+}
+
+event playerpawn Login
+(
+	string Portal,
+	string Options,
+	out string Error,
+	class<playerpawn> SpawnClass
+)
+{
+	local NavigationPoint StartSpot;
+	local PlayerPawn      NewPlayer, TestPlayer;
+	local Pawn            PawnLink;
+	local string          InName, InPassword, InSkin, InFace, InChecksum;
+	local byte            InTeam;
+
+    // Check capacity (may have changed since PreLogin)
+    // Note: No longer distinguishing between players and spectators
+    if(Level.NetMode != NM_Standalone)
+    {
+        if(GameAtCapacity())
+        {
+            Error = MaxedOutMessage;
+            return None;
+        }
+    }
+
+	// Get URL options.
+	InName     = Left(ParseOption ( Options, "Name"), 20);
+	InTeam     = GetIntOption( Options, "Team", 255 ); // default to "no team"
+	InPassword = ParseOption ( Options, "Password" );
+	InSkin	   = ParseOption ( Options, "Skin"    );
+	InFace     = ParseOption ( Options, "Face"    );
+	InChecksum = ParseOption ( Options, "Checksum" );
+
+	log( "Login:" @ InName );
+	if( InPassword != "" )
+		log( "Password"@InPassword );
+	 
+	// Find a start spot.
+	StartSpot = FindPlayerStart( None, InTeam, Portal );
+
+	if( StartSpot == None )
+	{
+		Error = FailedPlaceMessage;
+		return None;
+	}
+
+	// Try to match up to existing unoccupied player in level,
+	// for savegames and coop level switching.
+	for( PawnLink=Level.PawnList; PawnLink!=None; PawnLink=PawnLink.NextPawn )
+	{
+		TestPlayer = PlayerPawn(PawnLink);
+		if
+		(	TestPlayer!=None
+		&&	TestPlayer.Player==None 
+		&&  TestPlayer.PlayerReplicationInfo != None
+		&&  TestPlayer.bIsPlayer
+		&&	TestPlayer.PlayerReplicationInfo.PlayerName != class'PlayerReplicationInfo'.default.PlayerName
+		)
+		{
+			if
+			(	(Level.NetMode==NM_Standalone)
+			||	(TestPlayer.PlayerReplicationInfo.PlayerName~=InName && TestPlayer.Password~=InPassword) )
+			{
+				// Found matching unoccupied player, so use this one.
+				NewPlayer = TestPlayer;
+				NewPlayer.Tag = 'Player';
+				break;
+			}
+		}
+	}
+
+	// In not found, spawn a new player.
+	if( NewPlayer==None )
+	{
+		// Make sure this kind of player is allowed.
+		if ( (bHumansOnly || Level.bHumansOnly) && !SpawnClass.Default.bIsHuman
+			&& !ClassIsChildOf(SpawnClass, class'Spectator') )
+			SpawnClass = DefaultPlayerClass;
+
+		NewPlayer = Spawn(SpawnClass,,'Player',StartSpot.Location,StartSpot.Rotation);
+		if( NewPlayer!=None )
+		{
+			NewPlayer.ViewRotation = StartSpot.Rotation;
+
+			// Save the playerstart event for later firing
+			NewPlayer.StartEvent = StartSpot.Event;
+
+			NewPlayer.bJustSpawned = true;
+		}
+	}
+	else
+	{
+		NewPlayer.bJustSpawned = false;
+	}
+
+	// Handle spawn failure.
+	if( NewPlayer == None )
+	{
+		log("Couldn't spawn player at "$StartSpot);
+		Error = FailedSpawnMessage;
+		return None;
+	}
+
+	NewPlayer.CurrentSkin = int(InSkin);
+	NewPlayer.static.SetSkinActor(NewPlayer, int(InSkin));
+
+	// Set the player's ID.
+	NewPlayer.PlayerReplicationInfo.PlayerID = CurrentID++;
+
+	// Init player's information.
+	NewPlayer.ClientSetRotation(NewPlayer.Rotation);
+	if( InName=="" )
+		InName=DefaultPlayerName;
+	if( Level.NetMode!=NM_Standalone || NewPlayer.PlayerReplicationInfo.PlayerName==DefaultPlayerName )
+		ChangeName( NewPlayer, InName, false );
+
+	// Change player's team.
+	if ( !ChangeTeam(newPlayer, InTeam) )
+	{
+		Error = FailedTeamMessage;
+		return None;
+	}
+
+	if( NewPlayer.IsA('Spectator') && (Level.NetMode == NM_DedicatedServer) )
+		NumSpectators++;
+
+	// Init player's administrative privileges
+	//NewPlayer.Password = InPassword;
+	//NewPlayer.bAdmin = AdminPassword!="" && caps(InPassword)==caps(AdminPassword);
+	//NewPlayer.PlayerReplicationInfo.bAdmin = NewPlayer.bAdmin;
+	//if( NewPlayer.bAdmin )
+	//	log( "Administrator logged in!" );
+
+	// Init player's replication info
+	NewPlayer.GameReplicationInfo = GameReplicationInfo;
+
+	// If we are a server, broadcast a welcome message.
+	if( Level.NetMode==NM_DedicatedServer || Level.NetMode==NM_ListenServer )
+		BroadcastMessage( NewPlayer.PlayerReplicationInfo.PlayerName$EnteredMessage, false );
+
+	// Log it.
+	if ( LocalLog != None )
+		LocalLog.LogPlayerConnect(NewPlayer);
+	if ( WorldLog != None )
+		WorldLog.LogPlayerConnect(NewPlayer, InChecksum);
+
+	if ( !NewPlayer.IsA('Spectator') )
+		NumPlayers++;
+		
+	return newPlayer;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  Logout
 //
-//event playerpawn Login
-//(
-//	string Portal,
-//	string Options,
-//	out string Error,
-//	class<playerpawn> SpawnClass
-//)
-//{
-//	local NavigationPoint StartSpot;
-//	local PlayerPawn      NewPlayer, TestPlayer;
-//	local Pawn            PawnLink;
-//	local string          InName, InPassword, InSkin, InFace, InChecksum;
-//	local byte            InTeam;
+//  Player is leaving the game. Handle game mode updates.
+////////////////////////////////////////////////////////////////////////////////
+function Logout(Pawn P)
+{
+    Super.Logout(P);
+    
+    if(NumPlayers <= MinimumPlayersRequiredForStart)
+        GotoStatePreGame();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  PostLogin
 //
-//    // Check capacity (may have changed since PreLogin)
-//    // Note: No longer distinguishing between players and spectators
-//    if(Level.NetMode != NM_Standalone)
-//    {
-//        if(GameAtCapacity())
-//        {
-//            Error = MaxedOutMessage;
-//            return None;
-//        }
-//    }
-//
-//	// Get URL options.
-//	InName     = Left(ParseOption ( Options, "Name"), 20);
-//	InTeam     = GetIntOption( Options, "Team", 255 ); // default to "no team"
-//	InPassword = ParseOption ( Options, "Password" );
-//	InSkin	   = ParseOption ( Options, "Skin"    );
-//	InFace     = ParseOption ( Options, "Face"    );
-//	InChecksum = ParseOption ( Options, "Checksum" );
-//
-//	log( "Login:" @ InName );
-//	if( InPassword != "" )
-//		log( "Password"@InPassword );
-//	 
-//	// Find a start spot.
-//	StartSpot = FindPlayerStart( None, InTeam, Portal );
-//
-//	if( StartSpot == None )
-//	{
-//		Error = FailedPlaceMessage;
-//		return None;
-//	}
-//
-//	// Try to match up to existing unoccupied player in level,
-//	// for savegames and coop level switching.
-//	for( PawnLink=Level.PawnList; PawnLink!=None; PawnLink=PawnLink.NextPawn )
-//	{
-//		TestPlayer = PlayerPawn(PawnLink);
-//		if
-//		(	TestPlayer!=None
-//		&&	TestPlayer.Player==None 
-//		&&  TestPlayer.PlayerReplicationInfo != None
-//		&&  TestPlayer.bIsPlayer
-//		&&	TestPlayer.PlayerReplicationInfo.PlayerName != class'PlayerReplicationInfo'.default.PlayerName
-//		)
-//		{
-//			if
-//			(	(Level.NetMode==NM_Standalone)
-//			||	(TestPlayer.PlayerReplicationInfo.PlayerName~=InName && TestPlayer.Password~=InPassword) )
-//			{
-//				// Found matching unoccupied player, so use this one.
-//				NewPlayer = TestPlayer;
-//				NewPlayer.Tag = 'Player';
-//				break;
-//			}
-//		}
-//	}
-//
-//	// In not found, spawn a new player.
-//	if( NewPlayer==None )
-//	{
-//		// Make sure this kind of player is allowed.
-//		if ( (bHumansOnly || Level.bHumansOnly) && !SpawnClass.Default.bIsHuman
-//			&& !ClassIsChildOf(SpawnClass, class'Spectator') )
-//			SpawnClass = DefaultPlayerClass;
-//
-//		NewPlayer = Spawn(SpawnClass,,'Player',StartSpot.Location,StartSpot.Rotation);
-//		if( NewPlayer!=None )
-//		{
-//			NewPlayer.ViewRotation = StartSpot.Rotation;
-//
-//			// Save the playerstart event for later firing
-//			NewPlayer.StartEvent = StartSpot.Event;
-//
-//			NewPlayer.bJustSpawned = true;
-//		}
-//	}
-//	else
-//	{
-//		NewPlayer.bJustSpawned = false;
-//	}
-//
-//	// Handle spawn failure.
-//	if( NewPlayer == None )
-//	{
-//		log("Couldn't spawn player at "$StartSpot);
-//		Error = FailedSpawnMessage;
-//		return None;
-//	}
-//
-//	NewPlayer.CurrentSkin = int(InSkin);
-//	NewPlayer.static.SetSkinActor(NewPlayer, int(InSkin));
-//
-//	// Set the player's ID.
-//	NewPlayer.PlayerReplicationInfo.PlayerID = CurrentID++;
-//
-//	// Init player's information.
-//	NewPlayer.ClientSetRotation(NewPlayer.Rotation);
-//	if( InName=="" )
-//		InName=DefaultPlayerName;
-//	if( Level.NetMode!=NM_Standalone || NewPlayer.PlayerReplicationInfo.PlayerName==DefaultPlayerName )
-//		ChangeName( NewPlayer, InName, false );
-//
-//	// Change player's team.
-//	if ( !ChangeTeam(newPlayer, InTeam) )
-//	{
-//		Error = FailedTeamMessage;
-//		return None;
-//	}
-//
-//	if( NewPlayer.IsA('Spectator') && (Level.NetMode == NM_DedicatedServer) )
-//		NumSpectators++;
-//
-//	// Init player's administrative privileges
-//	//NewPlayer.Password = InPassword;
-//	//NewPlayer.bAdmin = AdminPassword!="" && caps(InPassword)==caps(AdminPassword);
-//	//NewPlayer.PlayerReplicationInfo.bAdmin = NewPlayer.bAdmin;
-//	//if( NewPlayer.bAdmin )
-//	//	log( "Administrator logged in!" );
-//
-//	// Init player's replication info
-//	NewPlayer.GameReplicationInfo = GameReplicationInfo;
-//
-//	// If we are a server, broadcast a welcome message.
-//	if( Level.NetMode==NM_DedicatedServer || Level.NetMode==NM_ListenServer )
-//		BroadcastMessage( NewPlayer.PlayerReplicationInfo.PlayerName$EnteredMessage, false );
-//
-//	// Log it.
-//	if ( LocalLog != None )
-//		LocalLog.LogPlayerConnect(NewPlayer);
-//	if ( WorldLog != None )
-//		WorldLog.LogPlayerConnect(NewPlayer, InChecksum);
-//
-//	if ( !NewPlayer.IsA('Spectator') )
-//		NumPlayers++;
-//		
-//	return newPlayer;
-//}
-//
-//////////////////////////////////////////////////////////////////////////////////
-////  Logout
-////
-////  Player is leaving the game. Handle game mode updates.
-//////////////////////////////////////////////////////////////////////////////////
-//function Logout(Pawn P)
-//{
-//    Super.Logout(P);
-//    
-//    if(NumPlayers <= MinimumPlayersRequiredForStart)
-//        GotoStatePreGame();
-//}
-//
-//////////////////////////////////////////////////////////////////////////////////
-////  PostLogin
-////
-////  Called after a successful login. This is the first place
-////  it is safe to call replicated functions on the PlayerPawn.
-//////////////////////////////////////////////////////////////////////////////////
-//event PostLogin( playerpawn NewPlayer )
-//{
-//	local Pawn P;
-//	// Start player's music.
-//	NewPlayer.ClientSetMusic( Level.Song, Level.SongSection, Level.CdTrack, MTRAN_Fade );
-//	if ( Level.NetMode != NM_Standalone )
-//	{
-//		// replicate skins
-//		for ( P=Level.PawnList; P!=None; P=P.NextPawn )
-//			if ( P.bIsPlayer && (P != NewPlayer) )
-//			{
-//				if ( P.bIsMultiSkinned )
-//					NewPlayer.ClientReplicateSkins(P.MultiSkins[0], P.MultiSkins[1], P.MultiSkins[2], P.MultiSkins[3]);
-//				else
-//					NewPlayer.ClientReplicateSkins(P.Skin);	
-//					
-//				if ( (P.PlayerReplicationInfo != None) && P.PlayerReplicationInfo.bWaitingPlayer && P.IsA('PlayerPawn') )
-//				{
-//					if ( NewPlayer.bIsMultiSkinned )
-//						PlayerPawn(P).ClientReplicateSkins(NewPlayer.MultiSkins[0], NewPlayer.MultiSkins[1], NewPlayer.MultiSkins[2], NewPlayer.MultiSkins[3]);
-//					else
-//						PlayerPawn(P).ClientReplicateSkins(NewPlayer.Skin);	
-//				}						
-//			}
-//	}
-//    
-//    // Notify the pawn of the current game state
-//    PlayerGameStateNotification(NewPlayer);
-//}
+//  Called after a successful login. This is the first place
+//  it is safe to call replicated functions on the PlayerPawn.
+////////////////////////////////////////////////////////////////////////////////
+event PostLogin( playerpawn NewPlayer )
+{
+	local Pawn P;
+	// Start player's music.
+	NewPlayer.ClientSetMusic( Level.Song, Level.SongSection, Level.CdTrack, MTRAN_Fade );
+	if ( Level.NetMode != NM_Standalone )
+	{
+		// replicate skins
+		for ( P=Level.PawnList; P!=None; P=P.NextPawn )
+			if ( P.bIsPlayer && (P != NewPlayer) )
+			{
+				if ( P.bIsMultiSkinned )
+					NewPlayer.ClientReplicateSkins(P.MultiSkins[0], P.MultiSkins[1], P.MultiSkins[2], P.MultiSkins[3]);
+				else
+					NewPlayer.ClientReplicateSkins(P.Skin);	
+					
+				if ( (P.PlayerReplicationInfo != None) && P.PlayerReplicationInfo.bWaitingPlayer && P.IsA('PlayerPawn') )
+				{
+					if ( NewPlayer.bIsMultiSkinned )
+						PlayerPawn(P).ClientReplicateSkins(NewPlayer.MultiSkins[0], NewPlayer.MultiSkins[1], NewPlayer.MultiSkins[2], NewPlayer.MultiSkins[3]);
+					else
+						PlayerPawn(P).ClientReplicateSkins(NewPlayer.Skin);	
+				}						
+			}
+	}
+    
+    // Notify the pawn of the current game state
+    PlayerGameStateNotification(NewPlayer);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  EnoughPlayersToStart
@@ -380,16 +378,16 @@ function bool EnoughPlayersReadyToGoLive()
     ReadyCount = 0;
     UnreadyCount = 0;
     
-    //for(P = Level.PawnList; P != None; P = P.NextPawn)
-    //{
-    //    if(vmodRunePlayer(P) != None && P.bIsPlayer)
-    //    {
-    //        if(vmodRunePlayer(P).ReadyToGoLive())
-    //            ReadyCount++;
-    //        else
-    //            UnreadyCount++;
-    //    }
-    //}
+    for(P = Level.PawnList; P != None; P = P.NextPawn)
+    {
+        if(vmodRunePlayer(P) != None && P.bIsPlayer)
+        {
+            if(vmodRunePlayer(P).ReadyToGoLive())
+                ReadyCount++;
+            else
+                UnreadyCount++;
+        }
+    }
     
     // Ready count conditions - majority of players are ready
     if(ReadyCount >= UnreadyCount)
@@ -431,113 +429,113 @@ function PlayerResetStatistics(Pawn P)
 //
 //  Completely reset a player, including score, trophies, health, power, etc.
 ////////////////////////////////////////////////////////////////////////////////
-//function bool RestartPlayer( pawn aPlayer )	
-//{
-//	local NavigationPoint startSpot;
-//	local bool foundStart;
-//	local int i;
-//	local actor A;
-//    local vmodRunePlayer rPlayer;
-//
-//	if( bRestartLevel && Level.NetMode!=NM_DedicatedServer && Level.NetMode!=NM_ListenServer )
-//		return true;
-//
-//	startSpot = FindPlayerStart(aPlayer, 255);
-//	if( startSpot == None )
-//	{
-//		log(" Player start not found!!!");
-//		return false;
-//	}
-//		
-//	foundStart = aPlayer.SetLocation(startSpot.Location);
-//	if( foundStart )
-//	{
-//		startSpot.PlayTeleportEffect(aPlayer, true);
-//		aPlayer.SetRotation(startSpot.Rotation);
-//		aPlayer.ViewRotation = aPlayer.Rotation;
-//		aPlayer.Acceleration = vect(0,0,0);
-//		aPlayer.Velocity = vect(0,0,0);
-//		aPlayer.Health = aPlayer.Default.Health;
-//		aPlayer.SetCollision( true, true, true );
-//		aPlayer.bCollideWorld = true;
-//		aPlayer.SetCollisionSize(aPlayer.Default.CollisionRadius, aPlayer.Default.CollisionHeight);
-//		aPlayer.ClientSetLocation( startSpot.Location, startSpot.Rotation );
-//		aPlayer.bHidden = false;
-//		aPlayer.DamageScaling = aPlayer.Default.DamageScaling;
-//		aPlayer.SoundDampening = aPlayer.Default.SoundDampening;
-//
-//		// Team games require this
-//		if (bTeamGame)
-//			aPlayer.DesiredColorAdjust = GetTeamVectorColor(aPlayer.PlayerReplicationInfo.Team);
-//		else
-//			aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
-//
-//		if (PlayerPawn(aPlayer)!=None)
-//		{
-//			PlayerPawn(aPlayer).DesiredPolyColorAdjust = PlayerPawn(aPlayer).Default.DesiredPolyColorAdjust;
-//			PlayerPawn(aPlayer).PolyColorAdjust = PlayerPawn(aPlayer).Default.PolyColorAdjust;
-//		}
-//
-//		aPlayer.ReducedDamageType = aPlayer.Default.ReducedDamageType;
-//		aPlayer.ReducedDamagePct = aPlayer.Default.ReducedDamagePct;
-//		aPlayer.Style = aPlayer.Default.Style;
-//		aPlayer.bInvisible = aPlayer.Default.bInvisible;
-//		aPlayer.SpeedScale = SS_Circular;
-//		aPlayer.bLookFocusPlayer = aPlayer.Default.bLookFocusPlayer;
-//		aPlayer.bAlignToFloor = aPlayer.Default.bAlignToFloor;
-//		aPlayer.ColorAdjust = aPlayer.Default.ColorAdjust;
-//		aPlayer.ScaleGlow = aPlayer.Default.ScaleGlow;
-//		aPlayer.Fatness = aPlayer.Default.Fatness;
-//		aPlayer.BlendAnimSequence = aPlayer.Default.BlendAnimSequence;
-//		aPlayer.DesiredFatness = aPlayer.Default.DesiredFatness;
-//		aPlayer.MaxHealth = aPlayer.Default.MaxHealth;
-//		aPlayer.Strength = aPlayer.Default.Strength;
-//		aPlayer.MaxStrength = aPlayer.Default.MaxStrength;
-//		aPlayer.RunePower = aPlayer.Default.RunePower;
-//		aPlayer.MaxPower = aPlayer.Default.MaxPower;
-//		aPlayer.GroundSpeed = aPlayer.Default.GroundSpeed;
-//		aPlayer.SetDefaultPolyGroups();
-//		aPlayer.SetDefaultJointFlags();
-//        
-//        ClearPlayerAttachments(aPlayer);
-//        
-//		for (i=0; i<NUM_BODYPARTS; i++)
-//		{	// Restore body part health
-//			aPlayer.BodyPartHealth[i] = aPlayer.Default.BodyPartHealth[i];
-//		}
-//		// Restore joint flags
-//		aPlayer.SetDefaultJointFlags();
-//		for (i=0; i<16; i++)
-//		{	// Restore polygroup skins/properties
-//			aPlayer.SkelGroupSkins[i] = aPlayer.Default.SkelGroupSkins[i];
-//			aPlayer.SkelGroupFlags[i] = aPlayer.Default.SkelGroupFlags[i];
-//		}
-//		aPlayer.SetSkinActor(aPlayer, aPlayer.CurrentSkin);
-//
-//		// Reset anim proxy vars
-//		if(PlayerPawn(aPlayer) != None && PlayerPawn(aPlayer).AnimProxy != None)
-//		{
-//			PlayerPawn(aPlayer).AnimProxy.GotoState('Idle');
-//		}
-//	}
-//	else
-//		log(startspot$" Player start not useable!!!");
-//    
-//    
-//    
-//    //rPlayer = vmodRunePlayer(aPlayer);
-//	//if (rPlayer!=None)
-//	//{
-//	//	rPlayer.OldCameraStart = rPlayer.Location;
-//	//	rPlayer.OldCameraStart.Z += rPlayer.CameraHeight;
-//	//	rPlayer.CurrentDist = rPlayer.CameraDist;
-//	//	rPlayer.LastTime = 0;
-//	//	rPlayer.CurrentTime = 0;
-//	//	rPlayer.CurrentRotation = rPlayer.Rotation;
-//	//}
-//
-//	return foundStart;
-//}
+function bool RestartPlayer( pawn aPlayer )	
+{
+	local NavigationPoint startSpot;
+	local bool foundStart;
+	local int i;
+	local actor A;
+    local vmodRunePlayer rPlayer;
+
+	if( bRestartLevel && Level.NetMode!=NM_DedicatedServer && Level.NetMode!=NM_ListenServer )
+		return true;
+
+	startSpot = FindPlayerStart(aPlayer, 255);
+	if( startSpot == None )
+	{
+		log(" Player start not found!!!");
+		return false;
+	}
+		
+	foundStart = aPlayer.SetLocation(startSpot.Location);
+	if( foundStart )
+	{
+		startSpot.PlayTeleportEffect(aPlayer, true);
+		aPlayer.SetRotation(startSpot.Rotation);
+		aPlayer.ViewRotation = aPlayer.Rotation;
+		aPlayer.Acceleration = vect(0,0,0);
+		aPlayer.Velocity = vect(0,0,0);
+		aPlayer.Health = aPlayer.Default.Health;
+		aPlayer.SetCollision( true, true, true );
+		aPlayer.bCollideWorld = true;
+		aPlayer.SetCollisionSize(aPlayer.Default.CollisionRadius, aPlayer.Default.CollisionHeight);
+		aPlayer.ClientSetLocation( startSpot.Location, startSpot.Rotation );
+		aPlayer.bHidden = false;
+		aPlayer.DamageScaling = aPlayer.Default.DamageScaling;
+		aPlayer.SoundDampening = aPlayer.Default.SoundDampening;
+
+		// Team games require this
+		if (bTeamGame)
+			aPlayer.DesiredColorAdjust = GetTeamVectorColor(aPlayer.PlayerReplicationInfo.Team);
+		else
+			aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
+
+		if (PlayerPawn(aPlayer)!=None)
+		{
+			PlayerPawn(aPlayer).DesiredPolyColorAdjust = PlayerPawn(aPlayer).Default.DesiredPolyColorAdjust;
+			PlayerPawn(aPlayer).PolyColorAdjust = PlayerPawn(aPlayer).Default.PolyColorAdjust;
+		}
+
+		aPlayer.ReducedDamageType = aPlayer.Default.ReducedDamageType;
+		aPlayer.ReducedDamagePct = aPlayer.Default.ReducedDamagePct;
+		aPlayer.Style = aPlayer.Default.Style;
+		aPlayer.bInvisible = aPlayer.Default.bInvisible;
+		aPlayer.SpeedScale = SS_Circular;
+		aPlayer.bLookFocusPlayer = aPlayer.Default.bLookFocusPlayer;
+		aPlayer.bAlignToFloor = aPlayer.Default.bAlignToFloor;
+		aPlayer.ColorAdjust = aPlayer.Default.ColorAdjust;
+		aPlayer.ScaleGlow = aPlayer.Default.ScaleGlow;
+		aPlayer.Fatness = aPlayer.Default.Fatness;
+		aPlayer.BlendAnimSequence = aPlayer.Default.BlendAnimSequence;
+		aPlayer.DesiredFatness = aPlayer.Default.DesiredFatness;
+		aPlayer.MaxHealth = aPlayer.Default.MaxHealth;
+		aPlayer.Strength = aPlayer.Default.Strength;
+		aPlayer.MaxStrength = aPlayer.Default.MaxStrength;
+		aPlayer.RunePower = aPlayer.Default.RunePower;
+		aPlayer.MaxPower = aPlayer.Default.MaxPower;
+		aPlayer.GroundSpeed = aPlayer.Default.GroundSpeed;
+		aPlayer.SetDefaultPolyGroups();
+		aPlayer.SetDefaultJointFlags();
+        
+        ClearPlayerAttachments(aPlayer);
+        
+		for (i=0; i<NUM_BODYPARTS; i++)
+		{	// Restore body part health
+			aPlayer.BodyPartHealth[i] = aPlayer.Default.BodyPartHealth[i];
+		}
+		// Restore joint flags
+		aPlayer.SetDefaultJointFlags();
+		for (i=0; i<16; i++)
+		{	// Restore polygroup skins/properties
+			aPlayer.SkelGroupSkins[i] = aPlayer.Default.SkelGroupSkins[i];
+			aPlayer.SkelGroupFlags[i] = aPlayer.Default.SkelGroupFlags[i];
+		}
+		aPlayer.SetSkinActor(aPlayer, aPlayer.CurrentSkin);
+
+		// Reset anim proxy vars
+		if(PlayerPawn(aPlayer) != None && PlayerPawn(aPlayer).AnimProxy != None)
+		{
+			PlayerPawn(aPlayer).AnimProxy.GotoState('Idle');
+		}
+	}
+	else
+		log(startspot$" Player start not useable!!!");
+    
+    
+    
+    rPlayer = vmodRunePlayer(aPlayer);
+	if (rPlayer!=None)
+	{
+		rPlayer.OldCameraStart = rPlayer.Location;
+		rPlayer.OldCameraStart.Z += rPlayer.CameraHeight;
+		rPlayer.CurrentDist = rPlayer.CameraDist;
+		rPlayer.LastTime = 0;
+		rPlayer.CurrentTime = 0;
+		rPlayer.CurrentRotation = rPlayer.Rotation;
+	}
+
+	return foundStart;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  ClearPlayerInventory
@@ -596,10 +594,10 @@ function GivePlayerWeapon(Pawn P, class<Weapon> WeaponClass)
     if(W == None)
         return;
     
-    //if(P.Weapon != None)
-    //    if(vmodRunePlayer(P) != None)
-    //        //vmodRunePlayer(P).StowWeapon();
-    //        vmodRunePlayer(P).StowWeapon(P.Weapon);
+    if(P.Weapon != None)
+        if(vmodRunePlayer(P) != None)
+            //vmodRunePlayer(P).StowWeapon();
+            vmodRunePlayer(P).StowWeapon(P.Weapon);
     
     W.bTossedOut = true;
     W.Instigator = P;
@@ -904,10 +902,10 @@ auto state PreGame
     function PlayerGameStateNotification(Pawn P)
     {
         // Send PreGame event to player
-        //vmodRunePlayer(P).NotifyGamePreGame();
+        vmodRunePlayer(P).NotifyGamePreGame();
         
         // Unready the player
-        //vmodRunePlayer(P).NotifyNotReadyToGoLive();
+        vmodRunePlayer(P).NotifyNotReadyToGoLive();
         
         // Send PreGame message to player
         if(MessagePreGame != "")
@@ -936,7 +934,7 @@ auto state PreGame
         }
         
         // Notify the player that they are ready
-        //vmodRunePlayer(PReady).NotifyReadyToGoLive();
+        vmodRunePlayer(PReady).NotifyReadyToGoLive();
         
         // Send PlayerReady message to all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
@@ -1030,7 +1028,7 @@ state Starting
     function PlayerGameStateNotification(Pawn P)
     {
         // Send Starting event to player
-        //vmodRunePlayer(P).NotifyGameStarting();
+        vmodRunePlayer(P).NotifyGameStarting();
         
         // Send Starting message to player
         if(MessageStartingGame != "")
@@ -1095,7 +1093,7 @@ state Live
     function PlayerGameStateNotification(Pawn P)
     {
         // Send Live event to player
-        //vmodRunePlayer(P).NotifyGameLive();
+        vmodRunePlayer(P).NotifyGameLive();
         
         // Send Live message to player
         if(MessageLiveGame != "")
@@ -1180,7 +1178,7 @@ state PostGame
     function PlayerGameStateNotification(Pawn P)
     {
         // Send PostGame event to player
-        //vmodRunePlayer(P).NotifyGamePostGame();
+        vmodRunePlayer(P).NotifyGamePostGame();
         
         // Send Live message to player
         if(MessagePostGame != "")

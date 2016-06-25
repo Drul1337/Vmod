@@ -1967,9 +1967,9 @@ function VcmdHandleKickPlayerName(string name)
 ////////////////////////////////////////////////////////////////////////////////
 function VcmdHandleResetGame()
 {
-    if( bAdmin || Level.NetMode==NM_Standalone || Level.netMode==NM_ListenServer )
-        if(Level.Game.IsA('vmodGameInfo'))
-            vmodGameInfo(Level.Game).GameReset();
+    //if( bAdmin || Level.NetMode==NM_Standalone || Level.netMode==NM_ListenServer )
+    //    if(Level.Game.IsA('vmodGameInfo'))
+    //        vmodGameInfo(Level.Game).GameReset();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

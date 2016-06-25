@@ -189,7 +189,7 @@ state PreRound
     function PlayerGameStateNotification(Pawn P)
     {
         // Send PreRound event to player
-        //vmodRunePlayer(P).NotifyGamePreRound();
+        vmodRunePlayer(P).NotifyGamePreRound();
         
         // Send PreRound message to player
         if(MessagePreRound != "")
@@ -231,7 +231,7 @@ state StartingRound
     function PlayerGameStateNotification(Pawn P)
     {
         // Send StartingRound event to player
-        //vmodRunePlayer(P).NotifyGameStartingRound();
+        vmodRunePlayer(P).NotifyGameStartingRound();
         
         // Send StartingRound message to player
         if(MessageStartingRound != "")
@@ -297,7 +297,7 @@ state Live
     function PlayerGameStateNotification(Pawn P)
     {
         // Send Live event to player
-        //vmodRunePlayer(P).NotifyGameLive();
+        vmodRunePlayer(P).NotifyGameLive();
         
         // Send Live message to player
         if(MessageLiveRound != "")
@@ -339,8 +339,8 @@ state Live
     ////////////////////////////////////////////////////////////////////////////
     function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
     {
-        //if(vmodRunePlayer(PDead) != None)
-        //    vmodRunePlayer(PDead).bCanRestart = false;
+        if(vmodRunePlayer(PDead) != None)
+            vmodRunePlayer(PDead).bCanRestart = false;
         
         Super.Killed(PKiller, PDead, DamageType);
     }
@@ -378,7 +378,7 @@ state PostRound
     
     function PlayerGameStateNotification(Pawn P)
     {
-        //vmodRunePlayer(P).NotifyGamePostRound();
+        vmodRunePlayer(P).NotifyGamePostRound();
     }
 }
 
