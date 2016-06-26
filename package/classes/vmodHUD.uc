@@ -14,6 +14,8 @@ var float PosYMessageQueue;
 var float PosXKilledQueue;
 var float PosYKilledQueue;
 
+var Texture TextureMessageQueue;
+
 struct vmodHUDLocalizedMessage_s
 {
     var Class<LocalMessage>     MessageClass;
@@ -33,15 +35,18 @@ var vmodHUDLocalizedMessage_s MessageGameNotificationPersistent;
 const MESSAGE_QUEUE_SIZE = 64;
 var private vmodHUDLocalizedMessage_s MessageQueue[64];
 var private int MessageQueueFront;
+var int MessageQueueMaxMessages;
 
 // Killed message queue
 const KILLED_QUEUE_SIZE = 64;
 var private vmodHUDLocalizedMessage_s KilledQueue[64];
 var private int KilledQueueFront;
+var int KilledQueueMaxMessages;
 
 var float MessageLifeTime;
 var float MessageQueueLifeTime;
 var float MessageGlowRate;
+var float MessageBackdropWidth;
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Tick
@@ -158,7 +163,7 @@ simulated function DrawMessageQueue(Canvas C)
     C.bCenter = false;
     
     // Count how many messages will be rendered
-    for(i = 0; i < 16; i++)
+    for(i = 0; i < MessageQueueMaxMessages; i++)
     {
         j = MessageQueueFront - i;
         if(j < 0)
@@ -176,8 +181,22 @@ simulated function DrawMessageQueue(Canvas C)
         
         t = GetMessageFadeInterpolation(MessageQueue[k]);
         
+        // Draw backdrop
+        currx = 0;
+        curry = C.ClipY * PosYMessageQueue + ((i - j - 1) * 16);
+        C.SetPos(currx, curry);
+        C.DrawColor = MessageQueue[k].MessageColor * t * 0.1;
+        
+        C.DrawTile(
+            TextureMessageQueue,
+            C.ClipX * MessageBackdropWidth, 16,
+            0, 0,
+            TextureMessageQueue.USize,
+            TextureMessageQueue.VSize);
+        
+        // Draw message
         currx = C.ClipX * PosXMessageQueue;
-        curry = C.ClipY * PosYMessageQueue + ((i - j) * 16);
+        curry = C.ClipY * PosYMessageQueue + ((i - j - 1) * 16);
         C.SetPos(currx, curry);
         C.DrawColor = WhiteColor * t;
         
@@ -197,6 +216,7 @@ simulated function DrawMessageQueue(Canvas C)
                 break;
             
             default:
+                C.DrawColor = MessageQueue[k].MessageColor * t;
                 C.DrawText(MessageQueue[k].MessageString, false);
                 break;
         }
@@ -227,7 +247,7 @@ simulated function DrawKilledQueue(Canvas C)
     C.bCenter = false;
     
     // Count how many messages will be rendered
-    for(i = 0; i < 16; i++)
+    for(i = 0; i < KilledQueueMaxMessages; i++)
     {
         j = KilledQueueFront - i;
         if(j < 0)
@@ -245,8 +265,9 @@ simulated function DrawKilledQueue(Canvas C)
         
         t = GetMessageFadeInterpolation(KilledQueue[k]);
         
+        // Draw message
         currx = C.ClipX * PosXKilledQueue;
-        curry = C.ClipY * PosYKilledQueue + ((i - j) * 16);
+        curry = C.ClipY * PosYKilledQueue + ((i - j - 1) * 16);
         C.DrawColor = RedColor * t;
         
         // Draw the message according to class
@@ -488,6 +509,10 @@ simulated function LocalizedMessage(
     // Handle all other messages
     else
     {
+        Message.MessageColor.R = 100;
+        Message.MessageColor.G = 255;
+        Message.MessageColor.B = 100;
+        
         switch(MessageClass)
         {
             case Class'RuneI.SayMessage':
@@ -546,12 +571,13 @@ defaultproperties
 {
     WhiteColor=(R=255,G=255,b=255)
     RedColor=(R=255,G=0,B=0)
-    BlueColor=(R=0,G=0,B=255)
+    BlueColor=(R=100,G=100,B=255)
     GreenColor=(R=0,G=255,B=0)
     GoldColor=(R=255,G=255,B=0)
     MessageLifeTime=2.0
     MessageGlowRate=0.5
     MessageQueueLifeTime=8.0
+    MessageBackdropWidth=0.2
     MessageQueueFront=0
     KilledQueueFront=0
     
@@ -559,4 +585,9 @@ defaultproperties
     PosYMessageQueue=0.00125
     PosXKilledQueue=0.995
     PosYKilledQueue=0.00125
+    
+    MessageQueueMaxMessages=8
+    KilledQueueMaxMessages=8
+    
+    TextureMessageQueue=Texture'RuneI.sb_horizramp'
 }
