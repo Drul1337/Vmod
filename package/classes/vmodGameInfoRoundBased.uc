@@ -1,11 +1,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 // vmodGameInfoRoundBased
 ////////////////////////////////////////////////////////////////////////////////
-//class vmodGameInfoRoundBased extends vmodGameInfo abstract;
-class vmodGameInfoRoundBased extends vmodGameInfo;
+class vmodGameInfoRoundBased extends vmodGameInfo abstract;
+
 
 var() globalconfig int StartingRoundDuration;
 var() globalconfig int StartingRoundCountdownBegin;
+var() globalconfig int PreRoundDuration;
+var() globalconfig int PostRoundDuration;
 var() globalconfig int TimeLimitRound;
 var() globalconfig int RoundLimit;
 
@@ -124,6 +126,8 @@ state Starting
         {
             PlayerGameStateNotification(P);
         }
+        
+        GRISetGameTimer(0);
     }
     
     function EndState()
@@ -184,8 +188,7 @@ state PreRound
         }
         
         RoundNumber++;
-        
-        GotoStateStartingRound();
+        GRISetGameTimer(0);
     }
     
     function PlayerGameStateNotification(Pawn P)
@@ -199,6 +202,22 @@ state PreRound
                 MessagePreRound,
                 GetMessageTypeNamePreRound(),
                 false);
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  PreRound: Timer
+    ////////////////////////////////////////////////////////////////////////////
+    function Timer()
+    {
+        local int TimeRemaining;
+        
+        Global.Timer();
+        TimerLocalRound++;
+        
+        TimeRemaining = PreRoundDuration - TimerLocalRound;
+
+        if(TimeRemaining <= 0)
+            GotoStateStartingRound();
     }
 }
 
@@ -224,6 +243,8 @@ state StartingRound
             RestartPlayer(P);
             PlayerGameStateNotification(P);
         }
+        
+        GRISetGameTimer(0);
     }
     
     function EndState()
@@ -296,6 +317,8 @@ state Live
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
                 PlayerGameStateNotification(P);
+        
+        GRISetGameTimer(0);
     }
     
     function PlayerGameStateNotification(Pawn P)
@@ -327,7 +350,7 @@ state Live
         if(TimeLimitRound > 0)
         {
             TimeRemaining = TimeLimitRound - TimerLocalRound;
-            vmodGameReplicationInfo(GameReplicationInfo).GameTimer = TimeRemaining;
+            GRISetGameTimer(TimeRemaining);
             if(TimeRemaining <= 0)
             {
                 GotoStatePostRound();
@@ -369,6 +392,7 @@ state PostRound
             if(vmodRunePlayer(P) != None)
                 PlayerGameStateNotification(P);
         
+        // Round limit reached?
         if(RoundLimit > 0)
         {
             if(RoundNumber >= RoundLimit)
@@ -378,12 +402,29 @@ state PostRound
                 return;
             }
         }
-        GotoStatePreRound();
+        
+        GRISetGameTimer(0);
     }
     
     function PlayerGameStateNotification(Pawn P)
     {
         vmodRunePlayer(P).NotifyGamePostRound();
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////
+    //  PostRound: Timer
+    ////////////////////////////////////////////////////////////////////////////
+    function Timer()
+    {
+        local int TimeRemaining;
+        
+        Global.Timer();
+        TimerLocalRound++;
+        
+        TimeRemaining = PostRoundDuration - TimerLocalRound;
+
+        if(TimeRemaining <= 0)
+            GotoStatePreRound();
     }
 }
 
@@ -394,6 +435,8 @@ defaultproperties
     StartingRoundCountdownBegin=5
     TimerLocalRound=0
     RoundNumber=0
+    PreRoundDuration=3
+    PostRoundDuration=3
     MessageLiveRound="Round"
     MessagePreRound="Prepare for the next round"
     MessageStartingRound="The round is starting"

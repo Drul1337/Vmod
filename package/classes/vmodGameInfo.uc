@@ -2,7 +2,6 @@
 // vmodGameInfo
 ////////////////////////////////////////////////////////////////////////////////
 class vmodGameInfo extends GameInfo abstract;
-//class vmodGameInfo extends RuneGameInfo;
 
 var() globalconfig int  StartingDuration;
 var() globalconfig int  StartingCountdownBegin;
@@ -754,9 +753,18 @@ function ResetTimerLocal()
 ////////////////////////////////////////////////////////////////////////////////
 function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
 {
-    // TODO: Super.Killed calls ScoreKill
-    // Will need to handle kill messages and everything between these two
-    Super.Killed(PKiller, PDead, DamageType);
+    local Pawn P;
+    
+    // TODO: Need to find a new way to do this to send weapon symbols
+    // Overridden to change message details
+    for(P = Level.PawnList; P != None; P = P.NextPawn)
+    {
+        P.ClientMessage(
+                PKiller.PlayerReplicationInfo.PlayerName $ " killed " $ PDead.PlayerReplicationInfo.PlayerName,
+                GetMessageTypeNamePlayerKilled(),
+                false);
+    }
+    ScoreKill(PKiller, PDead);
 }
 
 function ScoreKill(Pawn PKiller, Pawn PDead)
@@ -818,6 +826,7 @@ function Name GetMessageTypeName(class<LocalMessage> MessageClass)
         case Class'Vmod.vmodLocalMessageLiveGame':      return 'LiveGame';
         case Class'Vmod.vmodLocalMessagePostGame':      return 'PostGame';
         case Class'Vmod.vmodLocalMessagePlayerReady':   return 'PlayerReady';
+        case Class'Vmod.vmodLocalMessagePlayerKilled':  return 'PlayerKilled';
     }
     return 'Default'; // Default type name
 }
@@ -837,6 +846,9 @@ function Name GetMessageTypeNamePostGame()
 function Name GetMessageTypeNamePlayerReady()
 { return GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerReady'); }
 
+function Name GetMessageTypeNamePlayerKilled()
+{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerKilled');  }
+
 ////////////////////////////////////////////////////////////////////////////////
 //  MessageTypeClasses
 ////////////////////////////////////////////////////////////////////////////////
@@ -849,6 +861,7 @@ function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
         case 'LiveGame':        return Class'Vmod.vmodLocalMessageLiveGame';
         case 'PostGame':        return Class'Vmod.vmodLocalMessagePostGame';
         case 'PlayerReady':     return Class'Vmod.vmodLocalMessagePlayerReady';
+        case 'PlayerKilled':    return Class'Vmod.vmodLocalMessagePlayerKilled';
     }
     return Class'LocalMessage'; // Default class name
 }
@@ -867,6 +880,9 @@ function Class<LocalMessage> GetMessageTypeClassPostGame()
 
 function Class<LocalMessage> GetMessageTypeClassPlayerReady()
 { return GetMessageTypeClass('PlayerReady'); }
+
+function Class<LocalMessage> GetMessageTypeClassPlayerKilled()
+{ return GetMessageTypeClass('PlayerKilled'); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  GameReplicationInfo update functions
@@ -966,7 +982,7 @@ auto state PreGame
         }
         
         // If the player is already ready, just return
-        if(PlayerIsReadyToGoLive(P))
+        if(PlayerIsReadyToGoLive(PReady))
         {
             // TODO: Optionally play a "waiting on other players" here
             return;
@@ -1016,7 +1032,7 @@ auto state PreGame
         local Pawn P;
         
         // If the player is already not ready, just return
-        if(!PlayerIsReadyToGoLive(P))
+        if(!PlayerIsReadyToGoLive(PUnready))
         {
             return;
         }
