@@ -16,7 +16,7 @@ struct vmodHUDLocalizedMessage_s
     var Class<LocalMessage>     MessageClass;
     var String                  MessageString;
     var String                  MessageStringAdditional;
-	var PlayerReplicationInfo   PRI1;
+    var PlayerReplicationInfo   PRI1;
     var PlayerReplicationInfo   PRI2;
     var float                   TimeStamp;
     var Color                   MessageColor;
@@ -185,7 +185,7 @@ function DrawMessage(
     C.Style = ERenderStyle.STY_Translucent;
     
     if(MyFonts != None) C.Font = MyFonts.GetStaticBigFont();
-	else                C.Font = C.BigFont;
+    else                C.Font = C.BigFont;
     
     // Draw backdrop
     if(BackDrop)
@@ -335,34 +335,34 @@ simulated function DrawMessages(canvas C)
 ////////////////////////////////////////////////////////////////////////////////
 simulated function DrawRemainingTime(canvas Canvas, int x, int y)
 {
-	local int timeleft;
-	local int Hours, Minutes, Seconds;
+    local int timeleft;
+    local int Hours, Minutes, Seconds;
 
-	if (PlayerPawn(Owner)==None || PlayerPawn(Owner).GameReplicationInfo==None)
-		return;
+    if (PlayerPawn(Owner)==None || PlayerPawn(Owner).GameReplicationInfo==None)
+        return;
 
-	timeleft = vmodGameReplicationInfo(PlayerPawn(Owner).GameReplicationInfo).GameTimer;
+    timeleft = vmodGameReplicationInfo(PlayerPawn(Owner).GameReplicationInfo).GameTimer;
     
     if(timeleft <= 0)
         return;
     
     Canvas.bCenter = true;
     
-	Hours   = timeleft / 3600;
-	Minutes = timeleft / 60;
-	Seconds = timeleft % 60;
-	//FONT ALTER
-	//Canvas.Font = Canvas.LargeFont;
-	if(MyFonts != None)
-		Canvas.Font = MyFonts.GetStaticLargeFont();
-	else
-		Canvas.Font = Canvas.LargeFont;
+    Hours   = timeleft / 3600;
+    Minutes = timeleft / 60;
+    Seconds = timeleft % 60;
+    //FONT ALTER
+    //Canvas.Font = Canvas.LargeFont;
+    if(MyFonts != None)
+        Canvas.Font = MyFonts.GetStaticLargeFont();
+    else
+        Canvas.Font = Canvas.LargeFont;
 
-	Canvas.SetPos(x, y);
-	if (timeleft <= 30)
-		Canvas.SetColor(255,0,0);
-	Canvas.DrawText(TwoDigitString(Minutes)$":"$TwoDigitString(Seconds), true);
-	Canvas.SetColor(255,255,255);
+    Canvas.SetPos(x, y);
+    if (timeleft <= 30)
+        Canvas.SetColor(255,0,0);
+    Canvas.DrawText(TwoDigitString(Minutes)$":"$TwoDigitString(Seconds), true);
+    Canvas.SetColor(255,255,255);
     
     Canvas.bCenter = false;
 }
@@ -535,7 +535,7 @@ simulated function LocalizedMessage(
 ////////////////////////////////////////////////////////////////////////////////
 simulated function Class<LocalMessage> DetermineClass(name MsgType)
 {
-	local Class<LocalMessage> MessageClass;
+    local Class<LocalMessage> MessageClass;
     
     switch(MsgType)
     {
