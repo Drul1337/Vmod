@@ -9,11 +9,6 @@ var color BlueColor;
 var color GreenColor;
 var color GoldColor;
 
-var float PosXMessageQueue;
-var float PosYMessageQueue;
-var float PosXKillsQueue;
-var float PosYKillsQueue;
-
 var Texture TextureMessageQueue;
 
 struct vmodHUDLocalizedMessage_s
@@ -37,7 +32,12 @@ struct MessageQueue_s
     var int                         Front;
 };
 var private MessageQueue_s MessageQueueGeneral;
+var float PosXMessageQueue;
+var float PosYMessageQueue;
+
 var private MessageQueue_s MessageQueueKills;
+var float PosXKillsQueue;
+var float PosYKillsQueue;
 
 // Message justification types
 enum MessageJustificationType_e
@@ -59,19 +59,33 @@ var float MessageQueueLifeTime;
 var float MessageGlowRate;
 var float MessageBackdropWidth;
 
+
 ////////////////////////////////////////////////////////////////////////////////
 //  PostBeginPlay
+//
+//  Purge all message queues here so that at the start of game play the messages
+//  are not incorrectly offset.
 ////////////////////////////////////////////////////////////////////////////////
 event PostBeginPlay()
 {
-    // Expire all queue messages
     MessageQueuePurgeAll(MessageQueueGeneral);
     MessageQueuePurgeAll(MessageQueueKills);
     Super.PostBeginPlay();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  MessageQueue
+//  PostRender
+//
+//  Draw the HUD
+////////////////////////////////////////////////////////////////////////////////
+simulated function PostRender(Canvas C)
+{
+    Super.PostRender(C);
+    DrawRemainingTime(C, 0, 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  MessageQueue Implementation
 ////////////////////////////////////////////////////////////////////////////////
 simulated function MessageQueuePush(
     out MessageQueue_s Q,
@@ -92,10 +106,9 @@ simulated function MessageQueuePurgeAll(out MessageQueue_s Q)
 }
 
 simulated function MessageQueueDraw(
-    Canvas C,
-    MessageQueue_s Q,
+    Canvas C, MessageQueue_s Q,
     float RelX, float RelY,
-    int MaxMessages,
+    int MessageCount,
     optional float LifeTime,
     optional MessageJustificationType_e Justification,
     optional bool BackDrop,
@@ -107,11 +120,12 @@ simulated function MessageQueueDraw(
     if(LifeTime == 0.0)
         LifeTime = MessageLifeTime;
     
-    if(MaxMessages > MESSAGE_QUEUE_SIZE)
-        MaxMessages = MESSAGE_QUEUE_SIZE;
+    // Constrain message count to queue size
+    if(MessageCount > MESSAGE_QUEUE_SIZE)
+        MessageCount = MESSAGE_QUEUE_SIZE;
     
     // Count how many messages will be rendered
-    for(i = 0; i < MaxMessages; i++)
+    for(i = 0; i < MessageCount; i++)
     {
         j = Q.Front - i;
         if(j < 0)
@@ -124,14 +138,6 @@ simulated function MessageQueueDraw(
     if(i <= 0)
         return;
     
-    // Set font
-    if(MyFonts != None) C.Font = MyFonts.GetStaticBigFont();
-	else                C.Font = C.BigFont;
-    
-    // Set canvas
-    C.Style = ERenderStyle.STY_Translucent;
-    //C.bCenter = false;
-    
     // Render i messages from the queue
     for(j = 0; j < i; j++)
     {
@@ -139,6 +145,8 @@ simulated function MessageQueueDraw(
         if(k < 0)
             k += MESSAGE_QUEUE_SIZE;
         
+        // TODO: Just using 16 for height at the moment, need to get the
+        // actual value
         DrawMessage(
             C, Q.Messages[k],
             (C.ClipX * RelX),
@@ -162,12 +170,22 @@ function DrawMessage(
     optional bool Backdrop,
     optional InterpolationType_e InterpType)
 {
+    local float w, h;
     local float t;
+    
+    if(MessageExpired(M, LifeTime))
+        return;
     
     t = GetMessageTimeStampInterpolation(
             M,
             LifeTime,
             InterpType);
+    
+    // Set canvas
+    C.Style = ERenderStyle.STY_Translucent;
+    
+    if(MyFonts != None) C.Font = MyFonts.GetStaticBigFont();
+	else                C.Font = C.BigFont;
     
     // Draw backdrop
     if(BackDrop)
@@ -191,11 +209,13 @@ function DrawMessage(
             break;
         
         case JUSTIFY_RIGHT:
-            C.SetPos(PosX, PosY);
+            C.StrLen(M.MessageString, w, h);
+            C.SetPos((PosX - w), PosY);
             break;
         
         case JUSTIFY_CENTER:
-            C.SetPos(PosX, PosY);
+            C.StrLen(M.MessageString, w, h);
+            C.SetPos((PosX - (w >> 1)), PosY);
             break;
     }
     
@@ -219,18 +239,6 @@ function DrawMessage(
             C.DrawText(M.MessageString);
             break;
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  PostRender
-//
-//  Draw the HUD
-////////////////////////////////////////////////////////////////////////////////
-simulated function PostRender(Canvas C)
-{
-    Super.PostRender(C);
-    
-    DrawRemainingTime(C, 0, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -289,64 +297,19 @@ simulated function bool MessageExpired(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  DrawMessageGameNotifications
-////////////////////////////////////////////////////////////////////////////////
-simulated function DrawMessageGameNotifications(
-    Canvas C,
-    optional float LifeTime,
-    optional InterpolationType_e InterpType)
-{
-    local float t;
-    
-    // Handle optional LifeTime
-    if(LifeTime == 0.0)
-        LifeTime = MessageLifeTime;
-    
-    // Draw primary game notification
-    if(!MessageExpired(MessageGameNotification, LifeTime) &&
-        MessageGameNotification.MessageString != "")
-    {
-        if(MyFonts != None)
-            C.Font = MyFonts.GetStaticBigFont();
-        else
-            C.Font = C.BigFont;
-        
-        t = GetMessageTimeStampInterpolation(
-                MessageGameNotification,
-                MessageLifeTime,
-                InterpType);
-        
-        C.Style = ERenderStyle.STY_Translucent;
-        C.bCenter = true;
-        C.SetPos(0, C.ClipY * 0.4);
-        C.DrawColor = MessageGameNotification.MessageColor * t;
-        C.DrawText(MessageGameNotification.MessageString, false);
-    }
-    
-    // Draw persistent game notification
-    if(MessageGameNotificationPersistent.MessageString != "")
-    {
-        if(MyFonts != None)
-            C.Font = MyFonts.GetStaticBigFont();
-        else
-            C.Font = C.BigFont;
-        
-        T = GetMessageGlowInterpolation();
-        
-        C.Style = ERenderStyle.STY_Translucent;
-        C.bCenter = true;
-        C.SetPos(0, C.ClipY * 0.9);
-        C.DrawColor = MessageGameNotificationPersistent.MessageColor * T;
-        C.DrawText(MessageGameNotificationPersistent.MessageString, false);
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 //  DrawMessages
 ////////////////////////////////////////////////////////////////////////////////
 simulated function DrawMessages(canvas C)
 {
-    DrawMessageGameNotifications(C, MessageLifeTime, INTERP_QUADRATIC);
+    // Draw the game notification message
+    // TODO: Need to draw the persistent message as well
+    DrawMessage(
+        C, MessageGameNotification,
+        C.ClipX * 0.5, C.ClipY * 0.4,
+        MessageLifeTime,
+        JUSTIFY_CENTER,
+        false,
+        INTERP_QUADRATIC);
     
     // Draw the general message queue
     MessageQueueDraw(
