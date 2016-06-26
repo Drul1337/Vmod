@@ -11,8 +11,8 @@ var color GoldColor;
 
 var float PosXMessageQueue;
 var float PosYMessageQueue;
-var float PosXKilledQueue;
-var float PosYKilledQueue;
+var float PosXKillsQueue;
+var float PosYKillsQueue;
 
 var Texture TextureMessageQueue;
 
@@ -23,25 +23,36 @@ struct vmodHUDLocalizedMessage_s
     var String                  MessageStringAdditional;
 	var PlayerReplicationInfo   PRI1;
     var PlayerReplicationInfo   PRI2;
-    var float                   LifeStart;
-    var float                   LifeEnd;
+    var float                   TimeStamp;
     var Color                   MessageColor;
 };
-
 var vmodHUDLocalizedMessage_s MessageGameNotification;
 var vmodHUDLocalizedMessage_s MessageGameNotificationPersistent;
 
-// General message queue
+// Message queues
 const MESSAGE_QUEUE_SIZE = 64;
-var private vmodHUDLocalizedMessage_s MessageQueue[64];
-var private int MessageQueueFront;
-var int MessageQueueMaxMessages;
+struct MessageQueue_s
+{
+    var vmodHUDLocalizedMessage_s   Messages[64];
+    var int                         Front;
+};
+var private MessageQueue_s MessageQueueGeneral;
+var private MessageQueue_s MessageQueueKills;
 
-// Killed message queue
-const KILLED_QUEUE_SIZE = 64;
-var private vmodHUDLocalizedMessage_s KilledQueue[64];
-var private int KilledQueueFront;
-var int KilledQueueMaxMessages;
+// Message justification types
+enum MessageJustificationType_e
+{
+    JUSTIFY_LEFT,
+    JUSTIFY_RIGHT,
+    JUSTIFY_CENTER
+};
+
+// Interpolation types
+enum InterpolationType_e
+{
+    INTERP_LINEAR,
+    INTERP_QUADRATIC
+};
 
 var float MessageLifeTime;
 var float MessageQueueLifeTime;
@@ -49,11 +60,165 @@ var float MessageGlowRate;
 var float MessageBackdropWidth;
 
 ////////////////////////////////////////////////////////////////////////////////
-//  Tick
+//  PostBeginPlay
 ////////////////////////////////////////////////////////////////////////////////
-simulated function Tick(float DT)
+event PostBeginPlay()
 {
-    Super.Tick(DT);
+    // Expire all queue messages
+    MessageQueuePurgeAll(MessageQueueGeneral);
+    MessageQueuePurgeAll(MessageQueueKills);
+    Super.PostBeginPlay();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  MessageQueue
+////////////////////////////////////////////////////////////////////////////////
+simulated function MessageQueuePush(
+    out MessageQueue_s Q,
+    vmodHUDLocalizedMessage_s M)
+{
+    Q.Front = (Q.Front + 1) % MESSAGE_QUEUE_SIZE;
+    Q.Messages[Q.Front] = M;
+}
+
+simulated function MessageQueuePurgeAll(out MessageQueue_s Q)
+{
+    local int i;
+    for(i = 0; i < MESSAGE_QUEUE_SIZE; i++)
+    {
+        // TODO: Implement negative infinity?
+        Q.Messages[i].TimeStamp = -9999.0;
+    }
+}
+
+simulated function MessageQueueDraw(
+    Canvas C,
+    MessageQueue_s Q,
+    float RelX, float RelY,
+    int MaxMessages,
+    optional float LifeTime,
+    optional MessageJustificationType_e Justification,
+    optional bool BackDrop,
+    optional InterpolationType_e InterpType)
+{
+    local int i, j, k;
+    
+    // Handle optional LifeTime
+    if(LifeTime == 0.0)
+        LifeTime = MessageLifeTime;
+    
+    if(MaxMessages > MESSAGE_QUEUE_SIZE)
+        MaxMessages = MESSAGE_QUEUE_SIZE;
+    
+    // Count how many messages will be rendered
+    for(i = 0; i < MaxMessages; i++)
+    {
+        j = Q.Front - i;
+        if(j < 0)
+            j += MESSAGE_QUEUE_SIZE;
+        if(MessageExpired(Q.Messages[j], LifeTime))
+            break;
+    }
+    
+    // Return if no messages
+    if(i <= 0)
+        return;
+    
+    // Set font
+    if(MyFonts != None) C.Font = MyFonts.GetStaticBigFont();
+	else                C.Font = C.BigFont;
+    
+    // Set canvas
+    C.Style = ERenderStyle.STY_Translucent;
+    //C.bCenter = false;
+    
+    // Render i messages from the queue
+    for(j = 0; j < i; j++)
+    {
+        k = Q.Front - j;
+        if(k < 0)
+            k += MESSAGE_QUEUE_SIZE;
+        
+        DrawMessage(
+            C, Q.Messages[k],
+            (C.ClipX * RelX),
+            (C.ClipY * RelY + ((i - j - 1) * 16)),
+            LifeTime,
+            Justification,
+            Backdrop,
+            InterpType);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DrawMessage
+////////////////////////////////////////////////////////////////////////////////
+function DrawMessage(
+    Canvas C,
+    vmodHUDLocalizedMessage_s M,
+    float PosX, float PosY,
+    optional float LifeTime,
+    optional MessageJustificationType_e Justification,
+    optional bool Backdrop,
+    optional InterpolationType_e InterpType)
+{
+    local float t;
+    
+    t = GetMessageTimeStampInterpolation(
+            M,
+            LifeTime,
+            InterpType);
+    
+    // Draw backdrop
+    if(BackDrop)
+    {
+        C.SetPos(PosX, PosY);
+        C.DrawColor = M.MessageColor * t * 0.1;
+        
+        C.DrawTile(
+            TextureMessageQueue,
+            C.ClipX * MessageBackdropWidth, 16,
+            0, 0,
+            TextureMessageQueue.USize,
+            TextureMessageQueue.VSize);
+    }
+    
+    // Adjust for justification
+    switch(Justification)
+    {
+        case JUSTIFY_LEFT:
+            C.SetPos(PosX, PosY);
+            break;
+        
+        case JUSTIFY_RIGHT:
+            C.SetPos(PosX, PosY);
+            break;
+        
+        case JUSTIFY_CENTER:
+            C.SetPos(PosX, PosY);
+            break;
+    }
+    
+    // Draw the message according to class
+    switch(M.MessageClass)
+    {
+        case Class'RuneI.SayMessage':
+            // Draw player's name
+            C.DrawColor = M.MessageColor * t;
+            C.DrawText(M.MessageStringAdditional);
+            
+            // Draw player's message
+            PosX += 96;
+            C.SetPos(PosX, PosY);
+            C.DrawColor = WhiteColor * t;
+            C.DrawText(M.MessageString);
+            break;
+        
+        default:
+            C.DrawColor = M.MessageColor * t;
+            C.DrawText(M.MessageString);
+            break;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -71,18 +236,35 @@ simulated function PostRender(Canvas C)
 ////////////////////////////////////////////////////////////////////////////////
 //  Interpolation functions
 ////////////////////////////////////////////////////////////////////////////////
-simulated function float GetMessageFadeInterpolation(vmodHUDLocalizedMessage_s M)
+simulated function float GetMessageTimeStampInterpolation(
+    vmodHUDLocalizedMessage_s M,
+    optional float LifeTime,
+    optional InterpolationType_e InterpType)
 {
     local float t, b, c, d;
     
-    // Quadratic tween
-    t = Level.TimeSeconds - M.LifeStart;
+    if(LifeTime == 0.0)
+        LifeTime = MessageLifeTime;
+    
+    t = Level.TimeSeconds - M.TimeStamp;
     b = 0.0;
     c = 1.0;
-    d = M.LifeEnd - M.LifeStart;
+    d = LifeTime;
     
-    t = t / d;
-    return 1.0 - (c * t * t + b);
+    if(t > d)
+        return 0.0;
+    
+    switch(InterpType)
+    {
+        case INTERP_LINEAR:
+            return 1.0 - (t / d);
+        
+        case INTERP_QUADRATIC:
+            t = t / d;
+            return 1.0 - (c * t * t + b);
+    }
+    
+    return 1.0;
 }
 
 simulated function float GetMessageGlowInterpolation()
@@ -97,14 +279,31 @@ simulated function float GetMessageGlowInterpolation()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  MessageExpired
+////////////////////////////////////////////////////////////////////////////////
+simulated function bool MessageExpired(
+    vmodHUDLocalizedMessage_s M,
+    optional float LifeTime)
+{
+    return Level.TimeSeconds >= (M.TimeStamp + LifeTime);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  DrawMessageGameNotifications
 ////////////////////////////////////////////////////////////////////////////////
-simulated function DrawMessageGameNotifications(Canvas C)
+simulated function DrawMessageGameNotifications(
+    Canvas C,
+    optional float LifeTime,
+    optional InterpolationType_e InterpType)
 {
-    local float T;
+    local float t;
+    
+    // Handle optional LifeTime
+    if(LifeTime == 0.0)
+        LifeTime = MessageLifeTime;
     
     // Draw primary game notification
-    if( MessageGameNotification.LifeEnd > Level.TimeSeconds &&
+    if(!MessageExpired(MessageGameNotification, LifeTime) &&
         MessageGameNotification.MessageString != "")
     {
         if(MyFonts != None)
@@ -112,12 +311,15 @@ simulated function DrawMessageGameNotifications(Canvas C)
         else
             C.Font = C.BigFont;
         
-        T = GetMessageFadeInterpolation(MessageGameNotification);
+        t = GetMessageTimeStampInterpolation(
+                MessageGameNotification,
+                MessageLifeTime,
+                InterpType);
         
         C.Style = ERenderStyle.STY_Translucent;
         C.bCenter = true;
         C.SetPos(0, C.ClipY * 0.4);
-        C.DrawColor = MessageGameNotification.MessageColor * T;
+        C.DrawColor = MessageGameNotification.MessageColor * t;
         C.DrawText(MessageGameNotification.MessageString, false);
     }
     
@@ -140,154 +342,29 @@ simulated function DrawMessageGameNotifications(Canvas C)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  DrawMessageQueue
-////////////////////////////////////////////////////////////////////////////////
-simulated function DrawMessageQueue(Canvas C)
-{
-    local int i, j, k;
-    local float t;
-    local float currx, curry;
-    
-    // Any messages in the queue?
-    if(MessageQueue[MessageQueueFront].LifeEnd <= Level.TimeSeconds)
-        return;
-    
-    // Set font
-    if(MyFonts != None)
-		C.Font = MyFonts.GetStaticBigFont();
-	else
-		C.Font = C.BigFont;
-    
-    // Set canvas
-    C.Style = ERenderStyle.STY_Translucent;
-    C.bCenter = false;
-    
-    // Count how many messages will be rendered
-    for(i = 0; i < MessageQueueMaxMessages; i++)
-    {
-        j = MessageQueueFront - i;
-        if(j < 0)
-            j += MESSAGE_QUEUE_SIZE;
-        if(MessageQueue[j].LifeEnd <= Level.TimeSeconds)
-            break;
-    }
-    
-    // Render i messages from the queue
-    for(j = 0; j < i; j++)
-    {
-        k = MessageQueueFront - j;
-        if(k < 0)
-            k += MESSAGE_QUEUE_SIZE;
-        
-        t = GetMessageFadeInterpolation(MessageQueue[k]);
-        
-        // Draw backdrop
-        currx = 0;
-        curry = C.ClipY * PosYMessageQueue + ((i - j - 1) * 16);
-        C.SetPos(currx, curry);
-        C.DrawColor = MessageQueue[k].MessageColor * t * 0.1;
-        
-        C.DrawTile(
-            TextureMessageQueue,
-            C.ClipX * MessageBackdropWidth, 16,
-            0, 0,
-            TextureMessageQueue.USize,
-            TextureMessageQueue.VSize);
-        
-        // Draw message
-        currx = C.ClipX * PosXMessageQueue;
-        curry = C.ClipY * PosYMessageQueue + ((i - j - 1) * 16);
-        C.SetPos(currx, curry);
-        C.DrawColor = WhiteColor * t;
-        
-        // Draw the message according to class
-        switch(MessageQueue[k].MessageClass)
-        {
-            case Class'RuneI.SayMessage':
-                // Draw player's name
-                C.DrawColor = MessageQueue[k].MessageColor * t;
-                C.DrawText(MessageQueue[k].MessageStringAdditional);
-                
-                // Draw player's message
-                currx += 96;
-                C.SetPos(currx, curry);
-                C.DrawColor = WhiteColor * t;
-                C.DrawText(MessageQueue[k].MessageString);
-                break;
-            
-            default:
-                C.DrawColor = MessageQueue[k].MessageColor * t;
-                C.DrawText(MessageQueue[k].MessageString, false);
-                break;
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  DrawKilledQueue
-////////////////////////////////////////////////////////////////////////////////
-simulated function DrawKilledQueue(Canvas C)
-{
-    local int i, j, k;
-    local float t;
-    local float currx, curry;
-    
-    // Any messages in the queue?
-    if(KilledQueue[KilledQueueFront].LifeEnd <= Level.TimeSeconds)
-        return;
-    
-    // Set font
-    if(MyFonts != None)
-		C.Font = MyFonts.GetStaticBigFont();
-	else
-		C.Font = C.BigFont;
-    
-    // Set canvas
-    C.Style = ERenderStyle.STY_Translucent;
-    C.bCenter = false;
-    
-    // Count how many messages will be rendered
-    for(i = 0; i < KilledQueueMaxMessages; i++)
-    {
-        j = KilledQueueFront - i;
-        if(j < 0)
-            j += KILLED_QUEUE_SIZE;
-        if(KilledQueue[j].LifeEnd <= Level.TimeSeconds)
-            break;
-    }
-    
-    // Render i messages from the queue
-    for(j = 0; j < i; j++)
-    {
-        k = KilledQueueFront - j;
-        if(k < 0)
-            k += KILLED_QUEUE_SIZE;
-        
-        t = GetMessageFadeInterpolation(KilledQueue[k]);
-        
-        // Draw message
-        currx = C.ClipX * PosXKilledQueue;
-        curry = C.ClipY * PosYKilledQueue + ((i - j - 1) * 16);
-        C.DrawColor = RedColor * t;
-        
-        // Draw the message according to class
-        switch(KilledQueue[k].MessageClass)
-        {
-            default:
-                C.DrawTextRightJustify(KilledQueue[k].MessageString, currx, curry);
-                break;
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 //  DrawMessages
 ////////////////////////////////////////////////////////////////////////////////
 simulated function DrawMessages(canvas C)
 {
-    DrawMessageGameNotifications(C);
-    DrawMessageQueue(C);
-    DrawKilledQueue(C);
+    DrawMessageGameNotifications(C, MessageLifeTime, INTERP_QUADRATIC);
+    
+    // Draw the general message queue
+    MessageQueueDraw(
+        C, MessageQueueGeneral,
+        PosXMessageQueue, PosYMessageQueue,
+        16, MessageQueueLifeTime,
+        JUSTIFY_LEFT,
+        true,
+        INTERP_QUADRATIC);
+    
+    // Draw the kill messages
+    MessageQueueDraw(
+        C, MessageQueueKills,
+        PosXKillsQueue, PosYKillsQueue,
+        16, MessageQueueLifeTime,
+        JUSTIFY_RIGHT,
+        false,
+        INTERP_QUADRATIC);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -337,34 +414,6 @@ simulated function DrawFragCount(canvas Canvas, int x, int y)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  QueuePushMessage
-//
-//  Push a message onto the general message queue.
-////////////////////////////////////////////////////////////////////////////////
-simulated function QueuePushMessage(vmodHUDLocalizedMessage_s M)
-{
-    MessageQueueFront = (MessageQueueFront + 1) % MESSAGE_QUEUE_SIZE;
-    MessageQueue[MessageQueueFront] = M;
-    MessageQueue[MessageQueueFront].LifeStart = Level.TimeSeconds;
-    MessageQueue[MessageQueueFront].LifeEnd =
-        MessageQueue[MessageQueueFront].LifeStart + MessageQueueLifeTime;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  KilledPushMessage
-//
-//  Push a kill message onto the killed queue.
-////////////////////////////////////////////////////////////////////////////////
-simulated function KilledPushMessage(vmodHUDLocalizedMessage_s M)
-{
-    KilledQueueFront = (KilledQueueFront + 1) % KILLED_QUEUE_SIZE;
-    KilledQueue[KilledQueueFront] = M;
-    KilledQueue[KilledQueueFront].LifeStart = Level.TimeSeconds;
-    KilledQueue[KilledQueueFront].LifeEnd =
-        KilledQueue[KilledQueueFront].LifeStart + MessageQueueLifeTime;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 //  MangleMessage
 //
 //  After a message has been received by LocalizedMessage, it is constructed
@@ -372,9 +421,7 @@ simulated function KilledPushMessage(vmodHUDLocalizedMessage_s M)
 //  corresponding to its class for further modification.
 ////////////////////////////////////////////////////////////////////////////////
 simulated function MangleMessagePreGame(out vmodHUDLocalizedMessage_s M)
-{
-    M.MessageColor.G = 0;
-}
+{}
 
 simulated function MangleMessageStartingGame(out vmodHUDLocalizedMessage_s M)
 {}
@@ -439,17 +486,13 @@ simulated function LocalizedMessage(
 {
     local vmodHUDLocalizedMessage_s Message;
     
-    // TODO: These return cases may be causing beeps without messages
-    //if(MessageClass == None)    return;
-    
     // Construct new message
     Message.MessageClass            = MessageClass;
     Message.MessageString           = CriticalString;
     Message.MessageStringAdditional = "";
     Message.PRI1                    = RelatedPRI1;
     Message.PRI2                    = RelatedPRI2;
-    Message.LifeStart               = Level.TimeSeconds;
-    Message.LifeEnd                 = Message.LifeStart + MessageLifeTime;
+    Message.TimeStamp               = Level.TimeSeconds;
     Message.MessageColor            = WhiteColor;
     
     // Handle GameNotification messages
@@ -503,8 +546,7 @@ simulated function LocalizedMessage(
                 break;
         }
         
-        // TODO: Implement a new queue for killed messages and push this there instead
-        KilledPushMessage(Message);
+        MessageQueuePush(MessageQueueKills, Message);
     }
     // Handle all other messages
     else
@@ -520,7 +562,7 @@ simulated function LocalizedMessage(
                 break;
         }
         
-        QueuePushMessage(Message);
+        MessageQueuePush(MessageQueueGeneral, Message);
     }
 }
 
@@ -583,8 +625,8 @@ defaultproperties
     
     PosXMessageQueue=0.005
     PosYMessageQueue=0.00125
-    PosXKilledQueue=0.995
-    PosYKilledQueue=0.00125
+    PosXKillsQueue=0.995
+    PosYKillsQueue=0.00125
     
     MessageQueueMaxMessages=8
     KilledQueueMaxMessages=8

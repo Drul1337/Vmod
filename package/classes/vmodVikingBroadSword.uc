@@ -7,22 +7,14 @@ var WeaponSwipe MyNewSwipe;
 
 replication
 {
-	reliable if (Role == ROLE_Authority)
-		MyNewSwipe;
+    //// Server --> Client
+	//reliable if (Role == ROLE_Authority)
+	//	MyNewSwipe;
 	
+    // Server --> Client
 	reliable if (Role == ROLE_Authority)
 		NewEnableSwipeTrail, NewDisableSwipeTrail;
 }
-
-function PowerupInit()
-{
-	Super.PowerupInit();
-}	
-
-function PowerupEnded()
-{
-	Super.PowerupEnded();
-}	
 
 simulated function SpawnPowerupEffect()
 {
