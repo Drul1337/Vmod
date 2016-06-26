@@ -46,20 +46,13 @@ function SetReadyToGoLive(bool B)
 //  Game Notifications
 ///////////////////////////////////////////////////////////////////////////////
 function NotifyGamePreGame()
-{
-    GotoState('PlayerWalking');
-    //GotoState('PlayerSpectating');
-}
+{}
 
 function NotifyGameStarting()
-{
-    GotoState('PlayerWalking');
-}
+{}
 
 function NotifyGameLive()
-{
-    GotoState('PlayerWalking');
-}
+{}
 
 function NotifyGamePostGame()
 {

@@ -390,7 +390,7 @@ function bool EnoughPlayersReadyToGoLive()
     }
     
     // Ready count conditions - majority of players are ready
-    if(ReadyCount >= UnreadyCount)
+    if(ReadyCount > UnreadyCount)
         return true;
     return false;
 }
@@ -410,6 +410,28 @@ function bool PlayerIsReadyToGoLive(Pawn P)
 function GameReset()
 {
     GotoStatePreGame();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  ClearLevelItems
+//
+//  Clear the level of all items, including native items.
+////////////////////////////////////////////////////////////////////////////////
+function ClearLevelItems()
+{
+    local Inventory A;
+    local Carcass C;
+    
+    foreach AllActors(class 'Inventory', A)
+    {
+        if(A.Owner == None)
+            A.Destroy();
+    }
+    
+    foreach AllActors(class 'Carcass', C)
+    {
+        C.Destroy();
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -540,6 +562,9 @@ function bool RestartPlayer( pawn aPlayer )
 		rPlayer.CurrentTime = 0;
 		rPlayer.CurrentRotation = rPlayer.Rotation;
 	}
+    
+    // TODO: Fix this hack
+    vmodRunePlayer(aPlayer).GotoState('PlayerWalking');
 
 	return foundStart;
 }

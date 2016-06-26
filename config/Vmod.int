@@ -2,3 +2,4 @@
 Object=(Name=Vmod.vmodGameDeathMatch,Class=Class,MetaClass=Engine.Gameinfo)
 Object=(Name=Vmod.vmodGameTeamDeathMatch,Class=Class,MetaClass=Engine.Gameinfo)
 Object=(Name=Vmod.vmodGameGladiator,Class=Class,MetaClass=Engine.Gameinfo)
+Object=(Name=Vmod.vmodGameTeamGladiator,Class=Class,MetaClass=Engine.Gameinfo)

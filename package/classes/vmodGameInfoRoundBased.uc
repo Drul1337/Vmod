@@ -386,6 +386,7 @@ state PostRound
         
         GameDisableScoreTracking();
         GameDisablePawnDamage();
+        ResetTimerLocalRound();
         
         // Notify all players about PostRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)

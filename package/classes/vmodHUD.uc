@@ -570,10 +570,10 @@ simulated function Class<LocalMessage> DetermineClass(name MsgType)
 defaultproperties
 {
     WhiteColor=(R=255,G=255,b=255)
-    RedColor=(R=255,G=0,B=0)
-    BlueColor=(R=100,G=100,B=255)
-    GreenColor=(R=0,G=255,B=0)
-    GoldColor=(R=255,G=255,B=0)
+    RedColor=(R=255,G=60,B=60)
+    BlueColor=(R=60,G=60,B=255)
+    GreenColor=(R=60,G=255,B=60)
+    GoldColor=(R=255,G=255,B=60)
     MessageLifeTime=2.0
     MessageGlowRate=0.5
     MessageQueueLifeTime=8.0

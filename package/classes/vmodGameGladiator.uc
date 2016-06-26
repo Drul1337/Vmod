@@ -4,31 +4,37 @@
 class vmodGameGladiator extends vmodGameInfoRoundBased;
 
 ////////////////////////////////////////////////////////////////////////////////
-//  PostBeginPlay
+//  RandomizePlayerInventory
 ////////////////////////////////////////////////////////////////////////////////
-function PostBeginPlay()
+function RandomizePlayerInventory(Pawn P)
 {
-    Super.PostBeginPlay();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  ClearLevelItems
-////////////////////////////////////////////////////////////////////////////////
-function ClearLevelItems()
-{
-    local Inventory A;
-    local Carcass C;
+    local Class<Weapon> WeaponClasses[15];
     
-    foreach AllActors(class 'Inventory', A)
-    {
-        if(A.Owner == None)
-            A.Destroy();
-    }
+    // Tier 1 weapons
+    WeaponClasses[0] = Class'RuneI.DwarfBattleAxe';
+    WeaponClasses[1] = Class'RuneI.DwarfBattleSword';
+    WeaponClasses[2] = Class'RuneI.DwarfBattleHammer';
+    WeaponClasses[3] = Class'RuneI.VikingBroadSword';
+    WeaponClasses[4] = Class'RuneI.DwarfWorkSword';
     
-    foreach AllActors(class 'Carcass', C)
-    {
-        C.Destroy();
-    }
+    // Tier 2 weapons
+    WeaponClasses[5] = Class'RuneI.DwarfWorkHammer';
+    WeaponClasses[6] = Class'RuneI.SigurdAxe';
+    WeaponClasses[7] = Class'RuneI.VikingAxe';
+    WeaponClasses[8] = Class'RuneI.GoblinAxe';
+    WeaponClasses[9] = Class'RuneI.TrialPitMace';
+    
+    // Tier 3 weapons
+    WeaponClasses[10] = Class'RuneI.RomanSword';
+    WeaponClasses[11] = Class'RuneI.VikingShortSword';
+    WeaponClasses[12] = Class'RuneI.BoneClub';
+    WeaponClasses[13] = Class'RuneI.RustyMace';
+    WeaponClasses[14] = Class'RuneI.Handaxe';
+    
+    ClearPlayerInventory(P);
+    GivePlayerWeapon(P, WeaponClasses[(0 + Rand(4))]); // Random tier 1
+    GivePlayerWeapon(P, WeaponClasses[(5 + Rand(4))]); // Random tier 2
+    GivePlayerWeapon(P, WeaponClasses[(10 + Rand(4))]); // Random tier 3
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -44,12 +50,13 @@ state PreGame
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  STATE: StartingRound
-//
-//  The game already begun, and the next round is about to begin.
+//  STATE: PreRound
 ////////////////////////////////////////////////////////////////////////////////
-state StartingRound
+state PreRound
 {
+    // Use Global.RestartPlayer
+    function bool RestartPlayer( pawn aPlayer )	{}
+    
     function BeginState()
     {
         local Pawn P;
@@ -59,16 +66,42 @@ state StartingRound
         ResetTimerLocalRound();
         NativeLevelCleanup();
         
+        // Notify all players about PreRound
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            Global.RestartPlayer(P);
+            RandomizePlayerInventory(P);
+            PlayerGameStateNotification(P);
+        }
+        
+        RoundNumber++;
+        GRISetGameTimer(0);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  STATE: StartingRound
+////////////////////////////////////////////////////////////////////////////////
+state StartingRound
+{
+    // Cannot restart players while starting round
+    function bool RestartPlayer( pawn aPlayer )	{}
+    
+    function BeginState()
+    {
+        local Pawn P;
+        
+        GameDisableScoreTracking();
+        GameDisablePawnDamage();
+        ResetTimerLocalRound();
+        
         // Notify all players about StartingRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            RestartPlayer(P);
-            ClearPlayerInventory(P);
-            GivePlayerWeapon(P, class'RuneI.VikingShortSword');
-            GivePlayerWeapon(P, class'RuneI.VikingAxe');
-            GivePlayerWeapon(P, class'RuneI.DwarfBattleSword');
             PlayerGameStateNotification(P);
         }
+        
+        GRISetGameTimer(0);
     }
 }
 
@@ -79,6 +112,37 @@ state StartingRound
 ////////////////////////////////////////////////////////////////////////////////
 state Live
 {
+    // Cannot restart players while live
+    function bool RestartPlayer( pawn aPlayer )	{}
+    
+    function BeginState()
+    {
+        local Pawn P;
+        local int PlayersAliveCount;
+        
+        GameEnableScoreTracking();
+        GameEnablePawnDamage();
+        
+        // Notify all players that the round is Live
+        PlayersAliveCount = 0;
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            if(vmodRunePlayer(P) != None)
+            {
+                PlayerGameStateNotification(P);
+                if(vmodRunePlayer(P).Health > 0)
+                    PlayersAliveCount++;
+            }
+        }
+        
+        // Something silly may have happened in the preround, like players
+        // suiciding.
+        if(PlayersAliveCount <= 1)
+            GotoStatePostRound();
+        
+        GRISetGameTimer(0);
+    }
+    
     ////////////////////////////////////////////////////////////////////////////
     //  Killed
     //
@@ -89,36 +153,69 @@ state Live
         local Pawn P;
         local int PlayersAliveCount;
         
-        if(vmodRunePlayer(PDead) != None)
+        Super.Killed(PKiller, PDead, DamageType);
+        
+        // Round end condition
+        PlayersAliveCount = 0;
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            Super.Killed(PKiller, PDead, DamageType);
-            
-            //vmodRunePlayer(PDead).bCanRestart = false;
-            // TODO: Go spectator mode here
-            
-            // Round end condition
-            PlayersAliveCount = 0;
-            for(P = Level.PawnList; P != None; P = P.NextPawn)
+            if(vmodRunePlayer(P).Health > 0)
             {
-                if(vmodRunePlayer(P) == None)
-                    continue;
-                
-                if(vmodRunePlayer(P).Health > 0)
-                {
-                    PlayersAliveCount++;
-                    if(PlayersAliveCount >= 2)
-                        break;
-                }
+                PlayersAliveCount++;
+                if(PlayersAliveCount >= 2)
+                    break;
             }
-            if(PlayersAliveCount == 1)
-                GotoStatePostRound();
-            
         }
+        if(PlayersAliveCount == 1)
+            GotoStatePostRound();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  STATE: PostRound
+////////////////////////////////////////////////////////////////////////////////
+state PostRound
+{
+    // Cannot restart players while postround
+    function bool RestartPlayer( pawn aPlayer )	{}
+    
+    function BeginState()
+    {
+        local Pawn P;
+        local Pawn PWinner;
+        
+        GameDisableScoreTracking();
+        GameDisablePawnDamage();
+        ResetTimerLocalRound();
+        
+        // Notify all players about PostRound and determine winner
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
+            if(vmodRunePlayer(P) != None)
+            {
+                PlayerGameStateNotification(P);
+                if(vmodRunePlayer(P).Health > 0)
+                    PWinner = P;
+            }
+        }
+        
+        // Round limit reached?
+        if(RoundLimit > 0)
+        {
+            if(RoundNumber >= RoundLimit)
+            {
+                EndGameReason="Round Limit Reached";
+                GotoStatePostGame();
+                return;
+            }
+        }
+        
+        GRISetGameTimer(0);
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 defaultproperties
 {
-     GameName="[Vmod] Team Gladiator"
+     GameName="[Vmod] Gladiator"
 }
