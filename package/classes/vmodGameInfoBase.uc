@@ -163,7 +163,7 @@ function PlayerTeamChange(Pawn P, byte Team);
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//  Player or Admin invoked functions
+//  Player functions
 ////////////////////////////////////////////////////////////////////////////////
 function PlayerSendPlayerList(Pawn P)
 {
@@ -176,7 +176,7 @@ function PlayerSendPlayerList(Pawn P)
     
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         P.ClientMessage(
-                PCurr.PlayerReplicationInfo.PlayerName $ " : " $ P.PlayerReplicationInfo.PlayerID,
+                P.PlayerReplicationInfo.PlayerID $ " : " $ PCurr.PlayerReplicationInfo.PlayerName,
                 GetMessageTypeNameDefault(),
                 false);
 }
@@ -226,6 +226,33 @@ function PlayerBroadcast(Pawn P, String Message)
                 Message,
                 GetMessageTypeNamePlayerReady(),
                 false);
+}
+
+function PlayerGiveWeapon(Pawn P, Class<Weapon> WeaponClass)
+{
+    local Weapon W;
+    local Inventory Inv;
+    
+    for(Inv = P.Inventory; Inv != None; Inv = Inv.Inventory)
+        if(Inv.Class == WeaponClass)
+            return;
+    
+    W = Spawn(WeaponClass);
+    if(W == None)
+        return;
+    
+    if(P.Weapon != None)
+        if(vmodRunePlayer(P) != None)
+            //vmodRunePlayer(P).StowWeapon();
+            vmodRunePlayer(P).StowWeapon(P.Weapon);
+    
+    W.bTossedOut = true;
+    W.Instigator = P;
+    W.BecomeItem();
+    W.GotoState('Active');
+    P.AddInventory(W);
+    P.AcquireInventory(W);
+    P.Weapon = W;
 }
 
 
@@ -339,9 +366,6 @@ function InitGameReplicationInfo()
 function PostBeginPlay()
 {
     Spawn(CLASS_SPAWNNOTIFY); // Replaces actors with vmod actors
-    
-    TimerBroad = 0;
-    
     Super.PostBeginPlay();
 }
 
@@ -353,20 +377,10 @@ function PostBeginPlay()
 ////////////////////////////////////////////////////////////////////////////////
 function bool IsRelevant(Actor A)
 {
-    if(bMarkNativeActors)
-        MarkLevelNativeActor(A);
-    else
-        MarkLevelNonNativeActor(A);
-    
+    if(bMarkNativeActors)   MarkLevelNativeActor(A);
+    else                    MarkLevelNonNativeActor(A);
     return Super.IsRelevant(A);
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//  LevelNativeActor
-//
-//  These functions mark Actors which are native to the current level. Used for
-//  clean up in between rounds.
-////////////////////////////////////////////////////////////////////////////////
 function MarkLevelNativeActor(Actor A)          { A.bDifficulty3 = true; }
 function MarkLevelNonNativeActor(Actor A)       { A.bDifficulty3 = false; }
 function bool CheckLevelNativeActor(Actor A)    { return A.bDifficulty3; }
@@ -377,10 +391,8 @@ function bool CheckLevelNativeActor(Actor A)    { return A.bDifficulty3; }
 event InitGame( string Options, out string Error )
 {
 	Super.InitGame(Options, Error);
-
-    // Parse game options from command line
-    ScoreLimit = GetIntOption( Options, OPTION_SCORE_LIMIT, ScoreLimit );
-	TimeLimit = 60 * GetIntOption( Options, OPTION_SCORE_LIMIT, TimeLimit );
+    ScoreLimit  = GetIntOption( Options, OPTION_SCORE_LIMIT, ScoreLimit );
+	TimeLimit   = GetIntOption( Options, OPTION_SCORE_LIMIT, TimeLimit ) * 60;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -397,6 +409,8 @@ function String GetRules()
     
     return ResultSet;
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Login
@@ -566,31 +580,26 @@ function Logout(Pawn P)
         GotoStatePreGame();
 }
 
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
-//  EnoughPlayersToStart
-//
-//  The game cannot start until there are enough players present.
+//  EnoughPlayers
 ////////////////////////////////////////////////////////////////////////////////
-function bool EnoughPlayersToStart()
+function bool CheckEnoughPlayersInGame()
 {
     return NumPlayers >= MinimumPlayersRequiredForStart;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//  PlayerReady
-//
-//  These functions are used for handling readying and unreadying players.
-//  Override EnoughPlayersToGoLive for custom ready conditions.
-////////////////////////////////////////////////////////////////////////////////
 // Check whether or not a player is ready to go live.
-function bool IsPlayerReady(Pawn P)
+function bool CheckPlayerReady(Pawn P)
 {
     // TODO: May want to replace this with a function call to P
     return vmodRunePlayer(P).bReadyToPlay;
 }
 
 // Return true to switch game state to Starting, which counts into Live
-function bool EnoughPlayersReady()
+function bool CheckEnoughPlayersReady()
 {
     local int ReadyCount;
     local int UnreadyCount;
@@ -602,7 +611,7 @@ function bool EnoughPlayersReady()
     
     for(P = Level.PawnList; P != None; P = P.NextPawn)
     {
-        if(IsPlayerReady(P))    ReadyCount++;
+        if(CheckPlayerReady(P))    ReadyCount++;
         else                    UnreadyCount++;
     }
     
@@ -828,37 +837,6 @@ function ClearPlayerAttachments(Pawn P)
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//  GivePlayerWeapon
-//
-//  Give a weapon to a player.
-////////////////////////////////////////////////////////////////////////////////
-function GivePlayerWeapon(Pawn P, class<Weapon> WeaponClass)
-{
-    local Weapon W;
-    local Inventory Inv;
-    
-    for(Inv = P.Inventory; Inv != None; Inv = Inv.Inventory)
-        if(Inv.Class == WeaponClass)
-            return;
-    
-    W = Spawn(WeaponClass);
-    if(W == None)
-        return;
-    
-    if(P.Weapon != None)
-        if(vmodRunePlayer(P) != None)
-            //vmodRunePlayer(P).StowWeapon();
-            vmodRunePlayer(P).StowWeapon(P.Weapon);
-    
-    W.bTossedOut = true;
-    W.Instigator = P;
-    W.BecomeItem();
-    W.GotoState('Active');
-    P.AddInventory(W);
-    P.AcquireInventory(W);
-    P.Weapon = W;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  FindPlayerStart
@@ -1143,7 +1121,7 @@ auto state PreGame
     function PlayerReady(Pawn P)
     {
         // If player is already ready, do nothing
-        if(IsPlayerReady(P))
+        if(CheckPlayerReady(P))
             return;
         
         // Set player's ready status
@@ -1153,7 +1131,7 @@ auto state PreGame
         DispatchPlayerReady(P);
         
         // If enough players have readied up, start the game
-        if(EnoughPlayersReady())
+        if(CheckEnoughPlayersReady())
             GameStart();
     }
     
@@ -1183,7 +1161,7 @@ auto state PreGame
     function PlayerNotReady(Pawn P)
     {
         // If player is already not ready, do nothing
-        if(!IsPlayerReady(P))
+        if(!CheckPlayerReady(P))
             return;
         
         // Set ready status

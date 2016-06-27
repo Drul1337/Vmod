@@ -83,6 +83,7 @@ exec final function Vcmd()
     ClientMessage("VcmdGetPlayerList");
     ClientMessage("VcmdSetPlayerTeam");
     ClientMessage("VcmdBroadcast");
+    ClientMessage("VcmdGiveWeapon");
 }
 
 exec final function VcmdBroadcast(String Message)
@@ -123,8 +124,7 @@ exec final function VcmdClearInventory()
 
 exec final function VcmdGiveWeapon(class<Weapon> WeaponClass)
 {
-    if(vmodGameInfo(Level.Game) != None)
-        vmodGameInfo(Level.Game).GivePlayerWeapon(self, WeaponClass);
+    vmodGameInfo(Level.Game).AdminRequestGiveWeapon(Self, WeaponClass);
 }
 
 exec final function VcmdSpectate()

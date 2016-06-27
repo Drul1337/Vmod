@@ -32,9 +32,9 @@ function RandomizePlayerInventory(Pawn P)
     WeaponClasses[14] = Class'RuneI.Handaxe';
     
     ClearPlayerInventory(P);
-    GivePlayerWeapon(P, WeaponClasses[(0 + Rand(4))]); // Random tier 1
-    GivePlayerWeapon(P, WeaponClasses[(5 + Rand(4))]); // Random tier 2
-    GivePlayerWeapon(P, WeaponClasses[(10 + Rand(4))]); // Random tier 3
+    PlayerGiveWeapon(P, WeaponClasses[(0 + Rand(4))]); // Random tier 1
+    PlayerGiveWeapon(P, WeaponClasses[(5 + Rand(4))]); // Random tier 2
+    PlayerGiveWeapon(P, WeaponClasses[(10 + Rand(4))]); // Random tier 3
 }
 
 ////////////////////////////////////////////////////////////////////////////////

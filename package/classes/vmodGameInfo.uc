@@ -114,6 +114,14 @@ function AdminRequestTeamChange(Pawn P, int PlayerID, byte Team)
             PlayerTeamChange(PCurr, Team);
 }
 
+function AdminRequestGiveWeapon(Pawn P, Class<Weapon> WeaponClass)
+{
+    if(!AdminRequestCheck(P))
+        return;
+    
+    PlayerGiveWeapon(P, WeaponClass);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  STATE: PreGame
 ////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +130,7 @@ state PreGame
     function PlayerRequestReadyToPlay(Pawn P)
     {
         // If there are not enough players in the game, player cannot ready up
-        if(!EnoughPlayersToStart())
+        if(!CheckEnoughPlayersInGame())
         {
             PlayerMessageNotEnoughPlayersToStart(
                 P,
@@ -131,7 +139,7 @@ state PreGame
         }
         
         // If the player is already ready, play waiting for others message
-        if(IsPlayerReady(P))
+        if(CheckPlayerReady(P))
         {
             PlayerMessageWaitingForOthers(
                 P,
@@ -145,7 +153,7 @@ state PreGame
     function PlayerRequestNotReadyToPlay(Pawn P)
     {
         // If the player is already not ready, just return
-        if(!IsPlayerReady(P))
+        if(!CheckPlayerReady(P))
             return;
         
         PlayerNotReady(P);
