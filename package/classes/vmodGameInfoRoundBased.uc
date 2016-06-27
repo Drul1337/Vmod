@@ -8,6 +8,15 @@ const STATE_PREROUND        = 'PreRound';
 const STATE_STARTINGROUND   = 'StartingRound';
 const STATE_POSTROUND       = 'PostRound';
 
+// Message class - name pairings
+const MESSAGE_CLASS_PREROUND        = Class'Vmod.vmodLocalMessagePreRound';
+const MESSAGE_CLASS_STARTINGROUND   = Class'Vmod.vmodLocalMessageStartingRound';
+const MESSAGE_CLASS_POSTROUND       = Class'Vmod.vmodLocalMessagePostRound';
+
+const MESSAGE_NAME_PREROUND         = 'PreRound';
+const MESSAGE_NAME_STARTINGROUND    = 'StartingRound';
+const MESSAGE_NAME_POSTROUND        = 'PostRound';
+
 // Command line game options
 const OPTION_TIME_LIMIT_ROUND = "timelimitround";
 
@@ -60,21 +69,21 @@ function Name GetMessageTypeName(class<LocalMessage> MessageClass)
 {
     switch(MessageClass)
     {
-        case Class'Vmod.vmodLocalMessagePreRound':      return 'PreRound';
-        case Class'Vmod.vmodLocalMessageStartingRound': return 'StartingRound';
-        case Class'Vmod.vmodLocalMessagePostRound':     return 'PostRound';
+        case MESSAGE_CLASS_PREROUND:        return MESSAGE_NAME_PREROUND;
+        case MESSAGE_CLASS_STARTINGROUND:   return MESSAGE_NAME_STARTINGROUND;
+        case MESSAGE_CLASS_POSTROUND:       return MESSAGE_NAME_POSTROUND;
     }
     return Super.GetMessageTypeName(MessageClass);
 }
 
 function Name GetMessageTypeNamePreRound()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePreRound'); }
+{ return GetMessageTypeName(MESSAGE_CLASS_PREROUND); }
 
 function Name GetMessageTypeNameStartingRound()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingRound'); }
+{ return GetMessageTypeName(MESSAGE_CLASS_STARTINGROUND); }
 
 function Name GetMessageTypeNamePostRound()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePostRound'); }
+{ return GetMessageTypeName(MESSAGE_CLASS_POSTROUND); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  MessageTypeClasses
@@ -83,21 +92,21 @@ function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
 {
     switch(MessageName)
     {
-        case 'PreRound':        return Class'Vmod.vmodLocalMessagePreRound';
-        case 'StartingRound':   return Class'Vmod.vmodLocalMessageStartingRound';
-        case 'PostRound':       return Class'Vmod.vmodLocalMessagePostRound';
+        case MESSAGE_NAME_PREROUND:         return MESSAGE_CLASS_PREROUND;     
+        case MESSAGE_NAME_STARTINGROUND:    return MESSAGE_CLASS_STARTINGROUND;
+        case MESSAGE_NAME_POSTROUND:        return MESSAGE_CLASS_POSTROUND;
     }
     return Super.GetMessageTypeClass(MessageName);
 }
 
 function Class<LocalMessage> GetMessageTypeClassPreRound()
-{ return GetMessageTypeClass('PreRound'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_PREROUND); }
 
 function Class<LocalMessage> GetMessageTypeClassStartingRound()
-{ return GetMessageTypeClass('StartingRound'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_STARTINGROUND); }
 
 function Class<LocalMessage> GetMessageTypeClassPostRound()
-{ return GetMessageTypeClass('PostRound'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_POSTROUND); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  GameReplicationInfo update functions

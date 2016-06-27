@@ -13,6 +13,28 @@ const STATE_POSTGAME    = 'PostGame';
 const OPTION_TIME_LIMIT = "timelimit";
 const OPTION_SCORE_LIMIT = "scorelimit";
 
+// Message class - name pairings
+const MESSAGE_CLASS_DEFAULT         = Class'LocalMessage';
+const MESSAGE_CLASS_PREGAME         = Class'Vmod.vmodLocalMessagePreGame';
+const MESSAGE_CLASS_STARTINGGAME    = Class'Vmod.vmodLocalMessageStartingGame';
+const MESSAGE_CLASS_LIVEGAME        = Class'Vmod.vmodLocalMessageLiveGame';
+const MESSAGE_CLASS_POSTGAME        = Class'Vmod.vmodLocalMessagePostGame';
+const MESSAGE_CLASS_PLAYERREADY     = Class'Vmod.vmodLocalMessagePlayerReady';
+const MESSAGE_CLASS_PLAYERKILLED    = Class'Vmod.vmodLocalMessagePlayerKilled';
+
+const MESSAGE_NAME_DEFAULT          = 'Default';
+const MESSAGE_NAME_PREGAME          = 'PreGame';
+const MESSAGE_NAME_STARTINGGAME     = 'StartingGame';
+const MESSAGE_NAME_LIVEGAME         = 'LiveGame';
+const MESSAGE_NAME_POSTGAME         = 'PostGame';
+const MESSAGE_NAME_PLAYERREADY      = 'PlayerReady';
+const MESSAGE_NAME_PLAYERKILLED     = 'PlayerKilled';
+
+// TODO: Might be able to get around the use of spawnnotify by
+// modifying Login() or IsRelevant()
+const CLASS_SPAWNNOTIFY = Class'Vmod.vmodSpawnNotify';
+const CLASS_GRI_DEFAULT = Class'Vmod.vmodGameReplicationInfo';
+
 var() globalconfig int  StartingDuration;
 var() globalconfig int  StartingCountdownBegin;
 var() globalconfig int	ScoreLimit;
@@ -59,7 +81,7 @@ function PreBeginPlay()
 	Level.bAllowFOV = bAllowFOV;
     
     if(GameReplicationInfoClass == None)
-        GameReplicationInfoClass = class'Vmod.vmodGameReplicationInfo';
+        GameReplicationInfoClass = CLASS_GRI_DEFAULT;
     GameReplicationInfo = Spawn(GameReplicationInfoClass);
     
     bMarkNativeActors = false;
@@ -79,7 +101,7 @@ function InitGameReplicationInfo()
 ////////////////////////////////////////////////////////////////////////////////
 function PostBeginPlay()
 {
-    Spawn(Class'vmodSpawnNotify'); // Replaces actors with vmod actors
+    Spawn(CLASS_SPAWNNOTIFY); // Replaces actors with vmod actors
     
     TimerBroad = 0;
     
@@ -808,33 +830,33 @@ function Name GetMessageTypeName(class<LocalMessage> MessageClass)
 {
     switch(MessageClass)
     {
-        case Class'Vmod.vmodLocalMessagePreGame':       return 'PreGame';
-        case Class'Vmod.vmodLocalMessageStartingGame':  return 'StartingGame';
-        case Class'Vmod.vmodLocalMessageLiveGame':      return 'LiveGame';
-        case Class'Vmod.vmodLocalMessagePostGame':      return 'PostGame';
-        case Class'Vmod.vmodLocalMessagePlayerReady':   return 'PlayerReady';
-        case Class'Vmod.vmodLocalMessagePlayerKilled':  return 'PlayerKilled';
+        case MESSAGE_CLASS_PREGAME:         return MESSAGE_NAME_PREGAME;
+        case MESSAGE_CLASS_STARTINGGAME:    return MESSAGE_NAME_STARTINGGAME;
+        case MESSAGE_CLASS_LIVEGAME:        return MESSAGE_NAME_LIVEGAME;
+        case MESSAGE_CLASS_POSTGAME:        return MESSAGE_NAME_POSTGAME;
+        case MESSAGE_CLASS_PLAYERREADY:     return MESSAGE_NAME_PLAYERREADY;
+        case MESSAGE_CLASS_PLAYERKILLED:    return MESSAGE_NAME_PLAYERKILLED;
     }
-    return 'Default'; // Default type name
+    return MESSAGE_NAME_DEFAULT;
 }
 
 function Name GetMessageTypeNamePreGame()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePreGame'); }
+{ return GetMessageTypeName(MESSAGE_CLASS_PREGAME); }
 
 function Name GetMessageTypeNameStartingGame()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessageStartingGame'); }
+{ return GetMessageTypeName(MESSAGE_CLASS_STARTINGGAME); }
 
 function Name GetMessageTypeNameLiveGame()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessageLiveGame'); }
+{ return GetMessageTypeName(MESSAGE_CLASS_LIVEGAME); }
 
 function Name GetMessageTypeNamePostGame()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePostGame'); }
+{ return GetMessageTypeName(MESSAGE_CLASS_POSTGAME); }
 
 function Name GetMessageTypeNamePlayerReady()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerReady'); }
+{ return GetMessageTypeName(MESSAGE_CLASS_PLAYERREADY); }
 
 function Name GetMessageTypeNamePlayerKilled()
-{ return GetMessageTypeName(Class'Vmod.vmodLocalMessagePlayerKilled');  }
+{ return GetMessageTypeName(MESSAGE_CLASS_PLAYERKILLED);  }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  MessageTypeClasses
@@ -843,33 +865,33 @@ function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
 {
     switch(MessageName)
     {
-        case 'PreGame':         return Class'Vmod.vmodLocalMessagePreGame';
-        case 'StartingGame':    return Class'Vmod.vmodLocalMessageStartingGame';
-        case 'LiveGame':        return Class'Vmod.vmodLocalMessageLiveGame';
-        case 'PostGame':        return Class'Vmod.vmodLocalMessagePostGame';
-        case 'PlayerReady':     return Class'Vmod.vmodLocalMessagePlayerReady';
-        case 'PlayerKilled':    return Class'Vmod.vmodLocalMessagePlayerKilled';
+       case MESSAGE_NAME_PREGAME:       return MESSAGE_CLASS_PREGAME;   
+       case MESSAGE_NAME_STARTINGGAME:  return MESSAGE_CLASS_STARTINGGAME;
+       case MESSAGE_NAME_LIVEGAME:      return MESSAGE_CLASS_LIVEGAME;
+       case MESSAGE_NAME_POSTGAME:      return MESSAGE_CLASS_POSTGAME;
+       case MESSAGE_NAME_PLAYERREADY:   return MESSAGE_CLASS_PLAYERREADY;
+       case MESSAGE_NAME_PLAYERKILLED:  return MESSAGE_CLASS_PLAYERKILLED;
     }
-    return Class'LocalMessage'; // Default class name
+    return MESSAGE_CLASS_DEFAULT;
 }
 
 function Class<LocalMessage> GetMessageTypeClassPreGame()
-{ return GetMessageTypeClass('PreGame'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_PREGAME); }
 
 function Class<LocalMessage> GetMessageTypeClassStartingGame()
-{ return GetMessageTypeClass('StartingGame'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_STARTINGGAME); }
 
 function Class<LocalMessage> GetMessageTypeClassLiveGame()
-{ return GetMessageTypeClass('LiveGame'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_LIVEGAME); }
 
 function Class<LocalMessage> GetMessageTypeClassPostGame()
-{ return GetMessageTypeClass('PostGame'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_POSTGAME); }
 
 function Class<LocalMessage> GetMessageTypeClassPlayerReady()
-{ return GetMessageTypeClass('PlayerReady'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_PLAYERREADY); }
 
 function Class<LocalMessage> GetMessageTypeClassPlayerKilled()
-{ return GetMessageTypeClass('PlayerKilled'); }
+{ return GetMessageTypeClass(MESSAGE_NAME_PLAYERKILLED); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  GameIsTeamGame
