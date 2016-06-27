@@ -28,7 +28,10 @@ replication
         VcmdClearInventory,
         VcmdGiveWeapon,
         VcmdSpectate,
-        VcmdPlay;
+        VcmdPlay,
+        VcmdChangeTeam,
+        VcmdGetPlayerIds,
+        VcmdSetPlayerTeam;
 }
 
 function bool ReadyToGoLive()
@@ -74,6 +77,11 @@ function NotifyReadyToGoLive()
 
 function NotifyNotReadyToGoLive()
 { bReadyToPlay = false; }
+
+function NotifyTeamChange(byte team)
+{
+    PlayerReplicationInfo.Team = team;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Game interface
@@ -121,6 +129,31 @@ exec final function VcmdSpectate()
 exec final function VcmdPlay()
 {
     GotoState('PlayerWalking');
+}
+
+exec final function VcmdChangeTeam(byte team)
+{
+    vmodGameInfo(Level.Game).PlayerRequestingTeamChange(self, team);
+}
+
+// TODO: If admin, display a player ID on the scoreboard
+exec final function VcmdGetPlayerIds()
+{
+    local Pawn P;
+    
+    for(P = Level.PawnList; P != None; P = P.NextPawn)
+        ClientMessage(
+            P.PlayerReplicationInfo.PlayerName $ " : " $ P.PlayerReplicationInfo.PlayerID,
+            vmodGameInfo(Level.Game).GetMessageTypeNameDefault(),
+            false);
+}
+
+exec final function VcmdSetPlayerTeam(int PlayerID, byte team)
+{
+    local Pawn P;
+    for(P = Level.PawnList; P != None; P = P.NextPawn)
+        if(P.PlayerReplicationInfo.PlayerID == PlayerID)
+            vmodGameInfo(Level.Game).PlayerRequestingTeamChange(P, team);
 }
 
 defaultproperties

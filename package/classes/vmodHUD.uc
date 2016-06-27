@@ -114,6 +114,9 @@ simulated function MessageQueueDraw(
     optional bool BackDrop,
     optional InterpolationType_e InterpType)
 {
+    // TODO: Could implement message fade-in and smooth tweening up
+    // and down when messages disappear
+    
     local int i, j, k;
     
     // Handle optional LifeTime
@@ -412,7 +415,7 @@ simulated function MangleMessagePlayerReady(out vmodHUDLocalizedMessage_s M)
 
 simulated function MangleMessageSay(out vmodHUDLocalizedMessage_s M)
 {
-    // TODO: Clean up
+    // TODO: Unify this with GameInfo colors
     M.MessageStringAdditional = M.PRI1.PlayerName;
     switch(M.PRI1.Team)
     {

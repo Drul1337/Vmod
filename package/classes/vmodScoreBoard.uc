@@ -68,6 +68,12 @@ function DrawPlayerInfo( canvas Canvas, PlayerReplicationInfo PRI, float XOffset
         Canvas.DrawText("ready", false);
     }
     
+    // Draw team number
+    Canvas.SetPos(Canvas.ClipX*0.4, YOffset);
+    Canvas.DrawColor = RedColor;
+    Canvas.DrawText(PRI.Team, false);
+    Canvas.DrawColor = WhiteColor;
+    
 	// Draw Score
 	Canvas.SetPos(Canvas.ClipX*0.5, YOffset);
 	Canvas.DrawText(int(PRI.Score), false);

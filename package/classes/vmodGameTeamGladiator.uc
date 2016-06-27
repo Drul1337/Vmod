@@ -6,5 +6,6 @@ class vmodGameTeamGladiator extends vmodGameGladiator;
 ////////////////////////////////////////////////////////////////////////////////
 defaultproperties
 {
+    bTeamGame=true
      GameName="[Vmod] Team Gladiator"
 }
