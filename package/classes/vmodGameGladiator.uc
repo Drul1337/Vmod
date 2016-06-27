@@ -54,29 +54,8 @@ state PreGame
 ////////////////////////////////////////////////////////////////////////////////
 state PreRound
 {
-    // Use Global.RestartPlayer
+    // TODO: This is a hack to disable player respawning
     function bool RestartPlayer( pawn aPlayer )	{}
-    
-    function BeginState()
-    {
-        local Pawn P;
-        
-        GameDisableScoreTracking();
-        GameDisablePawnDamage();
-        ResetTimerLocalRound();
-        NativeLevelCleanup();
-        
-        // Notify all players about PreRound
-        for(P = Level.PawnList; P != None; P = P.NextPawn)
-        {
-            Global.RestartPlayer(P);
-            RandomizePlayerInventory(P);
-            PlayerGameStateNotification(P);
-        }
-        
-        RoundNumber++;
-        GRISetGameTimer(0);
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,17 +70,26 @@ state StartingRound
     {
         local Pawn P;
         
+        // Reset round timer
+        ResetTimerLocalRound();
+        
+        // Apply state options
         GameDisableScoreTracking();
         GameDisablePawnDamage();
-        ResetTimerLocalRound();
+        
+        // Return level to its original state
+        NativeLevelCleanup();
+        
+        // Update game replication info
+        GRISetGameTimer(0);
         
         // Notify all players about StartingRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
+            Global.RestartPlayer(P);
+            RandomizePlayerInventory(P);
             PlayerGameStateNotification(P);
         }
-        
-        GRISetGameTimer(0);
     }
 }
 

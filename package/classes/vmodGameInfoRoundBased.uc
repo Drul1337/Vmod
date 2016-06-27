@@ -3,6 +3,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 class vmodGameInfoRoundBased extends vmodGameInfo abstract;
 
+// Game states
+const STATE_PREROUND        = 'PreRound';
+const STATE_STARTINGROUND   = 'StartingRound';
+const STATE_POSTROUND       = 'PostRound';
+
+// Command line game options
+const OPTION_TIME_LIMIT_ROUND = "timelimitround";
 
 var() globalconfig int StartingRoundDuration;
 var() globalconfig int StartingRoundCountdownBegin;
@@ -17,16 +24,16 @@ var() globalconfig String MessageStartingRoundCountdown;
 var() globalconfig String MessageLiveRound;
 var() globalconfig String MessagePostRound;
 
+// TODO: Should mark these as private
 var int TimerLocalRound;
-
 var int RoundNumber;
 
 ////////////////////////////////////////////////////////////////////////////////
 //  State utility functions
 ////////////////////////////////////////////////////////////////////////////////
-final function GotoStatePreRound()          { GotoState('PreRound'); }
-final function GotoStateStartingRound()     { GotoState('StartingRound'); }
-final function GotoStatePostRound()         { GotoState('PostRound'); }
+final function GotoStatePreRound()          { GotoState(STATE_PREROUND); }
+final function GotoStateStartingRound()     { GotoState(STATE_STARTINGROUND); }
+final function GotoStatePostRound()         { GotoState(STATE_POSTROUND); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  InitGame
@@ -35,7 +42,7 @@ event InitGame( string Options, out string Error )
 {
 	Super.InitGame(Options, Error);
     
-    TimeLimitRound = 60 * GetIntOption( Options, "timelimitround", TimeLimitRound );
+    TimeLimitRound = 60 * GetIntOption( Options, OPTION_TIME_LIMIT_ROUND, TimeLimitRound );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +100,14 @@ function Class<LocalMessage> GetMessageTypeClassPostRound()
 { return GetMessageTypeClass('PostRound'); }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  GameReplicationInfo update functions
+////////////////////////////////////////////////////////////////////////////////
+function GRISetRoundNumber(int n)
+{
+    // TODO: Need to implement this in GRI
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  STATE: PreGame
 //
 //  Waiting for players to ready themselves before the game begins.
@@ -117,23 +132,28 @@ state Starting
     {
         local Pawn P;
         
+        // Reset state timer
+        ResetTimerLocal();
+        
+        // Apply state options
         GameDisableScoreTracking();
         GameDisablePawnDamage();
-        ResetTimerLocal();
+        
+        // Update game replication info
+        GRISetGameTimer(0);
         
         // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
             PlayerGameStateNotification(P);
         }
-        
-        GRISetGameTimer(0);
     }
     
     function EndState()
     {
         local Pawn P;
         
+        // Reset state timer before round play begins
         ResetTimerLocal();
         
         // Perform actions on all players
@@ -161,6 +181,7 @@ state Starting
             for(P = Level.PawnList; P != None; P = P.NextPawn)
                 PlayerMessageStartingCountdown(P, TimeRemaining);
         
+        // Start the game by entering pre round
         if(TimeRemaining <= 0)
             GotoStatePreRound();
     }
@@ -177,18 +198,23 @@ state PreRound
     {
         local Pawn P;
         
+        // Reset round timer
+        ResetTimerLocalRound();
+        RoundNumber++;
+        
+        // Apply state options
         GameDisableScoreTracking();
         GameDisablePawnDamage();
-        ResetTimerLocalRound();
+        
+        // Update game replication info
+        GRISetGameTimer(0);
+        GRISetRoundNumber(RoundNumber);
         
         // Notify all players about PreRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
             PlayerGameStateNotification(P);
         }
-        
-        RoundNumber++;
-        GRISetGameTimer(0);
     }
     
     function PlayerGameStateNotification(Pawn P)
@@ -224,7 +250,7 @@ state PreRound
 ////////////////////////////////////////////////////////////////////////////////
 //  STATE: StartingRound
 //
-//  The game already begun, and the next round is about to begin.
+//  The game has already begun, and the next round is about to begin.
 ////////////////////////////////////////////////////////////////////////////////
 state StartingRound
 {
@@ -232,19 +258,25 @@ state StartingRound
     {
         local Pawn P;
         
+        // Reset state timer
+        ResetTimerLocalRound();
+        
+        // Apply state option
         GameDisableScoreTracking();
         GameDisablePawnDamage();
-        ResetTimerLocalRound();
+        
+        // Return level to its original state
         NativeLevelCleanup();
         
-        // Notify all players about StartingRound
+        // Update game replication info
+        GRISetGameTimer(0);
+        
+        // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            RestartPlayer(P);
             PlayerGameStateNotification(P);
+            RestartPlayer(P);
         }
-        
-        GRISetGameTimer(0);
     }
     
     function EndState()
@@ -310,15 +342,17 @@ state Live
     {
         local Pawn P;
         
+        // Apply state options
         GameEnableScoreTracking();
         GameEnablePawnDamage();
         
-        // Notify all players that the round is Live
+        // Update game replication info
+        GRISetGameTimer(0);
+        
+        // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
             if(vmodRunePlayer(P) != None)
                 PlayerGameStateNotification(P);
-        
-        GRISetGameTimer(0);
     }
     
     function PlayerGameStateNotification(Pawn P)
@@ -384,9 +418,15 @@ state PostRound
     {
         local Pawn P;
         
+        // Reset state timer
+        ResetTimerLocalRound();
+        
+        // Apply state options
         GameDisableScoreTracking();
         GameDisablePawnDamage();
-        ResetTimerLocalRound();
+        
+        // Update game replication info
+         GRISetGameTimer(0);
         
         // Notify all players about PostRound
         for(P = Level.PawnList; P != None; P = P.NextPawn)
@@ -403,8 +443,6 @@ state PostRound
                 return;
             }
         }
-        
-        GRISetGameTimer(0);
     }
     
     function PlayerGameStateNotification(Pawn P)

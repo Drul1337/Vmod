@@ -3,6 +3,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 class vmodGameInfo extends GameInfo abstract;
 
+// Game states
+const STATE_PREGAME     = 'PreGame';
+const STATE_STARTING    = 'Starting';
+const STATE_LIVE        = 'Live';
+const STATE_POSTGAME    = 'PostGame';
+
+// Command line game options
+const OPTION_TIME_LIMIT = "timelimit";
+const OPTION_SCORE_LIMIT = "scorelimit";
+
 var() globalconfig int  StartingDuration;
 var() globalconfig int  StartingCountdownBegin;
 var() globalconfig int	ScoreLimit;
@@ -18,6 +28,7 @@ var() globalconfig String MessageLiveGame;
 var() globalconfig String MessagePostGame;
 var() globalconfig String MessagePlayerReady;
 var() globalconfig String MessagePlayerNotReady;
+var() globalconfig String MessageWaitingForOthers;
 var() globalconfig String MessageNotEnoughPlayersToStart;
 
 var int TimerBroad; // Time since the server switched to this game
@@ -32,36 +43,10 @@ var bool bMarkNativeActors;
 ////////////////////////////////////////////////////////////////////////////////
 //  State utility functions
 ////////////////////////////////////////////////////////////////////////////////
-final function GotoStatePreGame()     { GotoState('PreGame'); }
-final function GotoStateStarting()    { GotoState('Starting'); }
-final function GotoStateLive()        { GotoState('Live'); }
-final function GotoStatePostGame()    { GotoState('PostGame'); }
-
-////////////////////////////////////////////////////////////////////////////////
-//  IsRelevant
-//
-//  All Actors pass through this function. At level start up, mark every actor
-//  as "native" to the level, so that the level can be reset later.
-////////////////////////////////////////////////////////////////////////////////
-function bool IsRelevant(Actor A)
-{
-    if(bMarkNativeActors)
-        MarkLevelNativeActor(A);
-    else
-        MarkLevelNonNativeActor(A);
-    
-    return Super.IsRelevant(A);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  LevelNativeActor
-//
-//  These functions mark Actors which are native to the current level. Used for
-//  clean up in between rounds.
-////////////////////////////////////////////////////////////////////////////////
-function MarkLevelNativeActor(Actor A)          { A.bDifficulty3 = true; }
-function MarkLevelNonNativeActor(Actor A)       { A.bDifficulty3 = false; }
-function bool CheckLevelNativeActor(Actor A)    { return A.bDifficulty3; }
+final function GotoStatePreGame()     { GotoState(STATE_PREGAME); }
+final function GotoStateStarting()    { GotoState(STATE_STARTING); }
+final function GotoStateLive()        { GotoState(STATE_LIVE); }
+final function GotoStatePostGame()    { GotoState(STATE_POSTGAME); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  PreBeginPlay
@@ -102,6 +87,32 @@ function PostBeginPlay()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  IsRelevant
+//
+//  All Actors pass through this function. At level start up, mark every actor
+//  as "native" to the level, so that the level can be reset later.
+////////////////////////////////////////////////////////////////////////////////
+function bool IsRelevant(Actor A)
+{
+    if(bMarkNativeActors)
+        MarkLevelNativeActor(A);
+    else
+        MarkLevelNonNativeActor(A);
+    
+    return Super.IsRelevant(A);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  LevelNativeActor
+//
+//  These functions mark Actors which are native to the current level. Used for
+//  clean up in between rounds.
+////////////////////////////////////////////////////////////////////////////////
+function MarkLevelNativeActor(Actor A)          { A.bDifficulty3 = true; }
+function MarkLevelNonNativeActor(Actor A)       { A.bDifficulty3 = false; }
+function bool CheckLevelNativeActor(Actor A)    { return A.bDifficulty3; }
+
+////////////////////////////////////////////////////////////////////////////////
 //  InitGame
 ////////////////////////////////////////////////////////////////////////////////
 event InitGame( string Options, out string Error )
@@ -109,8 +120,8 @@ event InitGame( string Options, out string Error )
 	Super.InitGame(Options, Error);
 
     // Parse game options from command line
-    ScoreLimit = GetIntOption( Options, "scorelimit", ScoreLimit );
-	TimeLimit = 60 * GetIntOption( Options, "timelimit", TimeLimit );
+    ScoreLimit = GetIntOption( Options, OPTION_SCORE_LIMIT, ScoreLimit );
+	TimeLimit = 60 * GetIntOption( Options, OPTION_SCORE_LIMIT, TimeLimit );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -136,22 +147,11 @@ function String GetRules()
 //  PreLogin is called before Login, but significant game time may pass before
 //  Login is called, especially if content is downloaded.
 ////////////////////////////////////////////////////////////////////////////////
-function bool GameAtCapacity()
-{
-    if(MaxPlayers <= 0)
-        return false;
-    if(NumPlayers < MaxPlayers)
-        return false;
-    return true;
-}
-
-event playerpawn Login
-(
-	string Portal,
-	string Options,
-	out string Error,
-	class<playerpawn> SpawnClass
-)
+event playerpawn Login(
+	string              Portal,
+	string              Options,
+	out string          Error,
+	class<playerpawn>   SpawnClass)
 {
 	local NavigationPoint StartSpot;
 	local PlayerPawn      NewPlayer, TestPlayer;
@@ -163,7 +163,7 @@ event playerpawn Login
     // Note: No longer distinguishing between players and spectators
     if(Level.NetMode != NM_Standalone)
     {
-        if(GameAtCapacity())
+        if(AtCapacity(Options))
         {
             Error = MaxedOutMessage;
             return None;
@@ -190,58 +190,24 @@ event playerpawn Login
 		Error = FailedPlaceMessage;
 		return None;
 	}
-
-	// Try to match up to existing unoccupied player in level,
-	// for savegames and coop level switching.
-	for( PawnLink=Level.PawnList; PawnLink!=None; PawnLink=PawnLink.NextPawn )
+    
+    // Spawn a new player
+    // Make sure this kind of player is allowed.
+	if ( (bHumansOnly || Level.bHumansOnly) && !SpawnClass.Default.bIsHuman
+		&& !ClassIsChildOf(SpawnClass, class'Spectator') )
+		SpawnClass = DefaultPlayerClass;
+    
+	NewPlayer = Spawn(SpawnClass,,'Player',StartSpot.Location,StartSpot.Rotation);
+	if( NewPlayer!=None )
 	{
-		TestPlayer = PlayerPawn(PawnLink);
-		if
-		(	TestPlayer!=None
-		&&	TestPlayer.Player==None 
-		&&  TestPlayer.PlayerReplicationInfo != None
-		&&  TestPlayer.bIsPlayer
-		&&	TestPlayer.PlayerReplicationInfo.PlayerName != class'PlayerReplicationInfo'.default.PlayerName
-		)
-		{
-			if
-			(	(Level.NetMode==NM_Standalone)
-			||	(TestPlayer.PlayerReplicationInfo.PlayerName~=InName && TestPlayer.Password~=InPassword) )
-			{
-				// Found matching unoccupied player, so use this one.
-				NewPlayer = TestPlayer;
-				NewPlayer.Tag = 'Player';
-				break;
-			}
-		}
+		NewPlayer.ViewRotation = StartSpot.Rotation;
+    
+		// Save the playerstart event for later firing
+		NewPlayer.StartEvent = StartSpot.Event;
+    
+		NewPlayer.bJustSpawned = true;
 	}
-
-	// In not found, spawn a new player.
-	if( NewPlayer==None )
-	{
-		// Make sure this kind of player is allowed.
-		if ( (bHumansOnly || Level.bHumansOnly) && !SpawnClass.Default.bIsHuman
-			&& !ClassIsChildOf(SpawnClass, class'Spectator') )
-			SpawnClass = DefaultPlayerClass;
-
-		NewPlayer = Spawn(SpawnClass,,'Player',StartSpot.Location,StartSpot.Rotation);
-		if( NewPlayer!=None )
-		{
-			NewPlayer.ViewRotation = StartSpot.Rotation;
-
-			// Save the playerstart event for later firing
-			NewPlayer.StartEvent = StartSpot.Event;
-
-			NewPlayer.bJustSpawned = true;
-		}
-	}
-	else
-	{
-		NewPlayer.bJustSpawned = false;
-	}
-
-	// Handle spawn failure.
-	if( NewPlayer == None )
+    else
 	{
 		log("Couldn't spawn player at "$StartSpot);
 		Error = FailedSpawnMessage;
@@ -271,13 +237,6 @@ event playerpawn Login
 	if( NewPlayer.IsA('Spectator') && (Level.NetMode == NM_DedicatedServer) )
 		NumSpectators++;
 
-	// Init player's administrative privileges
-	//NewPlayer.Password = InPassword;
-	//NewPlayer.bAdmin = AdminPassword!="" && caps(InPassword)==caps(AdminPassword);
-	//NewPlayer.PlayerReplicationInfo.bAdmin = NewPlayer.bAdmin;
-	//if( NewPlayer.bAdmin )
-	//	log( "Administrator logged in!" );
-
 	// Init player's replication info
 	NewPlayer.GameReplicationInfo = GameReplicationInfo;
 
@@ -295,19 +254,6 @@ event playerpawn Login
 		NumPlayers++;
 		
 	return newPlayer;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Logout
-//
-//  Player is leaving the game. Handle game mode updates.
-////////////////////////////////////////////////////////////////////////////////
-function Logout(Pawn P)
-{
-    Super.Logout(P);
-    
-    if(NumPlayers <= MinimumPlayersRequiredForStart)
-        GotoStatePreGame();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -347,6 +293,19 @@ event PostLogin( playerpawn NewPlayer )
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  Logout
+//
+//  Player is leaving the game. Handle game mode updates.
+////////////////////////////////////////////////////////////////////////////////
+function Logout(Pawn P)
+{
+    Super.Logout(P);
+    
+    if(NumPlayers <= MinimumPlayersRequiredForStart)
+        GotoStatePreGame();
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  EnoughPlayersToStart
 //
 //  The game cannot start until there are enough players present.
@@ -363,9 +322,19 @@ function bool EnoughPlayersToStart()
 //  Override EnoughPlayersToGoLive for custom ready conditions.
 ////////////////////////////////////////////////////////////////////////////////
 
-// These functions are called by the player, and implemented in states only
+// Called by player when attempting to go ready. Implement in states.
 function PlayerRequestingToGoReady(Pawn ReadyPawn)      { }
 function PlayerRequestingToGoNotReady(Pawn UnreadyPawn) { }
+
+// Called by game when a player is ready to go live. Implement in states.
+function PlayerReadyToGoLive(Pawn P)                    { }
+function PlayerNotReadyToGoLive(Pawn P)                 { }
+
+// Check whether or not a player is ready to go live.
+function bool IsPlayerReadyToGoLive(Pawn P)
+{
+    return vmodRunePlayer(P).ReadyToGoLive();;
+}
 
 // Return true to switch game state to Starting, which counts into Live
 function bool EnoughPlayersReadyToGoLive()
@@ -382,7 +351,7 @@ function bool EnoughPlayersReadyToGoLive()
     {
         if(vmodRunePlayer(P) != None && P.bIsPlayer)
         {
-            if(PlayerIsReadyToGoLive(P))
+            if(IsPlayerReadyToGoLive(P))
                 ReadyCount++;
             else
                 UnreadyCount++;
@@ -393,13 +362,6 @@ function bool EnoughPlayersReadyToGoLive()
     if(ReadyCount > UnreadyCount)
         return true;
     return false;
-}
-
-function bool PlayerIsReadyToGoLive(Pawn P)
-{
-    if(vmodRunePlayer(P) == None)
-        return false;
-    return vmodRunePlayer(P).ReadyToGoLive();;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -910,6 +872,16 @@ function Class<LocalMessage> GetMessageTypeClassPlayerKilled()
 { return GetMessageTypeClass('PlayerKilled'); }
 
 ////////////////////////////////////////////////////////////////////////////////
+//  GameIsTeamGame
+//
+//  Returns whether or not this is a team game.
+////////////////////////////////////////////////////////////////////////////////
+function bool GameIsTeamGame()
+{
+    return bTeamGame;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //  GameReplicationInfo update functions
 ////////////////////////////////////////////////////////////////////////////////
 function GRISetGameTimer(int t)
@@ -941,34 +913,21 @@ auto state PreGame
     {
         local Pawn P;
         
-        GameDisableScoreTracking();
-        GameEnablePawnDamage();
+        // Reset state timer
         ResetTimerLocal();
         
-        // Perform actions on all players
-        for(P = Level.PawnList; P != None; P = P.NextPawn)
-        {
-            if(vmodRunePlayer(P) == None)
-                continue;
-            
-            PlayerResetStatistics(P);
-            PlayerGameStateNotification(P);
-        }
+        // Apply state options
+        GameDisableScoreTracking();
+        GameEnablePawnDamage();
         
+        // Update game replication info
         GRISetGameTimer(0);
-    }
-    
-    function EndState()
-    {
-        local Pawn P;
         
         // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            if(vmodRunePlayer(P) == None)
-                continue;
-            
-            vmodRunePlayer(P).bReadyToPlay = false;
+            PlayerGameStateNotification(P);
+            PlayerResetStatistics(P);
         }
     }
     
@@ -978,7 +937,7 @@ auto state PreGame
         vmodRunePlayer(P).NotifyGamePreGame();
         
         // Unready the player
-        vmodRunePlayer(P).NotifyNotReadyToGoLive();
+        PlayerNotReadyToGoLive(P);
         
         // Send PreGame message to player
         if(MessagePreGame != "")
@@ -1007,14 +966,16 @@ auto state PreGame
         }
         
         // If the player is already ready, just return
-        if(PlayerIsReadyToGoLive(PReady))
+        if(IsPlayerReadyToGoLive(PReady))
         {
-            // TODO: Optionally play a "waiting on other players" here
+            PlayerMessageWaitingForOthers(
+                PReady,
+                MinimumPlayersRequiredForStart);
             return;
         }
         
         // Notify the player that they are ready
-        vmodRunePlayer(PReady).NotifyReadyToGoLive();
+        PlayerReadyToGoLive(PReady);
         
         // Send PlayerReady message to all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
@@ -1027,6 +988,11 @@ auto state PreGame
         {
             GotoStateStarting();
         }
+    }
+    
+    function PlayerReadyToGoLive(Pawn P)
+    {
+        vmodRunePlayer(P).NotifyReadyToGoLive();
     }
     
     function PlayerMessagePlayerReady(Pawn P, Pawn PReady)
@@ -1047,6 +1013,15 @@ auto state PreGame
                 false);
     }
     
+    function PlayerMessageWaitingForOthers(Pawn P, int Required)
+    {
+        if(MessageWaitingForOthers != "")
+            P.ClientMessage(
+                MessageWaitingForOthers,
+                GetMessageTypeNamePlayerReady(),
+                false);
+    }
+    
     ////////////////////////////////////////////////////////////////////////////
     //  PreGame: PlayerRequestingToGoNotReady
     //
@@ -1057,19 +1032,24 @@ auto state PreGame
         local Pawn P;
         
         // If the player is already not ready, just return
-        if(!PlayerIsReadyToGoLive(PUnready))
+        if(!IsPlayerReadyToGoLive(PUnready))
         {
             return;
         }
         
         // Notify the player that they are not ready
-        vmodRunePlayer(PUnready).NotifyNotReadyToGoLive();
+        PlayerNotReadyToGoLive(PUnready);
         
         // Send PlayerNotReady message to all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
             PlayerMessagePlayerNotReady(P, PUnready);
         }
+    }
+    
+    function PlayerNotReadyToGoLive(Pawn P)
+    {
+        vmodRunePlayer(P).NotifyNotReadyToGoLive();
     }
     
     function PlayerMessagePlayerNotReady(Pawn P, Pawn PUnready)
@@ -1093,31 +1073,29 @@ state Starting
     {
         local Pawn P;
         
+        // Reset state timer
+        ResetTimerLocal();
+        
+        // Apply state options
         GameDisableScoreTracking();
         GameDisablePawnDamage();
-        ResetTimerLocal();
+        
+        // Return level to its original state
         NativeLevelCleanup();
         
         // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            if(vmodRunePlayer(P) == None)
-                continue;
-            
+            PlayerGameStateNotification(P);
             PlayerResetStatistics(P);
             RestartPlayer(P);
-            PlayerGameStateNotification(P);
         }
-    }
-    
-    function EndState()
-    {
-        ResetTimerLocal();
     }
     
     function PlayerGameStateNotification(Pawn P)
     {
         // Send Starting event to player
+        vmodRunePlayer(P).NotifyNotReadyToGoLive();
         vmodRunePlayer(P).NotifyGameStarting();
         
         // Send Starting message to player
@@ -1146,6 +1124,7 @@ state Starting
             for(P = Level.PawnList; P != None; P = P.NextPawn)
                 PlayerMessageStartingCountdown(P, TimeRemaining);
 
+        // Start the game
         if(TimeRemaining <= 0)
             GotoStateLive();
     }
@@ -1172,13 +1151,21 @@ state Live
     {
         local Pawn P;
         
+        // Reset state timer
+        ResetTimerLocal();
+        
+        // Apply state options
         GameEnableScoreTracking();
         GameEnablePawnDamage();
         
-        // Notify all players that the game is Live
+        // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
+        {
             if(vmodRunePlayer(P) != None)
+            {
                 PlayerGameStateNotification(P);
+            }
+        }
     }
     
     function PlayerGameStateNotification(Pawn P)
@@ -1226,22 +1213,23 @@ state Live
     //  TODO: When the global functions change, make sure this is updated as well
     ////////////////////////////////////////////////////////////////////////////
     function ScoreKill(Pawn PKiller, Pawn PDead)
+    
     {
-        if(bScoreTracking)
+        // TODO: Need to find a better way to check for game end condition
+        // between teams and such
+        if(!bScoreTracking)
+            return;
+        
+        Global.ScoreKill(PKiller, PDead);
+        
+        if(ScoreLimit > 0)
         {
-            Global.ScoreKill(PKiller, PDead);
-            
-            if(ScoreLimit > 0)
+            if(PKiller.PlayerReplicationInfo.Score >= ScoreLimit)
             {
-                if(PKiller.PlayerReplicationInfo.Score >= ScoreLimit)
-                {
-                    EndGameReason = "scorelimit";
-                    GotoStatePostGame();
-                }
+                EndGameReason = "scorelimit";
+                GotoStatePostGame();
             }
         }
-        else
-            return;
     }
 }
 
@@ -1256,6 +1244,25 @@ state PostGame
     {
         local Pawn P;
         local Actor A;
+        
+        // Reset state timer
+        ResetTimerLocal();
+        
+        // Apply state options
+        GameDisableScoreTracking();
+        GameDisablePawnDamage();
+        
+        // Update game replication info
+        GRISetGameTimer(0);
+        
+        // Perform actions on all players
+        for(P = Level.PawnList; P != None; P = P.NextPawn)
+            if(vmodRunePlayer(P) != None)
+                PlayerGameStateNotification(P);
+        
+        // Trigger all end game actors
+        foreach AllActors(class'Actor', A, 'EndGame')
+            A.trigger(self, none);
         
         // Logging
         if (LocalLog != None)
@@ -1276,21 +1283,6 @@ state PostGame
             WorldLog.Destroy();
             WorldLog = None;
         }
-        
-        GameDisableScoreTracking();
-        GameDisablePawnDamage();
-        
-        // Tell all players that the game ended
-        for(P = Level.PawnList; P != None; P = P.NextPawn)
-            if(vmodRunePlayer(P) != None)
-                PlayerGameStateNotification(P);
-        
-        // Trigger all end game actors
-        foreach AllActors(class'Actor', A, 'EndGame')
-            A.trigger(self, none);
-        
-        ResetTimerLocal();
-        GRISetGameTimer(0);
     }
     
     function PlayerGameStateNotification(Pawn P)
@@ -1382,6 +1374,7 @@ defaultproperties
     MessagePostGame="PostGame"
     MessagePlayerReady="is ready"
     MessagePlayerNotReady="is not ready"
+    MessageWaitingForOthers="Waiting for other players to ready"
     MessageNotEnoughPlayersToStart="Waiting for more players"
     bPawnsTakeDamage=true
     bScoreTracking=true
