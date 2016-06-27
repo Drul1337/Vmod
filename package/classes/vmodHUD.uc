@@ -118,6 +118,7 @@ simulated function MessageQueueDraw(
     // and down when messages disappear
     
     local int i, j, k;
+    local float t;
     
     // Handle optional LifeTime
     if(LifeTime == 0.0)
@@ -148,12 +149,20 @@ simulated function MessageQueueDraw(
         if(k < 0)
             k += MESSAGE_QUEUE_SIZE;
         
+        // Y interpolating
+        // TODO: Implement this as a constant
+        t = Level.TimeSeconds - Q.Messages[k].TimeStamp;
+        if(t <= LifeTime * 0.004)
+            t = t / (LifeTime * 0.004);
+        else
+            t = 1.0;
+        
         // TODO: Just using 16 for height at the moment, need to get the
         // actual value
         DrawMessage(
             C, Q.Messages[k],
             (C.ClipX * RelX),
-            (C.ClipY * RelY + ((i - j - 1) * 16)),
+            (C.ClipY * RelY + (((i - j - 2) * 16) + (t * 16))), // TODO: Y tween
             LifeTime,
             Justification,
             Backdrop,
@@ -273,6 +282,7 @@ simulated function float GetMessageTimeStampInterpolation(
         case INTERP_QUADRATIC:
             t = t / d;
             return 1.0 - (c * t * t + b);
+            
     }
     
     return 1.0;

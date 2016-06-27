@@ -1,3 +1,7 @@
 /build
 *.lnk
 *.exe
+ServerDM.bat
+ServerTDM.bat
+ServerTGLD.bat
+server.bat

@@ -168,7 +168,7 @@ state Starting
         // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            PlayerResetStatistics(P);
+            ResetPlayerStatistics(P);
         }
     }
     

@@ -3,6 +3,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 class vmodGameInfoBase extends GameInfo abstract;
 
+// TODO: Message replication may be a lag issue. Maybe set all messages to static
+// in their classes so the client can build the message instead of the server.
+
 // Game states
 const STATE_PREGAME     = 'PreGame';
 const STATE_STARTING    = 'Starting';
@@ -62,15 +65,6 @@ var private bool bPawnsTakeDamage;
 var string EndGameReason;
 var bool bMarkNativeActors;
 
-////////////////////////////////////////////////////////////////////////////////
-//  Team-related prototypes to be implemented in BaseTeams class
-////////////////////////////////////////////////////////////////////////////////
-function PlayerRequestingTeamChange(Pawn P, byte team){}
-function PlayerTeamChange(Pawn PChanged, byte team){}
-function Vector GetTeamColor(byte team){return Vect(1,1,1);}
-function byte PlayerGetTeam(Pawn P){return 255;}
-function int GetTeamScore(byte team){return 0;}
-function bool GameIsTeamGame(){return false;}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  State utility functions
@@ -79,6 +73,239 @@ final function GotoStatePreGame()     { GotoState(STATE_PREGAME); }
 final function GotoStateStarting()    { GotoState(STATE_STARTING); }
 final function GotoStateLive()        { GotoState(STATE_LIVE); }
 final function GotoStatePostGame()    { GotoState(STATE_POSTGAME); }
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  MessageTypeNames
+////////////////////////////////////////////////////////////////////////////////
+function Name GetMessageTypeName(class<LocalMessage> MessageClass)
+{
+    switch(MessageClass)
+    {
+        case MESSAGE_CLASS_PREGAME:         return MESSAGE_NAME_PREGAME;
+        case MESSAGE_CLASS_STARTINGGAME:    return MESSAGE_NAME_STARTINGGAME;
+        case MESSAGE_CLASS_LIVEGAME:        return MESSAGE_NAME_LIVEGAME;
+        case MESSAGE_CLASS_POSTGAME:        return MESSAGE_NAME_POSTGAME;
+        case MESSAGE_CLASS_PLAYERREADY:     return MESSAGE_NAME_PLAYERREADY;
+        case MESSAGE_CLASS_PLAYERKILLED:    return MESSAGE_NAME_PLAYERKILLED;
+        default:                            return MESSAGE_NAME_DEFAULT;
+    }
+}
+
+function Name GetMessageTypeNameDefault()
+{ return GetMessageTypeName(MESSAGE_CLASS_DEFAULT);  }
+
+function Name GetMessageTypeNamePreGame()
+{ return GetMessageTypeName(MESSAGE_CLASS_PREGAME); }
+
+function Name GetMessageTypeNameStartingGame()
+{ return GetMessageTypeName(MESSAGE_CLASS_STARTINGGAME); }
+
+function Name GetMessageTypeNameLiveGame()
+{ return GetMessageTypeName(MESSAGE_CLASS_LIVEGAME); }
+
+function Name GetMessageTypeNamePostGame()
+{ return GetMessageTypeName(MESSAGE_CLASS_POSTGAME); }
+
+function Name GetMessageTypeNamePlayerReady()
+{ return GetMessageTypeName(MESSAGE_CLASS_PLAYERREADY); }
+
+function Name GetMessageTypeNamePlayerKilled()
+{ return GetMessageTypeName(MESSAGE_CLASS_PLAYERKILLED);  }
+
+////////////////////////////////////////////////////////////////////////////////
+//  MessageTypeClasses
+////////////////////////////////////////////////////////////////////////////////
+function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
+{
+    switch(MessageName)
+    {
+       case MESSAGE_NAME_PREGAME:       return MESSAGE_CLASS_PREGAME;   
+       case MESSAGE_NAME_STARTINGGAME:  return MESSAGE_CLASS_STARTINGGAME;
+       case MESSAGE_NAME_LIVEGAME:      return MESSAGE_CLASS_LIVEGAME;
+       case MESSAGE_NAME_POSTGAME:      return MESSAGE_CLASS_POSTGAME;
+       case MESSAGE_NAME_PLAYERREADY:   return MESSAGE_CLASS_PLAYERREADY;
+       case MESSAGE_NAME_PLAYERKILLED:  return MESSAGE_CLASS_PLAYERKILLED;
+       default:                         return MESSAGE_CLASS_DEFAULT;
+    }
+}
+
+function Class<LocalMessage> GetMessageTypeClassDefault()
+{ return GetMessageTypeClass(MESSAGE_NAME_DEFAULT); }
+
+function Class<LocalMessage> GetMessageTypeClassPreGame()
+{ return GetMessageTypeClass(MESSAGE_NAME_PREGAME); }
+
+function Class<LocalMessage> GetMessageTypeClassStartingGame()
+{ return GetMessageTypeClass(MESSAGE_NAME_STARTINGGAME); }
+
+function Class<LocalMessage> GetMessageTypeClassLiveGame()
+{ return GetMessageTypeClass(MESSAGE_NAME_LIVEGAME); }
+
+function Class<LocalMessage> GetMessageTypeClassPostGame()
+{ return GetMessageTypeClass(MESSAGE_NAME_POSTGAME); }
+
+function Class<LocalMessage> GetMessageTypeClassPlayerReady()
+{ return GetMessageTypeClass(MESSAGE_NAME_PLAYERREADY); }
+
+function Class<LocalMessage> GetMessageTypeClassPlayerKilled()
+{ return GetMessageTypeClass(MESSAGE_NAME_PLAYERKILLED); }
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  Team-related prototypes to be implemented in BaseTeams class
+////////////////////////////////////////////////////////////////////////////////
+// TODO: These prototypes here could cause some problems, 
+function bool GameIsTeamGame();
+function byte GetPlayerTeam(Pawn P);
+function Vector GetTeamColor(byte team);
+function PlayerTeamChange(Pawn P, byte Team);
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  Player or Admin invoked functions
+////////////////////////////////////////////////////////////////////////////////
+function PlayerSendPlayerList(Pawn P)
+{
+    local Pawn PCurr;
+    
+    P.ClientMessage(
+        "Player List",
+        GetMessageTypeNameDefault(),
+        false);
+    
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        P.ClientMessage(
+                PCurr.PlayerReplicationInfo.PlayerName $ " : " $ P.PlayerReplicationInfo.PlayerID,
+                GetMessageTypeNameDefault(),
+                false);
+}
+
+function PlayerJoinGame(Pawn P)
+{
+    // TODO: This is where a player will go from spectator mode to playing mode
+    DispatchPlayerJoinedGame(P);
+}
+
+function PlayerSpectate(Pawn P)
+{
+    // TODO: This is where a player will go from playing mode to spectator mode
+    DispatchPlayerSpectating(P);
+}
+
+function PlayerReady(Pawn P){}      // Implement in states
+function PlayerNotReady(Pawn P){}   // Implement in states
+
+// A player is trying to force reset the game
+function PlayerGameReset(Pawn P)
+{
+    GameReset();
+    DispatchPlayerResetGame(P);
+}
+
+// A player is trying to force end the game
+function PlayerGameEnd(Pawn P)
+{
+    GameEnd();
+    DispatchPlayerEndedGame(P);
+}
+
+// A player is trying to force start the game
+function PlayerGameStart(Pawn P)
+{
+    GameStart();
+    DispatchPlayerStartedGame(P);
+}
+
+// A player would like to broadcast a message
+function PlayerBroadcast(Pawn P, String Message)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                Message,
+                GetMessageTypeNamePlayerReady(),
+                false);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  Event Dispatchers
+////////////////////////////////////////////////////////////////////////////////
+function DispatchPlayerJoinedGame(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " has joined the game",
+                GetMessageTypeNameDefault(),
+                false);
+}
+
+function DispatchPlayerSpectating(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " is now spectating",
+                GetMessageTypeNameDefault(),
+                false);
+}
+
+function DispatchPlayerReady(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerReady,
+                GetMessageTypeNamePlayerReady(),
+                false);
+}
+
+function DispatchPlayerNotReady(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerNotReady,
+                GetMessageTypeNamePlayerReady(),
+                false);
+}
+
+function DispatchPlayerResetGame(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " has reset the game",
+                GetMessageTypeNameDefault(),
+                false);
+}
+
+function DispatchPlayerEndedGame(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " has ended the game",
+                GetMessageTypeNameDefault(),
+                false);
+}
+
+function DispatchPlayerStartedGame(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " has started the game",
+                GetMessageTypeNameDefault(),
+                false);
+}
+
+
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //  PreBeginPlay
@@ -350,28 +577,20 @@ function bool EnoughPlayersToStart()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  ReadyToGoLive
+//  PlayerReady
 //
 //  These functions are used for handling readying and unreadying players.
 //  Override EnoughPlayersToGoLive for custom ready conditions.
 ////////////////////////////////////////////////////////////////////////////////
-
-// Called by player when attempting to go ready. Implement in states.
-function PlayerRequestingToGoReady(Pawn ReadyPawn)      { }
-function PlayerRequestingToGoNotReady(Pawn UnreadyPawn) { }
-
-// Called by game when a player is ready to go live. Implement in states.
-function PlayerReadyToGoLive(Pawn P)                    { }
-function PlayerNotReadyToGoLive(Pawn P)                 { }
-
 // Check whether or not a player is ready to go live.
-function bool IsPlayerReadyToGoLive(Pawn P)
+function bool IsPlayerReady(Pawn P)
 {
-    return vmodRunePlayer(P).ReadyToGoLive();;
+    // TODO: May want to replace this with a function call to P
+    return vmodRunePlayer(P).bReadyToPlay;
 }
 
 // Return true to switch game state to Starting, which counts into Live
-function bool EnoughPlayersReadyToGoLive()
+function bool EnoughPlayersReady()
 {
     local int ReadyCount;
     local int UnreadyCount;
@@ -383,13 +602,8 @@ function bool EnoughPlayersReadyToGoLive()
     
     for(P = Level.PawnList; P != None; P = P.NextPawn)
     {
-        if(vmodRunePlayer(P) != None && P.bIsPlayer)
-        {
-            if(IsPlayerReadyToGoLive(P))
-                ReadyCount++;
-            else
-                UnreadyCount++;
-        }
+        if(IsPlayerReady(P))    ReadyCount++;
+        else                    UnreadyCount++;
     }
     
     // Ready count conditions - majority of players are ready
@@ -406,6 +620,16 @@ function bool EnoughPlayersReadyToGoLive()
 function GameReset()
 {
     GotoStatePreGame();
+}
+
+function GameEnd()
+{
+    GotoStatePostGame();
+}
+
+function GameStart()
+{
+    GotoStateStarting();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -431,9 +655,9 @@ function ClearLevelItems()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  PlayerResetStatistics
+//  ResetPlayerStatistics
 ////////////////////////////////////////////////////////////////////////////////
-function PlayerResetStatistics(Pawn P)
+function ResetPlayerStatistics(Pawn P)
 {
     local vmodPlayerReplicationInfo PRI;
     
@@ -489,13 +713,9 @@ function bool RestartPlayer( pawn aPlayer )
 		aPlayer.DamageScaling = aPlayer.Default.DamageScaling;
 		aPlayer.SoundDampening = aPlayer.Default.SoundDampening;
 
-		//// Team games require this
-		//if (bTeamGame)
-		//	aPlayer.DesiredColorAdjust = GetTeamVectorColor(aPlayer.PlayerReplicationInfo.Team);
-		//else
-		//	aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
+        // TODO: This probably should not be happening here.
         if(GameIsTeamGame())
-            aPlayer.DesiredColorAdjust = GetTeamColor(PlayerGetTeam(aPlayer));
+            aPlayer.DesiredColorAdjust = GetTeamColor(GetPlayerTeam(aPlayer));
         else
             aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
 
@@ -827,7 +1047,7 @@ function ReduceDamage(
         // TODO: This is where team damage would happen
         if(GameIsTeamGame())
         {
-            if(PlayerGetTeam(injured) == PlayerGetTeam(instigatedBy))
+            if(GetPlayerTeam(injured) == GetPlayerTeam(instigatedBy))
             {
                 BluntDamage = 0;
                 SeverDamage = 0;
@@ -849,81 +1069,7 @@ function GameDisablePawnDamage()    { bPawnsTakeDamage = false; }
 //  function GameDisableTeamDamage()
 //  function GameSetTeamDamageFactor(float f)
 
-////////////////////////////////////////////////////////////////////////////////
-//  MessageTypeNames
-////////////////////////////////////////////////////////////////////////////////
-function Name GetMessageTypeName(class<LocalMessage> MessageClass)
-{
-    switch(MessageClass)
-    {
-        case MESSAGE_CLASS_PREGAME:         return MESSAGE_NAME_PREGAME;
-        case MESSAGE_CLASS_STARTINGGAME:    return MESSAGE_NAME_STARTINGGAME;
-        case MESSAGE_CLASS_LIVEGAME:        return MESSAGE_NAME_LIVEGAME;
-        case MESSAGE_CLASS_POSTGAME:        return MESSAGE_NAME_POSTGAME;
-        case MESSAGE_CLASS_PLAYERREADY:     return MESSAGE_NAME_PLAYERREADY;
-        case MESSAGE_CLASS_PLAYERKILLED:    return MESSAGE_NAME_PLAYERKILLED;
-        default:                            return MESSAGE_NAME_DEFAULT;
-    }
-}
 
-function Name GetMessageTypeNameDefault()
-{ return GetMessageTypeName(MESSAGE_CLASS_DEFAULT);  }
-
-function Name GetMessageTypeNamePreGame()
-{ return GetMessageTypeName(MESSAGE_CLASS_PREGAME); }
-
-function Name GetMessageTypeNameStartingGame()
-{ return GetMessageTypeName(MESSAGE_CLASS_STARTINGGAME); }
-
-function Name GetMessageTypeNameLiveGame()
-{ return GetMessageTypeName(MESSAGE_CLASS_LIVEGAME); }
-
-function Name GetMessageTypeNamePostGame()
-{ return GetMessageTypeName(MESSAGE_CLASS_POSTGAME); }
-
-function Name GetMessageTypeNamePlayerReady()
-{ return GetMessageTypeName(MESSAGE_CLASS_PLAYERREADY); }
-
-function Name GetMessageTypeNamePlayerKilled()
-{ return GetMessageTypeName(MESSAGE_CLASS_PLAYERKILLED);  }
-
-////////////////////////////////////////////////////////////////////////////////
-//  MessageTypeClasses
-////////////////////////////////////////////////////////////////////////////////
-function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
-{
-    switch(MessageName)
-    {
-       case MESSAGE_NAME_PREGAME:       return MESSAGE_CLASS_PREGAME;   
-       case MESSAGE_NAME_STARTINGGAME:  return MESSAGE_CLASS_STARTINGGAME;
-       case MESSAGE_NAME_LIVEGAME:      return MESSAGE_CLASS_LIVEGAME;
-       case MESSAGE_NAME_POSTGAME:      return MESSAGE_CLASS_POSTGAME;
-       case MESSAGE_NAME_PLAYERREADY:   return MESSAGE_CLASS_PLAYERREADY;
-       case MESSAGE_NAME_PLAYERKILLED:  return MESSAGE_CLASS_PLAYERKILLED;
-       default:                         return MESSAGE_CLASS_DEFAULT;
-    }
-}
-
-function Class<LocalMessage> GetMessageTypeClassDefault()
-{ return GetMessageTypeClass(MESSAGE_NAME_DEFAULT); }
-
-function Class<LocalMessage> GetMessageTypeClassPreGame()
-{ return GetMessageTypeClass(MESSAGE_NAME_PREGAME); }
-
-function Class<LocalMessage> GetMessageTypeClassStartingGame()
-{ return GetMessageTypeClass(MESSAGE_NAME_STARTINGGAME); }
-
-function Class<LocalMessage> GetMessageTypeClassLiveGame()
-{ return GetMessageTypeClass(MESSAGE_NAME_LIVEGAME); }
-
-function Class<LocalMessage> GetMessageTypeClassPostGame()
-{ return GetMessageTypeClass(MESSAGE_NAME_POSTGAME); }
-
-function Class<LocalMessage> GetMessageTypeClassPlayerReady()
-{ return GetMessageTypeClass(MESSAGE_NAME_PLAYERREADY); }
-
-function Class<LocalMessage> GetMessageTypeClassPlayerKilled()
-{ return GetMessageTypeClass(MESSAGE_NAME_PLAYERKILLED); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  GameReplicationInfo update functions
@@ -950,7 +1096,7 @@ function PlayerGameStateNotification(Pawn P) { }
 //  STATE: PreGame
 //
 //  Waiting for players to ready themselves before the game begins.
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////m 
 auto state PreGame
 {
     function BeginState()
@@ -971,7 +1117,7 @@ auto state PreGame
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
             PlayerGameStateNotification(P);
-            PlayerResetStatistics(P);
+            ResetPlayerStatistics(P);
         }
     }
     
@@ -981,7 +1127,7 @@ auto state PreGame
         vmodRunePlayer(P).NotifyGamePreGame();
         
         // Unready the player
-        PlayerNotReadyToGoLive(P);
+        PlayerNotReady(P);
         
         // Send PreGame message to player
         if(MessagePreGame != "")
@@ -992,60 +1138,23 @@ auto state PreGame
     }
     
     ////////////////////////////////////////////////////////////////////////////
-    //  PreGame: PlayerRequestingToGoReady
-    //
-    //  A player has requested to go ready.
+    //  PreGame: PlayerReady
     ////////////////////////////////////////////////////////////////////////////
-    function PlayerRequestingToGoReady(Pawn PReady)
+    function PlayerReady(Pawn P)
     {
-        // If there are not enough players in the game, player cannot ready up
-        if(!EnoughPlayersToStart())
-        {
-            PlayerMessageNotEnoughPlayersToStart(
-                PReady,
-                MinimumPlayersRequiredForStart);
+        // If player is already ready, do nothing
+        if(IsPlayerReady(P))
             return;
-        }
         
-        // If the player is already ready, just return
-        if(IsPlayerReadyToGoLive(PReady))
-        {
-            PlayerMessageWaitingForOthers(
-                PReady,
-                MinimumPlayersRequiredForStart);
-            return;
-        }
+        // Set player's ready status
+        PlayerPawn(P).bReadyToPlay = true;
         
-        // Notify the player that they are ready
-        PlayerReadyToGoLive(PReady);
-    }
-    
-    function PlayerReadyToGoLive(Pawn PReady)
-    {
-        local Pawn P;
-        
-        vmodRunePlayer(PReady).NotifyReadyToGoLive();
-        
-        // Send PlayerReady message to all players
-        for(P = Level.PawnList; P != None; P = P.NextPawn)
-        {
-            PlayerMessagePlayerReady(P, PReady);
-        }
+        // Dispatch player ready event
+        DispatchPlayerReady(P);
         
         // If enough players have readied up, start the game
-        if(EnoughPlayersReadyToGoLive())
-        {
-            GotoStateStarting();
-        }
-    }
-    
-    function PlayerMessagePlayerReady(Pawn P, Pawn PReady)
-    {
-        if(MessagePlayerReady != "")
-            P.ClientMessage(
-                PReady.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerReady,
-                GetMessageTypeNamePlayerReady(),
-                false);
+        if(EnoughPlayersReady())
+            GameStart();
     }
     
     function PlayerMessageNotEnoughPlayersToStart(Pawn P, int Required)
@@ -1071,25 +1180,17 @@ auto state PreGame
     //
     //  A player has switched to not ready. This is only valid in PreGame.
     ////////////////////////////////////////////////////////////////////////////
-    function PlayerRequestingToGoNotReady(Pawn PUnready)
+    function PlayerNotReady(Pawn P)
     {
-        // If the player is already not ready, just return
-        if(!IsPlayerReadyToGoLive(PUnready))
+        // If player is already not ready, do nothing
+        if(!IsPlayerReady(P))
             return;
         
-        // Notify the player that they are not ready
-        PlayerNotReadyToGoLive(PUnready);
-    }
-    
-    function PlayerNotReadyToGoLive(Pawn PUnready)
-    {
-        local Pawn P;
+        // Set ready status
+        PlayerPawn(P).bReadyToPlay = false;
         
-        vmodRunePlayer(PUnready).NotifyNotReadyToGoLive();
-        
-        // Send PlayerNotReady message to all players
-        for(P = Level.PawnList; P != None; P = P.NextPawn)
-            PlayerMessagePlayerNotReady(P, PUnready);
+        // Dispatch player not ready event
+        DispatchPlayerNotReady(P);
     }
     
     function PlayerMessagePlayerNotReady(Pawn P, Pawn PUnready)
@@ -1127,7 +1228,7 @@ state Starting
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
             PlayerGameStateNotification(P);
-            PlayerResetStatistics(P);
+            ResetPlayerStatistics(P);
             RestartPlayer(P);
         }
     }
@@ -1135,8 +1236,8 @@ state Starting
     function PlayerGameStateNotification(Pawn P)
     {
         // Send Starting event to player
-        vmodRunePlayer(P).NotifyNotReadyToGoLive();
-        vmodRunePlayer(P).NotifyGameStarting();
+        //vmodRunePlayer(P).NotifyNotReadyToGoLive();
+        //vmodRunePlayer(P).NotifyGameStarting();
         
         // Send Starting message to player
         if(MessageStartingGame != "")

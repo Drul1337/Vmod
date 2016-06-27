@@ -24,26 +24,20 @@ replication
         VcmdGameReset,
         VcmdReady,
         VcmdNotReady,
-        VcmdEndGame,
+        VcmdGameEnd,
+        VcmdGameStart,
         VcmdClearInventory,
         VcmdGiveWeapon,
         VcmdSpectate,
         VcmdPlay,
         VcmdChangeTeam,
-        VcmdGetPlayerIds,
-        VcmdSetPlayerTeam;
+        VcmdGetPlayerList,
+        VcmdSetPlayerTeam,
+        VcmdBroadcast;
 }
 
 function bool ReadyToGoLive()
 { return bReadyToPlay; }
-
-function SetReadyToGoLive(bool B)
-{
-    if(B)
-        vmodGameInfo(Level.Game).PlayerRequestingToGoReady(self);
-    else
-        vmodGameInfo(Level.Game).PlayerRequestingToGoNotReady(self);
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Game Notifications
@@ -72,41 +66,53 @@ function NotifyGameStartingRound()
 function NotifyGamePostRound()
 {}
 
-function NotifyReadyToGoLive()
-{ bReadyToPlay = true; }
-
-function NotifyNotReadyToGoLive()
-{ bReadyToPlay = false; }
-
-function NotifyTeamChange(byte team)
-{
-    PlayerReplicationInfo.Team = team;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 //  Game interface
 ///////////////////////////////////////////////////////////////////////////////
+exec final function Vcmd()
+{
+    // TODO: Probably a better way to implement this based on what Vcmds there are
+    ClientMessage("VcmdGameReset");
+    ClientMessage("VcmdGameEnd");
+    ClientMessage("VcmdGameStart");
+    ClientMessage("VcmdReady");
+    ClientMessage("VcmdNotReady");
+    ClientMessage("VcmdSpectate");
+    ClientMessage("VcmdPlay");
+    ClientMessage("VcmdChangeTeam");
+    ClientMessage("VcmdGetPlayerList");
+    ClientMessage("VcmdSetPlayerTeam");
+    ClientMessage("VcmdBroadcast");
+}
+
+exec final function VcmdBroadcast(String Message)
+{
+    vmodGameInfo(Level.Game).AdminRequestBroadcast(Self, Message);
+}
+
 exec final function VcmdGameReset()
 {
-    if( bAdmin || Level.NetMode==NM_Standalone || Level.netMode==NM_ListenServer )
-        if(Level.Game.IsA('vmodGameInfo'))
-            vmodGameInfo(Level.Game).GameReset();
+    vmodGameInfo(Level.Game).AdminRequestGameReset(Self);
+}
+
+exec final function VcmdGameEnd()
+{
+    vmodGameInfo(Level.Game).AdminRequestGameEnd(Self);
+}
+
+exec final function VcmdGameStart()
+{
+    vmodGameInfo(Level.Game).AdminRequestGameStart(Self);
 }
 
 exec final function VcmdReady()
 {
-    SetReadyToGoLive(true);
+    vmodGameInfo(Level.Game).PlayerRequestReadyToPlay(self);
 }
 
 exec final function VcmdNotReady()
 {
-    SetReadyToGoLive(false);
-}
-
-exec final function VcmdEndGame()
-{
-    if(vmodGameInfo(Level.Game) != None)
-        vmodGameInfo(Level.Game).GotoStatePostGame();
+    vmodGameInfo(Level.Game).PlayerRequestNotReadyToPlay(self);
 }
 
 exec final function VcmdClearInventory()
@@ -123,37 +129,28 @@ exec final function VcmdGiveWeapon(class<Weapon> WeaponClass)
 
 exec final function VcmdSpectate()
 {
-    GotoState('PlayerSpectating');
+    vmodGameInfo(Level.Game).PlayerRequestSpectate(self);
 }
 
 exec final function VcmdPlay()
 {
-    GotoState('PlayerWalking');
+    vmodGameInfo(Level.Game).PlayerRequestJoinGame(self);
 }
 
 exec final function VcmdChangeTeam(byte team)
 {
-    vmodGameInfo(Level.Game).PlayerRequestingTeamChange(self, team);
+    vmodGameInfo(Level.Game).PlayerRequestTeamChange(self, team);
 }
 
 // TODO: If admin, display a player ID on the scoreboard
-exec final function VcmdGetPlayerIds()
+exec final function VcmdGetPlayerList()
 {
-    local Pawn P;
-    
-    for(P = Level.PawnList; P != None; P = P.NextPawn)
-        ClientMessage(
-            P.PlayerReplicationInfo.PlayerName $ " : " $ P.PlayerReplicationInfo.PlayerID,
-            vmodGameInfo(Level.Game).GetMessageTypeNameDefault(),
-            false);
+    vmodGameInfo(Level.Game).PlayerRequestPlayerList(self);
 }
 
-exec final function VcmdSetPlayerTeam(int PlayerID, byte team)
+exec final function VcmdSetPlayerTeam(int PlayerID, byte Team)
 {
-    local Pawn P;
-    for(P = Level.PawnList; P != None; P = P.NextPawn)
-        if(P.PlayerReplicationInfo.PlayerID == PlayerID)
-            vmodGameInfo(Level.Game).PlayerRequestingTeamChange(P, team);
+    vmodGameInfo(Level.Game).AdminRequestTeamChange(Self, PlayerID, Team);
 }
 
 defaultproperties
