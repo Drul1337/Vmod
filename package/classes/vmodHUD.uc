@@ -68,6 +68,10 @@ var float MessageBackdropWidth;
 ////////////////////////////////////////////////////////////////////////////////
 event PostBeginPlay()
 {
+    // Spawn scoreboard
+    if(PlayerPawn(Owner).ScoringType != None)
+        PlayerPawn(Owner).Scoring = Spawn(PlayerPawn(Owner).ScoringType, Owner);
+    
     MessageQueuePurgeAll(MessageQueueGeneral);
     MessageQueuePurgeAll(MessageQueueKills);
     Super.PostBeginPlay();
@@ -80,9 +84,163 @@ event PostBeginPlay()
 ////////////////////////////////////////////////////////////////////////////////
 simulated function PostRender(Canvas C)
 {
-    Super.PostRender(C);
+    //Super.PostRender(C);
+    
+    ////////////////////////////////////////////////////////////////////////////
+    local PlayerPawn thePlayer;
+	local Texture Tex;
+	local float XSize, YSize;
+
+	thePlayer = PlayerPawn(Owner);
+	if (thePlayer == None || thePlayer.RendMap == 0)
+		return;
+
+	if (HudMode==0)
+	{	// Hud is off
+		DrawMessages(C);
+		DrawRuneMessages(C);
+
+		// Draw Progress Bar
+		C.SetColor(255,255,255);
+		if ( thePlayer.ProgressTimeOut > Level.TimeSeconds )
+			DisplayProgressMessage(C);
+		C.SetColor(255,255,255);
+
+		// Reset the translucency of the HUD back to normal
+		C.Style = ERenderStyle.STY_Normal;		
+		C.DrawColor.R = 255;
+		C.DrawColor.G = 255;
+		C.DrawColor.B = 255;
+		return;
+	}
+
+	DefaultCanvas(C);
+	bResChanged = (C.ClipX != OldClipX);
+	OldClipX = C.ClipX;
+
+	// Set the relative HUD scale to 640x480
+	HudScale = C.ClipX / 640;
+
+	if (!Owner.IsA('Spectator'))
+	{
+		bHealth = true;
+
+		if(thePlayer.bBloodLust)
+			bBloodLust = true;
+		else
+			bBloodLust = false;
+
+		if(thePlayer.Weapon != None || thePlayer.RunePower > 0)
+			bPower = true;
+
+		bBloodLust = true;
+		if(thePlayer.Shield != None)
+			bShield = true;
+		else
+			bShield = false;
+
+
+		if(thePlayer.Region.Zone.bWaterZone)
+			bAir = true;
+		else
+			bAir = false;
+
+		// Draw Health/Shield/Strength Bars
+		SetHudFade(C, FadeHealth);
+		DrawHealth(C, 4 * HudScale, C.ClipY - 4 * HudScale);
+
+		if(FadeBloodlust > 0)
+		{
+			SetHudFade(C, FadeBloodlust);
+			DrawStrength(C, C.ClipX * 0.5, C.ClipY - 4 * HudScale);
+		}
+		if(FadePower > 0)	
+		{
+			SetHudFade(C, FadePower);
+			DrawPower(C, C.ClipX - 36 * HudScale, C.ClipY - 4 * HudScale);
+		}
+		if(FadeShield > 0)
+		{
+			SetHudFade(C, FadeShield);
+			DrawShield(C, C.ClipX - 60 * HudScale, C.ClipY - 4 * HudScale);
+		}
+		if(FadeAir > 0 && Level.Netmode==NM_Standalone)
+		{
+			SetHudFade(C, FadeAir);
+			DrawAir(C, 40 * HudScale, C.ClipY - 4 * HudScale);
+		}
+	}
+
+	DrawMessages(C);
+
+	// Reset the translucency of the HUD back to normal
+	C.Style = ERenderStyle.STY_Normal;		
+	C.DrawColor.R = 255;
+	C.DrawColor.G = 255;
+	C.DrawColor.B = 255;
+
+	// Draw scoreboard (if active)
+    HandleScoreBoard(C);
+
+	DrawNetPlug(C);
+
+	// Draw Remaining Time
+	if ( bTimeDown || (thePlayer.GameReplicationInfo != None && thePlayer.GameReplicationInfo.RemainingTime > 0) )
+	{
+		bTimeDown = true;
+		DrawRemainingTime(C, 0, 0);
+	}
+
+	if (!Owner.IsA('Spectator'))
+	{
+		// Draw Frag count
+		if ( (Level.Game == None) || Level.Game.bDeathMatch ) 
+		{
+			DrawFragCount(C, C.ClipX, 0);
+		}
+	}
+
+	if ( HUDMutator != None )
+		HUDMutator.PostRender(C);
+
+	// Draw Menu (if active)
+	if ( thePlayer.bShowMenu )
+	{
+		DisplayMenu(C);
+		return;
+	}
+
+	if ( Level.NetMode != NM_StandAlone)
+		DrawTypingPlayers(C);
+
+	// Draw Progress Bar
+	C.SetColor(255,255,255);
+	if ( thePlayer.ProgressTimeOut > Level.TimeSeconds )
+		DisplayProgressMessage(C);
+	C.SetColor(255,255,255);
+    ////////////////////////////////////////////////////////////////////////////
+    
     DrawRemainingTime(C, 0, 0);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//  MessageQueue Implementation
+////////////////////////////////////////////////////////////////////////////////
+simulated function HandleScoreBoard(Canvas C)
+{
+    // TODO: This is hacky
+    if(PlayerPawn(Owner).bShowScores)
+    {
+        if(PlayerPawn(Owner).Scoring != None)
+            PlayerPawn(Owner).Scoring.ShowScores(C);
+    }
+    else
+    {
+        if(PlayerPawn(Owner).Scoring != None)
+            vmodScoreBoard(PlayerPawn(Owner).Scoring).UpdateTimeStamp(Level.TimeSeconds);
+    }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //  MessageQueue Implementation

@@ -10,4 +10,5 @@ defaultproperties
     MapPrefix="DM"
     BeaconName="DM"
     GameName="[Vmod] Team Death Match"
+    ScoreBoardType=Class'Vmod.vmodScoreBoardTeams'
 }

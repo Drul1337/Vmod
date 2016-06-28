@@ -7,5 +7,6 @@ class vmodGameTeamGladiator extends vmodGameGladiator;
 defaultproperties
 {
     bTeamGame=true
-     GameName="[Vmod] Team Gladiator"
+    GameName="[Vmod] Team Gladiator"
+    ScoreBoardType=Class'Vmod.vmodScoreBoardTeams'
 }

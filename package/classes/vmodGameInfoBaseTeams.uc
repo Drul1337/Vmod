@@ -21,7 +21,7 @@ function PlayerTeamChange(Pawn P, byte Team)
     if(GetPlayerTeam(P) == Team)    return;
     
     P.PlayerReplicationInfo.Team = Team;
-    P.DesiredColorAdjust = GetTeamColor(Team);
+    P.DesiredColorAdjust = GetTeamColorVector(Team);
     DispatchPlayerChangedTeam(P, Team);
 }
 
@@ -67,10 +67,26 @@ function byte GetPlayerTeam(Pawn P)
 
 ////////////////////////////////////////////////////////////////////////////////
 //  GetTeamColor
-//
-//  Get the vector based team color for a given team.
 ////////////////////////////////////////////////////////////////////////////////
-function Vector GetTeamColor(byte team)
+function Color GetTeamColor(byte team)
+{
+    local Color C;
+    
+    C.R = 60;
+    C.G = 60;
+    C.B = 60;
+    switch(team)
+    {
+        case 0: C.R = 255; break;
+        case 1: C.B = 255; break;
+        case 2: C.G = 255; break;
+        case 3: C.R = 255; C.G = 255; break;
+    }
+    
+    return C;
+}
+
+function Vector GetTeamColorVector(byte team)
 {
     // TODO: Unify these colors with vmodHUD
     local float b;

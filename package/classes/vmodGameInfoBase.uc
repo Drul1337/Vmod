@@ -158,7 +158,7 @@ function Class<LocalMessage> GetMessageTypeClassPlayerKilled()
 // TODO: These prototypes here could cause some problems, 
 function bool GameIsTeamGame();
 function byte GetPlayerTeam(Pawn P);
-function Vector GetTeamColor(byte team);
+function Vector GetTeamColorVector(byte team);
 function PlayerTeamChange(Pawn P, byte Team);
 
 
@@ -184,12 +184,14 @@ function PlayerSendPlayerList(Pawn P)
 function PlayerJoinGame(Pawn P)
 {
     // TODO: This is where a player will go from spectator mode to playing mode
+    PlayerPawn(P).PlayerReplicationInfo.bIsSpectator = false;
     DispatchPlayerJoinedGame(P);
 }
 
 function PlayerSpectate(Pawn P)
 {
     // TODO: This is where a player will go from playing mode to spectator mode
+    PlayerPawn(P).PlayerReplicationInfo.bIsSpectator = true;
     DispatchPlayerSpectating(P);
 }
 
@@ -724,7 +726,7 @@ function bool RestartPlayer( pawn aPlayer )
 
         // TODO: This probably should not be happening here.
         if(GameIsTeamGame())
-            aPlayer.DesiredColorAdjust = GetTeamColor(GetPlayerTeam(aPlayer));
+            aPlayer.DesiredColorAdjust = GetTeamColorVector(GetPlayerTeam(aPlayer));
         else
             aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
 
