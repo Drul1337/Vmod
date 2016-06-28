@@ -59,6 +59,8 @@ var() globalconfig String MessageNotEnoughPlayersToStart;
 var int TimerBroad; // Time since the server switched to this game
 var int TimerLocal; // Local time used between states
 
+var Class<vmodColorsTeams> ColorsTeamsClass;
+
 var private bool bScoreTracking;
 var private bool bPawnsTakeDamage;
 
@@ -728,7 +730,9 @@ function bool RestartPlayer( pawn aPlayer )
         if(GameIsTeamGame())
             aPlayer.DesiredColorAdjust = GetTeamColorVector(GetPlayerTeam(aPlayer));
         else
+        {
             aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
+        }
 
 		if (PlayerPawn(aPlayer)!=None)
 		{
@@ -1501,4 +1505,6 @@ defaultproperties
     bPawnsTakeDamage=true
     bScoreTracking=true
     MinimumPlayersRequiredForStart=2
+    
+    ColorsTeamsClass=Class'Vmod.vmodColorsTeams'
 }

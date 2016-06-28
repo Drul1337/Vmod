@@ -4,6 +4,8 @@
 //class vmodScoreBoard extends RuneScoreBoard;
 class vmodScoreBoard extends ScoreBoard;
 
+var Class<vmodColorsTeams> ColorsTeamsClass;
+
 var String TextLevel;
 var String TextAuthor;
 var String TextIdealLoad;
@@ -24,11 +26,11 @@ enum SortType_e
 };
 
 const MAX_PRI = 128;
-var private PlayerReplicationInfo PRIOrdered[128];
-var private int PRIPlayerCount;
-var private int PRISpectatorCount;
+var PlayerReplicationInfo PRIOrdered[128];
+var int PRIPlayerCount;
+var int PRISpectatorCount;
 
-var private float TimeStamp;
+var float TimeStamp;
 var float FadeTime;
 
 function UpdateTimeStamp(float t)
@@ -405,4 +407,5 @@ defaultproperties
     TextureBackdrop=Texture'RuneI.sb_horizramp'
     
     FadeTime=0.25
+    ColorsTeamsClass=Class'Vmod.vmodColorsTeams'
 }

@@ -4,11 +4,7 @@
 // class vmodHUD extends HUD;
 class vmodHUD extends RuneHUD;
 
-var color RedColor;
-var color BlueColor;
-var color GreenColor;
-var color GoldColor;
-
+var Class<vmodColorsTeams> ColorsTeamsClass;
 var Texture TextureMessageQueue;
 
 struct vmodHUDLocalizedMessage_s
@@ -400,7 +396,8 @@ function DrawMessage(
             // Draw player's message
             PosX += 96;
             C.SetPos(PosX, PosY);
-            C.DrawColor = WhiteColor * t;
+            //C.DrawColor = WhiteColor * t;
+            C.DrawColor = ColorsTeamsClass.Static.ColorWhite() * t;
             C.DrawText(M.MessageString);
             break;
         
@@ -583,16 +580,12 @@ simulated function MangleMessagePlayerReady(out vmodHUDLocalizedMessage_s M)
 
 simulated function MangleMessageSay(out vmodHUDLocalizedMessage_s M)
 {
-    // TODO: Unify this with GameInfo colors
     M.MessageStringAdditional = M.PRI1.PlayerName;
-    switch(M.PRI1.Team)
-    {
-        case 0: M.MessageColor = RedColor; return;
-        case 1: M.MessageColor = BlueColor; return;
-        case 2: M.MessageColor = GreenColor; return;
-        case 3: M.MessageColor = GoldColor; return;
-    }
-    M.MessageColor = WhiteColor;
+    ColorsTeamsClass.Static.GetTeamColor(
+        M.PRI1.Team,
+        M.MessageColor.R,
+        M.MessageColor.G,
+        M.MessageColor.B);
 }
 
 simulated function MangleMessageGameNotificationPersistent(out vmodHUDLocalizedMessage_s M)
@@ -745,11 +738,6 @@ simulated function Class<LocalMessage> DetermineClass(name MsgType)
 
 defaultproperties
 {
-    WhiteColor=(R=255,G=255,b=255)
-    RedColor=(R=255,G=60,B=60)
-    BlueColor=(R=60,G=60,B=255)
-    GreenColor=(R=60,G=255,B=60)
-    GoldColor=(R=255,G=255,B=60)
     MessageLifeTime=2.0
     MessageGlowRate=0.5
     MessageQueueLifeTime=8.0
@@ -766,4 +754,5 @@ defaultproperties
     KilledQueueMaxMessages=8
     
     TextureMessageQueue=Texture'RuneI.sb_horizramp'
+    ColorsTeamsClass=Class'Vmod.vmodColorsTeams'
 }

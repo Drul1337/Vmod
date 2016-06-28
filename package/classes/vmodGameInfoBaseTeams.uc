@@ -3,14 +3,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 class vmodGameInfoBaseTeams extends vmodGameInfoBase abstract;
 
-// Vector based team colors
-const COLORVECT_RED     = Vect(1.000, 0.234, 0.234);
-const COLORVECT_GREEN   = Vect(0.234, 1.000, 0.234);
-const COLORVECT_BLUE    = Vect(0.234, 0.234, 1.000);
-const COLORVECT_GOLD    = Vect(1.000, 1.000, 0.234);
-const COLORVECT_WHITE   = Vect(1.000, 1.000, 1.000);
-
-
 ////////////////////////////////////////////////////////////////////////////////
 //  Player or Admin invoked functions
 ////////////////////////////////////////////////////////////////////////////////
@@ -68,40 +60,16 @@ function byte GetPlayerTeam(Pawn P)
 ////////////////////////////////////////////////////////////////////////////////
 //  GetTeamColor
 ////////////////////////////////////////////////////////////////////////////////
-function Color GetTeamColor(byte team)
+function Vector GetTeamColorVector(byte Team)
 {
-    local Color C;
-    
-    C.R = 60;
-    C.G = 60;
-    C.B = 60;
-    switch(team)
-    {
-        case 0: C.R = 255; break;
-        case 1: C.B = 255; break;
-        case 2: C.G = 255; break;
-        case 3: C.R = 255; C.G = 255; break;
-    }
-    
-    return C;
-}
-
-function Vector GetTeamColorVector(byte team)
-{
-    // TODO: Unify these colors with vmodHUD
-    local float b;
-    
-    // Invalid in non-team games
-    if(!GameIsTeamGame())
-        return Vect(1, 1, 1);
-    
-    b = 100;
-    switch(team)
-    {
-        case 0:     return b * COLORVECT_RED;
-        case 1:     return b * COLORVECT_BLUE;
-        case 2:     return b * COLORVECT_GREEN;
-        case 3:     return b * COLORVECT_GOLD;
-        default:    return b * COLORVECT_WHITE;
-    }
+    local Vector V;
+    local float brightness;
+    brightness = 102.0;
+    ColorsTeamsClass.Static.GetTeamColorVector(
+        Team,
+        V.X,
+        V.Y,
+        V.Z);
+    V *= brightness;
+    return V;
 }
