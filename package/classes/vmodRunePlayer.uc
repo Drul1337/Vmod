@@ -57,6 +57,7 @@ function bool CheckIsNotShowingScores() { return !bShowScores; }
 function int GetHealth()                { return Health; }
 function int GetHealthMax()             { return MaxHealth; }
 function int GetStrength()              { return Strength; }
+function byte GetTeam()                 { return PlayerReplicationInfo.Team; }
 
 
 function ResetPlayerStatistics()

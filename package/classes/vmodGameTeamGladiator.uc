@@ -14,9 +14,9 @@ function bool CheckRoundEndConditionKilled(Pawn PKiller, Pawn PDead)
         if(vmodRunePlayer(P).CheckIsAlive())
         {
             if(TeamAlive == -1)
-                TeamAlive = GetPlayerTeam(P);
+                TeamAlive = vmodRunePlayer(P).GetTeam();
             else
-                if(GetPlayerTeam(P) != TeamAlive)
+                if(vmodRunePlayer(P).GetTeam() != TeamAlive)
                     return false;
         }
     }

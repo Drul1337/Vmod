@@ -82,7 +82,6 @@ final function GotoStatePostGame()    { GotoState(STATE_POSTGAME); }
 ////////////////////////////////////////////////////////////////////////////////
 // TODO: Try to abstract this out
 function bool GameIsTeamGame();
-function byte GetPlayerTeam(Pawn P);
 function Vector GetTeamColorVector(byte team);
 function PlayerTeamChange(Pawn P, byte Team);
 function byte FindBestTeamForPlayer(Pawn P);
@@ -794,7 +793,7 @@ function bool RestartPlayer( pawn aPlayer )
 
         // TODO: This probably should not be happening here.
         if(GameIsTeamGame())
-            aPlayer.DesiredColorAdjust = GetTeamColorVector(GetPlayerTeam(aPlayer));
+            aPlayer.DesiredColorAdjust = GetTeamColorVector(vmodRunePlayer(aPlayer).GetTeam());
         else
         {
             aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
@@ -1097,7 +1096,7 @@ function ReduceDamage(
         // TODO: This is where team damage would happen
         if(GameIsTeamGame())
         {
-            if(GetPlayerTeam(injured) == GetPlayerTeam(instigatedBy))
+            if(vmodRunePlayer(injured).GetTeam() == vmodRunePlayer(instigatedBy).GetTeam())
             {
                 BluntDamage = 0;
                 SeverDamage = 0;

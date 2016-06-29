@@ -29,7 +29,7 @@ function PlayerTeamChange(Pawn P, byte Team)
     if(!GameIsTeamGame())                       return; // Not a team game
     if(!CheckTeamIsValid(Team))                 return; // Invalid team request
     if(vmodRunePlayer(P).CheckIsGameInactive()) return; // Player is not playing
-    if(GetPlayerTeam(P) == Team)                return; // Already on this team
+    if(vmodRunePlayer(P).GetTeam() == Team)     return; // Already on this team
     
     // TODO: Should probably handle this in the pawn class
     P.PlayerReplicationInfo.Team = Team;
@@ -75,15 +75,6 @@ function bool GameIsTeamGame()
 //  Return a player's current team. If this is not a team game, return default
 //  team.
 ////////////////////////////////////////////////////////////////////////////////
-function byte GetPlayerTeam(Pawn P)
-{
-    if(!GameIsTeamGame())
-        return 255;
-    
-    // TODO: Maybe calling a safer function in Pawn is a better idea
-    return vmodRunePlayer(P).PlayerReplicationInfo.Team; 
-}
-
 function byte GetInactiveTeam()
 {
     return 255;
