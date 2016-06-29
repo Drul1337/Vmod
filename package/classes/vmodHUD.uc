@@ -4,7 +4,7 @@
 // class vmodHUD extends HUD;
 class vmodHUD extends RuneHUD;
 
-var Class<vmodColorsTeams> ColorsTeamsClass;
+var Class<vmodStaticColorsTeams> ColorsTeamsClass;
 var Texture TextureMessageQueue;
 
 struct vmodHUDLocalizedMessage_s
@@ -753,5 +753,5 @@ defaultproperties
     KilledQueueMaxMessages=8
     
     TextureMessageQueue=Texture'RuneI.sb_horizramp'
-    ColorsTeamsClass=Class'Vmod.vmodColorsTeams'
+    ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
 }

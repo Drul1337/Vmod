@@ -59,7 +59,7 @@ var() globalconfig String MessageNotEnoughPlayersToStart;
 var int TimerBroad; // Time since the server switched to this game
 var int TimerLocal; // Local time used between states
 
-var Class<vmodColorsTeams> ColorsTeamsClass;
+var Class<vmodStaticColorsTeams> ColorsTeamsClass;
 
 var private bool bScoreTracking;
 var private bool bPawnsTakeDamage;
@@ -165,6 +165,7 @@ function byte GetPlayerTeam(Pawn P);
 function Vector GetTeamColorVector(byte team);
 function PlayerTeamChange(Pawn P, byte Team);
 function byte FindBestTeamForPlayer(Pawn P);
+function byte GetInactiveTeam();
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -205,6 +206,11 @@ function PlayerBecomeGameInactive(Pawn P)
 {
     if(vmodRunePlayer(P).CheckIsSpectator())
         return;
+    
+    // If it's a team game, join the inactive team
+    if(GameIsTeamGame())
+        PlayerTeamChange(P, GetInactiveTeam());
+    
     vmodRunePlayer(P).NotifyBecameGameInactive();
     DispatchPlayerSpectating(P);
 }
@@ -1612,5 +1618,5 @@ defaultproperties
     bScoreTracking=true
     MinimumPlayersRequiredForStart=2
     
-    ColorsTeamsClass=Class'Vmod.vmodColorsTeams'
+    ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
 }

@@ -1,10 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 // vmodScoreBoard
 ////////////////////////////////////////////////////////////////////////////////
-//class vmodScoreBoard extends RuneScoreBoard;
 class vmodScoreBoard extends ScoreBoard;
 
-var Class<vmodColorsTeams> ColorsTeamsClass;
+var Class<vmodStaticColorsTeams> ColorsTeamsClass;
 
 var String TextLevel;
 var String TextAuthor;
@@ -465,5 +464,5 @@ defaultproperties
     TextureBackdrop=Texture'RuneI.sb_horizramp'
     
     FadeTime=0.25
-    ColorsTeamsClass=Class'Vmod.vmodColorsTeams'
+    ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
 }

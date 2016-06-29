@@ -14,15 +14,23 @@ function byte FindBestTeamForPlayer(Pawn P)
         return 0;
 }
 
+function bool CheckTeamIsValid(byte Team)
+{
+    if(Team >= 0 && Team <= 3)      return true;
+    if(Team == GetInactiveTeam())   return true;
+    return false;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  Player or Admin invoked functions
 ////////////////////////////////////////////////////////////////////////////////
 function PlayerTeamChange(Pawn P, byte Team)
 {
-    if(!GameIsTeamGame())           return;
-    if(Team > 3)                    return;
-    if(GetPlayerTeam(P) == Team)    return;
+    if(!GameIsTeamGame())           return; // This is not a team game
+    if(!CheckTeamIsValid(Team))     return; // Invalid team requested
+    if(GetPlayerTeam(P) == Team)    return; // Player is already on this team
     
+    // TODO: Should probably handle this in the pawn class
     P.PlayerReplicationInfo.Team = Team;
     P.DesiredColorAdjust = GetTeamColorVector(Team);
     DispatchPlayerChangedTeam(P, Team);
@@ -73,6 +81,11 @@ function byte GetPlayerTeam(Pawn P)
     return vmodRunePlayer(P).PlayerReplicationInfo.Team; 
 }
 
+function byte GetInactiveTeam()
+{
+    return 255;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  GetTeamColor
 ////////////////////////////////////////////////////////////////////////////////
@@ -80,7 +93,7 @@ function Vector GetTeamColorVector(byte Team)
 {
     local Vector V;
     local float brightness;
-    brightness = 102.0;
+    brightness = 200.0;
     ColorsTeamsClass.Static.GetTeamColorVector(
         Team,
         V.X,
