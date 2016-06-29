@@ -1476,7 +1476,6 @@ defaultproperties
     ScoreLimit=20
     HUDType=Class'Vmod.vmodHUD'
     GameReplicationInfoClass=Class'Vmod.vmodGameReplicationInfo'
-    TeamDamageFactor=0.5
     
     MessagePreGame="PreGame"
     MessagePreGamePersistent="Type VcmdReady in console to ready yourself"

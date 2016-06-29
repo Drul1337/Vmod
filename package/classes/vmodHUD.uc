@@ -711,16 +711,11 @@ defaultproperties
     MessageGlowRate=0.5
     MessageQueueLifeTime=8.0
     MessageBackdropWidth=0.2
-    MessageQueueFront=0
-    KilledQueueFront=0
     
     PosXMessageQueue=0.005
     PosYMessageQueue=0.00125
     PosXKillsQueue=0.995
     PosYKillsQueue=0.00125
-    
-    MessageQueueMaxMessages=8
-    KilledQueueMaxMessages=8
     
     TextureMessageQueue=Texture'RuneI.sb_horizramp'
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'

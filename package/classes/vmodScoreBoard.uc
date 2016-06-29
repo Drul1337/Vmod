@@ -443,11 +443,6 @@ function DrawPlayerInfo( canvas Canvas, PlayerReplicationInfo PRI, float XOffset
 
 defaultproperties
 {
-    NameText="Name"
-    FragsText="Frags"
-    DeathsText="Deaths"
-    PingText="Ping"
-    AwardsText="Trophies"
     RegFont=Font'Engine.MedFont'
     
     TextLevel="Level"
