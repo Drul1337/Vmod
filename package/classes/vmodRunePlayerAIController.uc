@@ -72,6 +72,9 @@ function TickLogic()
     Insults[14] = "halo is a pretty cool guy";
     Insults[15] = "[hehe]";
     
+    // Insult some noobs
+    AIPlayer.Say(Insults[Rand(15)]);
+    
     // If player is dead, try to respawn
     if(AIPlayer.CheckIsDead())
         AIPlayer.Fire();

@@ -36,11 +36,13 @@ replication
         VcmdBroadcast,
         VcmdShuffleTeams,
         VcmdAddBot,
-        VcmdRemoveBots;
+        VcmdRemoveBots,
+        VcmdGrantAdmin;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Check functions used by vmodGameInfo classes
+function bool CheckIsAdministrator()    { return bAdmin; }
 function bool CheckIsHuman()            { return true; }
 function bool CheckIsAI()               { return false; }
 function bool CheckIsGameActive()       { return !PlayerReplicationInfo.bIsSpectator; }
@@ -71,6 +73,18 @@ function ResetPlayerStatistics()
 
 
 // Received from GameInfo
+function NotifyBecameAdministrator()
+{
+    bAdmin = true;
+    PlayerReplicationInfo.bAdmin = bAdmin;
+}
+
+function NotifyNoLongerAdministrator()
+{
+    bAdmin = false;
+    PlayerReplicationInfo.bAdmin = bAdmin;
+}
+
 function NotifyBecameGameActive()
 {
     PlayerReplicationInfo.bIsSpectator = false;
@@ -150,9 +164,15 @@ exec final function Vcmd()
     Clientmessage("VcmdShuffleTeams");
     Clientmessage("VcmdAddBot");
     Clientmessage("VcmdRemoveBots");
+    Clientmessage("VcmdGrantAdmin");
 }
 
 // Administrator commands
+exec final function VcmdGrantAdmin(int ID)
+{
+    vmodGameInfo(Level.Game).AdminRequestGrantAdmin(Self, ID);
+}
+
 exec final function VcmdBroadcast(String Message)
 {
     vmodGameInfo(Level.Game).AdminRequestBroadcast(Self, Message);

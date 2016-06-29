@@ -39,7 +39,7 @@ function PlayerRequestPlayerList(Pawn P)
 ////////////////////////////////////////////////////////////////////////////////
 function bool AdminRequestCheck(Pawn P)
 {
-    if(!PlayerPawn(P).bAdmin)
+    if(!vmodRunePlayer(P).CheckIsAdministrator())
     {
         P.ClientMessage(
                 "You must be an administrator",
@@ -48,6 +48,14 @@ function bool AdminRequestCheck(Pawn P)
         return false;
     }
     return true;
+}
+
+function AdminRequestGrantAdmin(Pawn P, int ID)
+{
+    if(!AdminRequestCheck(P))
+        return;
+    
+    PlayerGrantAdmin(P, ID);
 }
 
 function AdminRequestBroadcast(Pawn P, String Message)

@@ -39,6 +39,8 @@ var() globalconfig String MessagePlayerNotReady;
 var() globalconfig String MessageWaitingForOthers;
 var() globalconfig String MessageNotEnoughPlayersToStart;
 
+var() private globalconfig String VAdminPassword;
+
 var int TimerBroad; // Time since the server switched to this game
 var int TimerLocal; // Local time used between states
 
@@ -50,6 +52,20 @@ var private bool bPawnsTakeDamage;
 
 var string EndGameReason;
 var bool bMarkNativeActors;
+
+////////////////////////////////////////////////////////////////////////////////
+//  GameInfo Overrides
+////////////////////////////////////////////////////////////////////////////////
+// Reroute adminlogin through PlayerAdminLogin
+function AdminLogin( PlayerPawn P, string Password )
+{
+    PlayerAdminLogin(P, Password);
+}
+
+function AdminLogout(PlayerPawn P)
+{
+    PlayerAdminLogout(P);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,6 +92,46 @@ function byte GetInactiveTeam();
 ////////////////////////////////////////////////////////////////////////////////
 //  Player functions
 ////////////////////////////////////////////////////////////////////////////////
+function PlayerAdminLogin(Pawn P, String Password)
+{
+    if(vmodRunePlayer(P).CheckIsAdministrator())
+        return;
+    
+    if(Password != VAdminPassword)
+    {
+        P.ClientMessage(
+            "Incorrect administrator password",
+            LocalMessagesClass.Static.GetMessageTypeNameDefault(),
+            false);
+        return;
+    }
+    
+    vmodRunePlayer(P).NotifyBecameAdministrator();
+    DispatchPlayerBecameAdministrator(P);
+}
+
+function PlayerAdminLogout(Pawn P)
+{
+    if(!vmodRunePlayer(P).CheckIsAdministrator())
+        return;
+    
+    vmodRunePlayer(P).NotifyNoLongerAdministrator();
+    DispatchPlayerNoLongerAdministrator(P);
+}
+
+function PlayerGrantAdmin(Pawn P, int ID)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        if(PCurr.PlayerReplicationInfo.PlayerID == ID)
+            break;
+    
+    if(PCurr == None)
+        return;
+    
+    PlayerAdminLogin(P, VAdminPassword);
+}
+
 function PlayerSendPlayerList(Pawn P)
 {
     local Pawn PCurr;
@@ -187,6 +243,26 @@ function PlayerGiveWeapon(Pawn P, Class<Weapon> WeaponClass)
 ////////////////////////////////////////////////////////////////////////////////
 //  Event Dispatchers
 ////////////////////////////////////////////////////////////////////////////////
+function DispatchPlayerBecameAdministrator(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " became a server administrator",
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
+                false);
+}
+
+function DispatchPlayerNoLongerAdministrator(Pawn P)
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+                P.PlayerReplicationInfo.PlayerName $ " is no longer a server administrator",
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
+                false);
+}
+
 function DispatchPlayerJoinedGame(Pawn P)
 {
     local Pawn PCurr;
@@ -1493,4 +1569,5 @@ defaultproperties
     
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
     LocalMessagesClass=Class'Vmod.vmodStaticLocalMessages'
+    VAdminPassword="a"
 }
