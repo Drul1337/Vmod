@@ -467,7 +467,7 @@ function GameAddBot()
 ////////////////////////////////////////////////////////////////////////////////
 function GameRemoveBot(Pawn P)
 {
-    if(P.bIsHuman)
+    if(!vmodRunePlayer(P).CheckIsAI())
         return;
     
     vmodRunePlayerAI(P).DestroyAIController();
@@ -483,7 +483,7 @@ function GameRemoveAllBots()
     local Pawn P;
     
     for(P = Level.PawnList; P != None; P = P.NextPawn)
-        if(!P.bIsHuman)
+        if(vmodRunePlayer(P).CheckIsAI())
             GameRemoveBot(P);
 }
 

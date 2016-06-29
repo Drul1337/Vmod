@@ -81,9 +81,6 @@ exec function Taunt()
 	if (Physics != PHYS_Walking)	// Disallow while falling
 		return;
 
-	//if( bShowMenu || (Level.Pauser!=""))
-	//	return;
-
 	// Don't allow the player to taunt if they are doing something like weapon switching or attacking
 	if(AnimProxy != None && AnimProxy.GetStateName() != 'Idle')
 		return;
@@ -103,6 +100,9 @@ exec function Taunt()
 
 //exec function TeamSay(string Msg)
 //{}
+
+function bool CheckIsHuman()    { return false; }
+function bool CheckIsAI()       { return true; }
 
 
 ///////////////////////////////////////////////////////////////////////////////

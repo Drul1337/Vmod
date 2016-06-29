@@ -39,6 +39,9 @@ replication
         VcmdRemoveBots;
 }
 
+function bool CheckIsHuman()    { return true; }
+function bool CheckIsAI()       { return false; }
+
 function bool ReadyToGoLive()
 { return bReadyToPlay; }
 
