@@ -141,9 +141,9 @@ function PlayerSendPlayerList(Pawn P)
     
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         P.ClientMessage(
-                P.PlayerReplicationInfo.PlayerID $ " : " $ PCurr.PlayerReplicationInfo.PlayerName,
-                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
-                false);
+            vmodRunePlayer(PCurr).GetID() $ " : " $ PCurr.PlayerReplicationInfo.PlayerName,
+            LocalMessagesClass.Static.GetMessageTypeNameDefault(),
+            false);
 }
 
 function PlayerBecomeGameActive(Pawn P)
@@ -523,6 +523,7 @@ function PlayerJoinGame(
         PlayerPawn(P).GameReplicationInfo = GameReplicationInfo;
     }
     CurrentID++;
+    log("CurrentID: " $ CurrentID);
     
     P.ClientSetRotation(P.Rotation);
     if(PlayerName == "")
