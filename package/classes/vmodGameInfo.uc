@@ -118,12 +118,12 @@ function AdminRequestAddBot(Pawn P)
     GameAddBot();
 }
 
-function AdminRequestRemoveBots(Pawn P)
+function AdminRequestRemoveAllBots(Pawn P)
 {
     if(!AdminRequestCheck(P))
         return;
     
-    GameRemoveBots();
+    GameRemoveAllBots();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

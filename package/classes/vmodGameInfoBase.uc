@@ -456,16 +456,23 @@ function GameAddBot()
     PlayerBecomeGameActive(P);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//  GameRemoveBot
+////////////////////////////////////////////////////////////////////////////////
 function GameRemoveBot(Pawn P)
 {
     if(P.bIsHuman)
         return;
     
     vmodRunePlayerAI(P).DestroyAIController();
-    P.Destroy(); // Destroying the pawn makes it pass through LeaveGame
+    // Note: When a PlayerPawn is destroyed it automatically passes through
+    // Logout, but when the bot is created it does not pass through LogIn.
+    // This is why PlayerJoinGame gets called for bots, but PlayerLeaveGame
+    // does not.
+    P.Destroy();
 }
 
-function GameRemoveBots()
+function GameRemoveAllBots()
 {
     local Pawn P;
     

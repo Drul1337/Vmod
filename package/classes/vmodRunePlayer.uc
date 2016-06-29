@@ -198,7 +198,7 @@ exec final function VcmdAddBot()
 
 exec final function VcmdRemoveBots()
 {
-    vmodGameInfo(Level.Game).AdminRequestRemoveBots(self);
+    vmodGameInfo(Level.Game).AdminRequestRemoveAllBots(self);
 }
 
 defaultproperties
