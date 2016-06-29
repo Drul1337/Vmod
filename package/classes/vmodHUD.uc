@@ -4,14 +4,6 @@
 class vmodHUD extends HUD;
 
 ////////////////////////////////////////////////////////////////////////////////
-//  Texture imports
-//#exec TEXTURE IMPORT NAME=HealthIcon FILE=Textures\HUD\HealthIcon.pcx MIPS=OFF FLAGS=2
-//#exec TEXTURE IMPORT NAME=HealthEmpty FILE=Textures\HUD\HealthEmpty.pcx MIPS=OFF FLAGS=2
-//#exec TEXTURE IMPORT NAME=HealthFull FILE=Textures\HUD\HealthFull.pcx MIPS=OFF FLAGS=2
-//#exec TEXTURE IMPORT NAME=HealthEmptyTop FILE=Textures\HUD\HealthEmptyTop.pcx MIPS=OFF FLAGS=2
-//#exec TEXTURE IMPORT NAME=HealthFullTop FILE=Textures\HUD\HealthFullTop.pcx MIPS=OFF FLAGS=2
-
-////////////////////////////////////////////////////////////////////////////////
 //  Global classes
 // TODO: Implement interpolation in utilities class
 var Class<vmodStaticUtilities>      UtilitiesClass;
@@ -74,6 +66,7 @@ struct HudMeter_s
     var Texture BackDrop;
     var Texture TexFill;
     var float P0, P1;
+    var float Timestamp;
 };
 var HudMeter_s MeterHealth;
 var HudMeter_s MeterShield;
@@ -110,6 +103,7 @@ event PostBeginPlay()
     Super.PostBeginPlay();
 }
 
+////////////////////////////////////////////////////////////////////////////////
 simulated function DrawMeter(
     Canvas C,
     HudMeter_s Meter,
@@ -117,9 +111,34 @@ simulated function DrawMeter(
     float PosY)
 {
     C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
-    C.SetPos(PosX, PosY);
-    C.DrawIcon(Meter.BackDrop, 1.0);
-    C.DrawIcon(Meter.TexFill, 1.0);
+    //C.SetPos(PosX, PosY);
+    //C.DrawIcon(Meter.BackDrop, 1.0);
+    //C.SetPos(PosX, PosY);
+    //C.DrawIcon(Meter.TexFill, 1.0);
+}
+
+simulated function UpdateMeterHealth()
+{
+    local float UpdatedHealth;
+    
+    UpdatedHealth = vmodRunePlayer(Owner).GetHealth();
+    if(MeterHealth.P1 == UpdatedHealth)
+        return;
+    MeterHealth.P0 = MeterHealth.P1;
+    MeterHealth.P1 = UpdatedHealth;
+    MeterHealth.TimeStamp = Level.TimeSeconds;
+}
+
+simulated function UpdateMeterStrength()
+{
+    local float UpdatedStrength;
+    
+    UpdatedStrength = vmodRunePlayer(Owner).GetStrength();
+    if(MeterStrength.P1 == UpdatedStrength)
+        return;
+    MeterStrength.P0 = MeterStrength.P1;
+    MeterStrength.P1 = UpdatedStrength;
+    MeterStrength.TimeStamp = Level.TimeSeconds;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -135,7 +154,7 @@ simulated function PostRender(Canvas C)
     if(vmodRunePlayer(Owner).CheckIsGameActive())
     {
         // Health
-        MeterHealth.P0 = vmodRunePlayer(Owner).GetHealth();
+        UpdateMeterHealth();
         DrawMeter(C, MeterHealth, C.ClipX * 0.1, C.ClipY * 0.5);
         
         // Shield
@@ -143,7 +162,7 @@ simulated function PostRender(Canvas C)
         DrawMeter(C, MeterShield, C.ClipX * 0.9, C.ClipY * 0.5);
         
         // Strength
-        MeterStrength.P0 = vmodRunePlayer(Owner).GetStrength();
+        UpdateMeterStrength();
         DrawMeter(C, MeterStrength, C.ClipX * 0.9 - 64, C.ClipY * 0.5);
     }
     
@@ -493,26 +512,22 @@ simulated function float GetMessageTimeStampInterpolation(
     if(LifeTime == 0.0)
         LifeTime = MessageLifeTime;
     
-    t = Level.TimeSeconds - M.TimeStamp;
-    b = 0.0;
-    c = 1.0;
-    d = LifeTime;
-    
-    if(t > d)
-        return 0.0;
+    t = Level.TimeSeconds - M.TimeStamp;    // Current time
+    b = 1.0;                                // Starting value
+    c = 0.0;                                // Change in value
+    d = LifeTime;                           // Duration
     
     switch(InterpType)
     {
         case INTERP_LINEAR:
-            return 1.0 - (t / d);
+            return UtilitiesClass.Static.InterpLinear(t, b, c, d);
         
         case INTERP_QUADRATIC:
-            t = t / d;
-            return 1.0 - (c * t * t + b);
+            return UtilitiesClass.Static.InterpQuadratic(t, b, c, d);
             
+        default:
+            return 1.0;
     }
-    
-    return 1.0;
 }
 
 simulated function float GetMessageGlowInterpolation()
