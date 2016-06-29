@@ -82,6 +82,9 @@ state PreGame
 ////////////////////////////////////////////////////////////////////////////////
 state Starting
 {
+    // Ignore functions
+    function PlayerTeamChange(Pawn P, byte Team) { return; }
+    
     function BeginState()
     {
         local Pawn P;
@@ -148,6 +151,9 @@ state Starting
 ////////////////////////////////////////////////////////////////////////////////
 state PreRound
 {
+    // Ignore functions
+    function PlayerTeamChange(Pawn P, byte Team) { return; }
+    
     function BeginState()
     {
         local Pawn P;
@@ -208,6 +214,9 @@ state PreRound
 ////////////////////////////////////////////////////////////////////////////////
 state StartingRound
 {
+    // Ignore functions
+    function PlayerTeamChange(Pawn P, byte Team) { return; }
+    
     function BeginState()
     {
         local Pawn P;
@@ -292,6 +301,9 @@ state StartingRound
 ////////////////////////////////////////////////////////////////////////////////
 state Live
 {
+    // Ignore functions
+    function PlayerTeamChange(Pawn P, byte Team) { return; }
+    
     function BeginState()
     {
         local Pawn P;
@@ -368,6 +380,9 @@ state Live
 ////////////////////////////////////////////////////////////////////////////////
 state PostRound
 {
+    // Ignore functions
+    function PlayerTeamChange(Pawn P, byte Team) { return; }
+    
     function BeginState()
     {
         local Pawn P;

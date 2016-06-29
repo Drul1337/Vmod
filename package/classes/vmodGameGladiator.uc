@@ -37,6 +37,24 @@ function RandomizePlayerInventory(Pawn P)
     PlayerGiveWeapon(P, WeaponClasses[(10 + Rand(4))]); // Random tier 3
 }
 
+function bool CheckRoundEndConditionKilled(Pawn PKiller, Pawn PDead)
+{
+    local Pawn P;
+    local int PlayersAliveCount;
+    
+    PlayersAliveCount = 0;
+    for(P = Level.PawnList; P != None; P = P.NextPawn)
+    {
+        if(vmodRunePlayer(P).Health > 0)
+        {
+            PlayersAliveCount++;
+            if(PlayersAliveCount >= 2)
+                return false;
+        }
+    }
+    return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  STATE: PreGame
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +129,8 @@ state Live
         GameEnableScoreTracking();
         GameEnablePawnDamage();
         
+        GRISetGameTimer(0);
+        
         // Notify all players that the round is Live
         PlayersAliveCount = 0;
         for(P = Level.PawnList; P != None; P = P.NextPawn)
@@ -118,17 +138,13 @@ state Live
             if(vmodRunePlayer(P) != None)
             {
                 PlayerGameStateNotification(P);
-                if(vmodRunePlayer(P).Health > 0)
-                    PlayersAliveCount++;
             }
         }
         
-        // Something silly may have happened in the preround, like players
-        // suiciding.
-        if(PlayersAliveCount <= 1)
+        // Something silly may have happened during pregame, like players
+        // suiciding or jumping off the level.
+        if(CheckRoundEndConditionKilled(None, None))
             GotoStatePostRound();
-        
-        GRISetGameTimer(0);
     }
     
     ////////////////////////////////////////////////////////////////////////////
@@ -138,23 +154,10 @@ state Live
     ////////////////////////////////////////////////////////////////////////////
     function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
     {
-        local Pawn P;
-        local int PlayersAliveCount;
-        
         Super.Killed(PKiller, PDead, DamageType);
         
         // Round end condition
-        PlayersAliveCount = 0;
-        for(P = Level.PawnList; P != None; P = P.NextPawn)
-        {
-            if(vmodRunePlayer(P).Health > 0)
-            {
-                PlayersAliveCount++;
-                if(PlayersAliveCount >= 2)
-                    break;
-            }
-        }
-        if(PlayersAliveCount == 1)
+        if(CheckRoundEndConditionKilled(PKiller, PDead))
             GotoStatePostRound();
     }
 }
