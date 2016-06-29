@@ -8,6 +8,31 @@ class vmodRunePlayerAI extends vmodRunePlayer;
 var private vmodRunePlayerAIController AIController;
 
 ///////////////////////////////////////////////////////////////////////////////
+//  Static interface
+///////////////////////////////////////////////////////////////////////////////
+static function String GetRandomAIName()
+{
+    local String Names[16];
+    Names[ 0] = "William_Wallace_III";
+    Names[ 1] = "Steve";
+    Names[ 2] = "chunk";
+    Names[ 3] = "Wombat";
+    Names[ 4] = "Mother!";
+    Names[ 5] = "Mr.Deeds";
+    Names[ 6] = "DoolittlY";
+    Names[ 7] = "PISTOL_MAN";
+    Names[ 8] = "PretendHuman";
+    Names[ 9] = "Best_Friend";
+    Names[10] = "PhYzIcJKs";
+    Names[11] = "BOT";
+    Names[12] = "Q\_O";
+    Names[13] = "GoOfY";
+    Names[14] = "NetRadio";
+    Names[15] = "PowerOverwhelming";
+    return Names[Rand(15)];
+}
+
+///////////////////////////////////////////////////////////////////////////////
 function InitializeAIController()
 {
     if(AIController == None)
@@ -78,3 +103,10 @@ exec function Taunt()
 
 //exec function TeamSay(string Msg)
 //{}
+
+
+///////////////////////////////////////////////////////////////////////////////
+defaultproperties
+{
+    bIsHuman=false
+}

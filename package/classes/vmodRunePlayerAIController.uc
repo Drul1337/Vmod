@@ -74,6 +74,10 @@ function TickLogic()
     
     AIPlayer.Say(Insults[Rand(15)]);
     AIPlayer.Taunt();
+    
+    // If player is dead, try to respawn
+    if(AIPlayer.Health <= 0)
+        AIPlayer.Fire();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

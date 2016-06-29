@@ -6,11 +6,6 @@ class vmodGameInfoBase extends GameInfo abstract;
 // TODO: Message replication may be a lag issue. Maybe set all messages to static
 // in their classes so the client can build the message instead of the server.
 
-// PlayerJoinGame(Pawn P)       // A new human or ai player has joined the game
-// PlayerLeaveGame(Pawn P)      // A human or ai player is leaving the game
-// PlayerBecomeActive(Pawn P)   // A player would like to start playing
-// PlayerBecomeInactive(Pawn P) // A player would like to spectate
-
 // Game states
 const STATE_PREGAME     = 'PreGame';
 const STATE_STARTING    = 'Starting';
@@ -191,28 +186,26 @@ function PlayerSendPlayerList(Pawn P)
                 false);
 }
 
-function PlayerJoinGame(Pawn P)
+function PlayerBecomeGameActive(Pawn P)
 {
-    // TODO: This is where a player will go from spectator mode to playing mode
+    // Is the player already playing?
     if(vmodRunePlayer(P).CheckIsPlaying())
         return;
     
     // If it's a team game, join a team
-    // TODO: Should probably force the player to select a team instead
     if(GameIsTeamGame())
         PlayerTeamChange(P, FindBestTeamForPlayer(P));
     
-    vmodRunePlayer(P).NotifyJoinedGame();
+    vmodRunePlayer(P).NotifyBecameGameActive();
     RestartPlayer(P);
     DispatchPlayerJoinedGame(P);
 }
 
-function PlayerSpectate(Pawn P)
+function PlayerBecomeGameInactive(Pawn P)
 {
-    // TODO: This is where a player will go from playing mode to spectator mode
     if(vmodRunePlayer(P).CheckIsSpectator())
         return;
-    vmodRunePlayer(P).NotifyBecameSpectator();
+    vmodRunePlayer(P).NotifyBecameGameInactive();
     DispatchPlayerSpectating(P);
 }
 
@@ -441,10 +434,10 @@ function GameAddBot()
     local Pawn P;
     local String ErrorString;
     
-    TestPlayerJoinGame(
+    PlayerJoinGame(
         Class'Vmod.vmodRunePlayerAI', P,
         ErrorString,
-        "Billy");
+        Class'Vmod.vmodRunePlayerAI'.Static.GetRandomAIName());
     
     // Check for error
     if(ErrorString != "")
@@ -453,16 +446,14 @@ function GameAddBot()
         return;
     }
     
-    P.bIsHuman = false;
     vmodRunePlayerAI(P).InitializeAIController();
     
     // Notify the pawn of the current game state
     PlayerGameStateNotification(P);
-    vmodRunePlayer(P).GotoState('PlayerWalking');
     
-    // Default state makes the player a spectator
-    //PlayerSpectate(P);
-    PlayerJoinGame(P);
+    // Bots join the game by default, this order is very important
+    PlayerBecomeGameInactive(P);
+    PlayerBecomeGameActive(P);
 }
 
 function GameRemoveBot(Pawn P)
@@ -492,11 +483,11 @@ function bool CheckGameAtCapacity()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//  TestPlayerJoinGame
+//  PlayerJoinGame
 //
 //  Add a new player to this game. This can be either a human or an ai player.
 ////////////////////////////////////////////////////////////////////////////////
-function TestPlayerJoinGame(
+function PlayerJoinGame(
     Class<Pawn>         PawnClass,
     out Pawn            P,
     out String          ErrorString,
@@ -552,7 +543,7 @@ function TestPlayerJoinGame(
     log("Player joined game: " $ PlayerName);
 }
 
-function TestPlayerLeaveGame(PlayerPawn P)
+function PlayerLeaveGame(PlayerPawn P)
 {
     NumPlayers--;
     
@@ -630,7 +621,7 @@ event playerpawn Login(
     InName      = Left(ParseOption(Options, "Name"), 20);
     
     // Join the game
-    TestPlayerJoinGame(
+    PlayerJoinGame(
        Class'Vmod.vmodPlayerRagnar', P,
        Error,
        InName);
@@ -674,7 +665,7 @@ event PostLogin( playerpawn NewPlayer )
     PlayerGameStateNotification(NewPlayer);
     
     // Default state makes the player a spectator
-    PlayerSpectate(NewPlayer);
+    PlayerBecomeGameInactive(NewPlayer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -684,7 +675,7 @@ event PostLogin( playerpawn NewPlayer )
 ////////////////////////////////////////////////////////////////////////////////
 function Logout(Pawn P)
 {
-    TestPlayerLeaveGame(PlayerPawn(P));
+    PlayerLeaveGame(PlayerPawn(P));
 }
 
 

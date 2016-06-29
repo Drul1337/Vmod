@@ -3,26 +3,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 class vmodGameInfo extends vmodGameInfoBaseTeams abstract;
 
-// TODO: Split base game info and team game code up amongst gameinfobase and
-// gameinfobaseteams classes.
-
-// TODO: Maybe create a third class as the base implementation for all states
-
-// TODO: Use this class as an interface and event dispatcher for player pawns?
-
-
-// Player interacts with game through an interface like this
-// function PlayerRequestTeamChange(Pawn P, byte Team);
-// function PlayerRequestAdminRights(Pawn P);
-// function PlayerRequestVoteMapChange(Pawn P);
-// function PlayerRequestVoteShuffle(Pawn P);
-// function PlayerRequestVoteKick(Pawn P, int ID);
-// function PlayerRequestReadyToPlay(Pawn P);
-// function PlayerRequestNotReadyToPlay(Pawn P);
-// function PlayerRequestJoinGame(Pawn P);
-// function PlayerRequestSpectate(Pawn P);
-
-
 ////////////////////////////////////////////////////////////////////////////////
 //  Player Request Interface
 //
@@ -31,14 +11,14 @@ class vmodGameInfo extends vmodGameInfoBaseTeams abstract;
 //  TODO: These are the ONLY gameinfo functions that player should ever call,
 //  it may take a lot of verification with original classes to make sure
 ////////////////////////////////////////////////////////////////////////////////
-function PlayerRequestJoinGame(Pawn P)  // Override in states
+function PlayerRequestGoGameActive(Pawn P)  // Override in states
 {
-    PlayerJoinGame(P);
+    PlayerBecomeGameActive(P);
 }
 
-function PlayerRequestSpectate(Pawn P) // Override in states
+function PlayerRequestGoGameInactive(Pawn P) // Override in states
 {
-    PlayerSpectate(P);
+    PlayerBecomeGameInactive(P);
 }
 
 function PlayerRequestReadyToPlay(Pawn P)       { } // Only valid in PreGame

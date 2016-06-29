@@ -53,20 +53,20 @@ function bool CheckIsPlaying()
 }
 
 // Received from GameInfo
-function NotifyBecameSpectator()
-{
-    PlayerReplicationInfo.bIsSpectator = true;
-    bHidden = true;
-    Visibility = 0;
-    GotoState('PlayerSpectating');
-}
-
-function NotifyJoinedGame()
+function NotifyBecameGameActive()
 {
     PlayerReplicationInfo.bIsSpectator = false;
     bHidden = false;
     Visibility = Default.Visibility;
     GotoState('PlayerWalking');
+}
+
+function NotifyBecameGameInactive()
+{
+    PlayerReplicationInfo.bIsSpectator = true;
+    bHidden = true;
+    Visibility = 0;
+    GotoState('PlayerSpectating');
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -162,12 +162,12 @@ exec final function VcmdGiveWeapon(class<Weapon> WeaponClass)
 
 exec final function VcmdSpectate()
 {
-    vmodGameInfo(Level.Game).PlayerRequestSpectate(self);
+    vmodGameInfo(Level.Game).PlayerRequestGoGameInactive(self);
 }
 
 exec final function VcmdPlay()
 {
-    vmodGameInfo(Level.Game).PlayerRequestJoinGame(self);
+    vmodGameInfo(Level.Game).PlayerRequestGoGameActive(self);
 }
 
 exec final function VcmdChangeTeam(byte team)
