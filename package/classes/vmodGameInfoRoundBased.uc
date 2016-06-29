@@ -113,7 +113,7 @@ state Starting
         // Perform actions on all players
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
-            ResetPlayerStatistics(P);
+            vmodRunePlayer(P).ResetPlayerStatistics();
         }
     }
     

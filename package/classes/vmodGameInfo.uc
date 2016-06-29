@@ -147,7 +147,7 @@ state PreGame
         }
         
         // If the player is already ready, play waiting for others message
-        if(CheckPlayerReady(P))
+        if(vmodRunePlayer(P).CheckIsReadyToPlay())
         {
             PlayerMessageWaitingForOthers(
                 P,
@@ -165,7 +165,7 @@ state PreGame
             return;
         
         // If the player is already not ready, just return
-        if(!CheckPlayerReady(P))
+        if(vmodRunePlayer(P).CheckIsNotReadyToPlay())
             return;
         
         PlayerNotReady(P);

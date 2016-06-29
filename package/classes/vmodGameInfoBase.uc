@@ -608,13 +608,6 @@ function bool CheckEnoughPlayersInGame()
     return NumPlayers >= MinimumPlayersRequiredForStart;
 }
 
-// Check whether or not a player is ready to go live.
-function bool CheckPlayerReady(Pawn P)
-{
-    // TODO: May want to replace this with a function call to P
-    return vmodRunePlayer(P).bReadyToPlay;
-}
-
 // Return true to switch game state to Starting, which counts into Live
 function bool CheckEnoughPlayersReady()
 {
@@ -628,8 +621,8 @@ function bool CheckEnoughPlayersReady()
     
     for(P = Level.PawnList; P != None; P = P.NextPawn)
     {
-        if(CheckPlayerReady(P))    ReadyCount++;
-        else                    UnreadyCount++;
+        if(vmodRunePlayer(P).CheckIsReadyToPlay())  ReadyCount++;
+        else                                        UnreadyCount++;
     }
     
     // Ready count conditions - majority of players are ready
@@ -678,25 +671,6 @@ function ClearLevelItems()
     {
         C.Destroy();
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  ResetPlayerStatistics
-////////////////////////////////////////////////////////////////////////////////
-function ResetPlayerStatistics(Pawn P)
-{
-    local vmodPlayerReplicationInfo PRI;
-    
-    PRI = vmodPlayerReplicationInfo(P.PlayerReplicationInfo);
-    if(PRI == None)
-        return;
-    
-    PRI.Score = 0;
-    PRI.Deaths = 0;
-    PRI.bReadyToPlay = false;
-    PRI.bFirstBlood = false;
-    PRI.MaxSpree = 0;
-    PRI.HeadKills = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1117,7 +1091,7 @@ auto state PreGame
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
             PlayerGameStateNotification(P);
-            ResetPlayerStatistics(P);
+            vmodRunePlayer(P).ResetPlayerStatistics();
         }
     }
     
@@ -1143,11 +1117,11 @@ auto state PreGame
     function PlayerReady(Pawn P)
     {
         // If player is already ready, do nothing
-        if(CheckPlayerReady(P))
+        if(vmodRunePlayer(P).CheckIsReadyToPlay())
             return;
         
-        // Set player's ready status
-        PlayerPawn(P).bReadyToPlay = true;
+        //// Set player's ready status
+        vmodRunePlayer(P).NotifyBecameReadyToPlay();
         
         // Dispatch player ready event
         DispatchPlayerReady(P);
@@ -1183,11 +1157,11 @@ auto state PreGame
     function PlayerNotReady(Pawn P)
     {
         // If player is already not ready, do nothing
-        if(!CheckPlayerReady(P))
+        if(vmodRunePlayer(P).CheckIsNotReadyToPlay())
             return;
         
         // Set ready status
-        PlayerPawn(P).bReadyToPlay = false;
+        vmodRunePlayer(P).NotifyBecameNotReadyToPlay();
         
         // Dispatch player not ready event
         DispatchPlayerNotReady(P);
@@ -1228,17 +1202,13 @@ state Starting
         for(P = Level.PawnList; P != None; P = P.NextPawn)
         {
             PlayerGameStateNotification(P);
-            ResetPlayerStatistics(P);
+            vmodRunePlayer(P).ResetPlayerStatistics();
             RestartPlayer(P);
         }
     }
     
     function PlayerGameStateNotification(Pawn P)
     {
-        // Send Starting event to player
-        //vmodRunePlayer(P).NotifyNotReadyToGoLive();
-        //vmodRunePlayer(P).NotifyGameStarting();
-        
         // Send Starting message to player
         if(MessageStartingGame != "")
             P.ClientMessage(

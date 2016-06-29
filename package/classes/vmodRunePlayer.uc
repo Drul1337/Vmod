@@ -41,18 +41,28 @@ replication
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Check functions used by vmodGameInfo classes
-function bool CheckIsHuman()        { return true; }
-function bool CheckIsAI()           { return false; }
-function bool CheckIsGameActive()   { return !PlayerReplicationInfo.bIsSpectator; }
-function bool CheckIsGameInactive() { return PlayerReplicationInfo.bIsSpectator; }
+function bool CheckIsHuman()            { return true; }
+function bool CheckIsAI()               { return false; }
+function bool CheckIsGameActive()       { return !PlayerReplicationInfo.bIsSpectator; }
+function bool CheckIsGameInactive()     { return PlayerReplicationInfo.bIsSpectator; }
+function bool CheckIsReadyToPlay()      { return bReadyToPlay; }
+function bool CheckIsNotReadyToPlay()   { return !bReadyToPlay; }
+
+
+function ResetPlayerStatistics()
+{
+    PlayerReplicationInfo.Score         = 0;
+    PlayerReplicationInfo.Deaths        = 0;
+    PlayerReplicationInfo.bReadyToPlay  = false;
+    PlayerReplicationInfo.bFirstBlood   = false;
+    PlayerReplicationInfo.MaxSpree      = 0;
+    PlayerReplicationInfo.HeadKills     = 0;
+}
 
 
 
-
-
-
-function bool ReadyToGoLive()
-{ return bReadyToPlay; }
+//function bool ReadyToGoLive()
+//{ return bReadyToPlay; }
 
 
 // Received from GameInfo
@@ -70,6 +80,16 @@ function NotifyBecameGameInactive()
     bHidden = true;
     Visibility = 0;
     GotoState('PlayerSpectating');
+}
+
+function NotifyBecameReadyToPlay()
+{
+    bReadyToPlay = true;
+}
+
+function NotifyBecameNotReadyToPlay()
+{
+    bReadyToPlay = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
