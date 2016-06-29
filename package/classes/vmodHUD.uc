@@ -63,10 +63,13 @@ var float MessageBackdropWidth;
 
 struct HudMeter_s
 {
-    var Texture BackDrop;
-    var Texture TexFill;
-    var float P0, P1;
-    var float Timestamp;
+    var Texture TexCapLow;      // Low cap texture
+    var Texture TexCapHigh;     // High cap texture
+    var Texture TexBackDrop;    // BackDrop texture
+    var Texture TexFill;        // Meter fill texture
+    var float P0;               // Interp value 0
+    var float P1;               // Interp value 1
+    var float TimeStamp;        // Last update timestamp
 };
 var HudMeter_s MeterHealth;
 var HudMeter_s MeterShield;
@@ -110,11 +113,43 @@ simulated function DrawMeter(
     float PosX,
     float PosY)
 {
+    local float t;
+    local float Width, Height;
+    
+    // Draw backdrop
+    Width   = Meter.TexBackDrop.USize;
+    Height  = Meter.TexBackDrop.VSize;
+    
+    // TODO: This is a temp just for playtesting
+    Height = Height * 10;
+    
     C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
-    //C.SetPos(PosX, PosY);
-    //C.DrawIcon(Meter.BackDrop, 1.0);
-    //C.SetPos(PosX, PosY);
-    //C.DrawIcon(Meter.TexFill, 1.0);
+    C.Style     = ERenderStyle.STY_Normal;
+    C.SetPos(PosX, PosY - Height);
+    C.DrawRect(Meter.TexBackDrop, Width, Height);
+    
+    // Get tweened value
+    t = UtilitiesClass.Static.InterpQuadratic(
+        Level.TimeSeconds - Meter.TimeStamp,    // Current time
+        Meter.P0,                               // Starting value
+        Meter.P1,                               // Ending value
+        0.25);                                  // Interp duration
+    
+    t = t / vmodRunePlayer(Owner).GetHealthMax();
+    if(t < 0.0) t = 0.0;
+    if(t > 1.0) t = 1.0;
+    
+    // Draw fill
+    Width   = Meter.TexFill.USize;
+    Height  = Meter.TexFill.VSize * t;
+    
+    // TODO: This is a temp just for playtesting
+    Height = Height * 10;
+    
+    C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
+    C.Style     = ERenderStyle.STY_Normal;
+    C.SetPos(PosX, PosY - Height);
+    C.DrawRect(Meter.TexFill, Width, Height);
 }
 
 simulated function UpdateMeterHealth()
@@ -150,20 +185,20 @@ simulated function PostRender(Canvas C)
 {
     DrawMessages(C);
     
-    // Draw these only if the player is active in game
+    // Things to draw only if the player is currently active in game
     if(vmodRunePlayer(Owner).CheckIsGameActive())
     {
         // Health
         UpdateMeterHealth();
-        DrawMeter(C, MeterHealth, C.ClipX * 0.1, C.ClipY * 0.5);
+        DrawMeter(C, MeterHealth, C.ClipX * 0.01, C.ClipY * 0.99);
         
         // Shield
         MeterShield.P0 = 0.0;
-        DrawMeter(C, MeterShield, C.ClipX * 0.9, C.ClipY * 0.5);
+        DrawMeter(C, MeterShield, C.ClipX * 0.99, C.ClipY * 0.99);
         
         // Strength
         UpdateMeterStrength();
-        DrawMeter(C, MeterStrength, C.ClipX * 0.9 - 64, C.ClipY * 0.5);
+        DrawMeter(C, MeterStrength, C.ClipX * 0.99 - 64, C.ClipY * 0.99);
     }
     
     // Draw the scoreboard
@@ -507,23 +542,23 @@ simulated function float GetMessageTimeStampInterpolation(
     optional float LifeTime,
     optional InterpolationType_e InterpType)
 {
-    local float t, b, c, d;
+    local float t, b, e, d;
     
     if(LifeTime == 0.0)
         LifeTime = MessageLifeTime;
     
     t = Level.TimeSeconds - M.TimeStamp;    // Current time
     b = 1.0;                                // Starting value
-    c = 0.0;                                // Change in value
+    e = 0.0;                                // Ending value
     d = LifeTime;                           // Duration
     
     switch(InterpType)
     {
         case INTERP_LINEAR:
-            return UtilitiesClass.Static.InterpLinear(t, b, c, d);
+            return UtilitiesClass.Static.InterpLinear(t, b, e, d);
         
         case INTERP_QUADRATIC:
-            return UtilitiesClass.Static.InterpQuadratic(t, b, c, d);
+            return UtilitiesClass.Static.InterpQuadratic(t, b, e, d);
             
         default:
             return 1.0;
@@ -809,7 +844,7 @@ defaultproperties
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
     LocalMessagesClass=Class'Vmod.vmodStaticLocalMessages'
     FontsClass=Class'Vmod.vmodStaticFonts'
-    MeterHealth=(P0=0.0,P1=0.0,BackDrop=Texture'HealthIcon',TexFill=Texture'HealthFull')
-    MeterShield=(P0=0.0,P1=0.0,BackDrop=Texture'HealthIcon',TexFill=Texture'HealthFull')
-    MeterStrength=(P0=0.0,P1=0.0,BackDrop=Texture'HealthIcon',TexFill=Texture'HealthFull')
+    MeterHealth=(P0=0.0,P1=0.0,TexBackDrop=Texture'HealthEmpty',TexFill=Texture'HealthFull')
+    MeterShield=(P0=0.0,P1=0.0,TexBackDrop=Texture'HealthEmpty',TexFill=Texture'HealthFull')
+    MeterStrength=(P0=0.0,P1=0.0,TexBackDrop=Texture'HealthEmpty',TexFill=Texture'HealthFull')
 }
