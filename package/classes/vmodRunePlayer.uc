@@ -15,6 +15,7 @@
 //class vmodRunePlayer extends vmodRunePlayerInterface config(user) abstract;
 class vmodRunePlayer extends RunePlayer config(user) abstract;
 
+var Class<vmodStaticColorsTeams>    ColorsTeamsClass;
 var bool bCanRestart;
 
 replication
@@ -112,6 +113,31 @@ function NotifyBecameReadyToPlay()
 function NotifyBecameNotReadyToPlay()
 {
     bReadyToPlay = false;
+}
+
+function AdjustColor()
+{
+    local Vector V;
+    local float Brightness;
+    
+    Brightness = 255.0;
+    ColorsTeamsClass.Static.GetTeamColorVector(
+        GetTeam(),
+        V.X,
+        V.Y,
+        V.Z);
+    DesiredColorAdjust = V * Brightness;
+}
+
+function NotifyChangedTeam(byte Team)
+{
+    PlayerReplicationInfo.Team = Team;
+    AdjustColor();
+}
+
+function NotifyRespawn()
+{
+    AdjustColor();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -284,4 +310,5 @@ defaultproperties
 {
     bReadyToPlay=false
     PlayerReplicationInfoClass=Class'Vmod.vmodPlayerReplicationInfo'
+    ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
 }

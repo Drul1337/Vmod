@@ -31,9 +31,7 @@ function PlayerTeamChange(Pawn P, byte Team)
     if(vmodRunePlayer(P).CheckIsGameInactive()) return; // Player is not playing
     if(vmodRunePlayer(P).GetTeam() == Team)     return; // Already on this team
     
-    // TODO: Should probably handle this in the pawn class
-    P.PlayerReplicationInfo.Team = Team;
-    P.DesiredColorAdjust = GetTeamColorVector(Team);
+    vmodRunePlayer(P).NotifyChangedTeam(Team);
     DispatchPlayerChangedTeam(P, Team);
 }
 
@@ -79,24 +77,6 @@ function byte GetInactiveTeam()
 {
     return 255;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//  GetTeamColor
-////////////////////////////////////////////////////////////////////////////////
-function Vector GetTeamColorVector(byte Team)
-{
-    local Vector V;
-    local float brightness;
-    brightness = 200.0;
-    ColorsTeamsClass.Static.GetTeamColorVector(
-        Team,
-        V.X,
-        V.Y,
-        V.Z);
-    V *= brightness;
-    return V;
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Event Dispatchers

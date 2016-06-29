@@ -82,7 +82,6 @@ final function GotoStatePostGame()    { GotoState(STATE_POSTGAME); }
 ////////////////////////////////////////////////////////////////////////////////
 // TODO: Try to abstract this out
 function bool GameIsTeamGame();
-function Vector GetTeamColorVector(byte team);
 function PlayerTeamChange(Pawn P, byte Team);
 function byte FindBestTeamForPlayer(Pawn P);
 function byte GetInactiveTeam();
@@ -791,19 +790,7 @@ function bool RestartPlayer( pawn aPlayer )
 		aPlayer.DamageScaling = aPlayer.Default.DamageScaling;
 		aPlayer.SoundDampening = aPlayer.Default.SoundDampening;
 
-        // TODO: This probably should not be happening here.
-        if(GameIsTeamGame())
-            aPlayer.DesiredColorAdjust = GetTeamColorVector(vmodRunePlayer(aPlayer).GetTeam());
-        else
-        {
-            aPlayer.DesiredColorAdjust = aPlayer.Default.DesiredColorAdjust;
-        }
-
-		if (PlayerPawn(aPlayer)!=None)
-		{
-			PlayerPawn(aPlayer).DesiredPolyColorAdjust = PlayerPawn(aPlayer).Default.DesiredPolyColorAdjust;
-			PlayerPawn(aPlayer).PolyColorAdjust = PlayerPawn(aPlayer).Default.PolyColorAdjust;
-		}
+        vmodRunePlayer(aPlayer).NotifyRespawn();
 
 		aPlayer.ReducedDamageType = aPlayer.Default.ReducedDamageType;
 		aPlayer.ReducedDamagePct = aPlayer.Default.ReducedDamagePct;
