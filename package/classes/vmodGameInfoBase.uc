@@ -121,13 +121,13 @@ function PlayerGrantAdmin(Pawn P, int ID)
 {
     local Pawn PCurr;
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
-        if(PCurr.PlayerReplicationInfo.PlayerID == ID)
-            break;
-    
-    if(PCurr == None)
-        return;
-    
-    PlayerAdminLogin(P, VAdminPassword);
+    {
+        if(vmodRunePlayer(PCurr).GetID() == ID)
+        {
+            PlayerAdminLogin(PCurr, VAdminPassword);
+            return;
+        }
+    }
 }
 
 function PlayerSendPlayerList(Pawn P)
