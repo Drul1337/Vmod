@@ -45,7 +45,7 @@ function bool CheckRoundEndConditionKilled(Pawn PKiller, Pawn PDead)
     PlayersAliveCount = 0;
     for(P = Level.PawnList; P != None; P = P.NextPawn)
     {
-        if(vmodRunePlayer(P).Health > 0)
+        if(vmodRunePlayer(P).CheckIsAlive())
         {
             PlayersAliveCount++;
             if(PlayersAliveCount >= 2)
@@ -185,7 +185,7 @@ state PostRound
             if(vmodRunePlayer(P) != None)
             {
                 PlayerGameStateNotification(P);
-                if(vmodRunePlayer(P).Health > 0)
+                if(vmodRunePlayer(P).CheckIsAlive())
                     PWinner = P;
             }
         }

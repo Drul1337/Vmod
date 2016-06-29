@@ -11,8 +11,7 @@ function bool CheckRoundEndConditionKilled(Pawn PKiller, Pawn PDead)
     TeamAlive = -1;
     for(P = Level.PawnList; P != None; P = P.NextPawn)
     {
-        // TODO: Replace all of these checks with a function in runeplayer
-        if(vmodRunePlayer(P).Health > 0)
+        if(vmodRunePlayer(P).CheckIsAlive())
         {
             if(TeamAlive == -1)
                 TeamAlive = GetPlayerTeam(P);

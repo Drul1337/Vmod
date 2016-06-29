@@ -47,6 +47,7 @@ function bool CheckIsGameActive()       { return !PlayerReplicationInfo.bIsSpect
 function bool CheckIsGameInactive()     { return PlayerReplicationInfo.bIsSpectator; }
 function bool CheckIsReadyToPlay()      { return bReadyToPlay; }
 function bool CheckIsNotReadyToPlay()   { return !bReadyToPlay; }
+function bool CheckIsAlive()            { return Health > 0; }
 
 
 function ResetPlayerStatistics()
