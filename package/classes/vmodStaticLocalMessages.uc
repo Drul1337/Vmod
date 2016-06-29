@@ -14,7 +14,6 @@ const MESSAGE_CLASS_PLAYERKILLED    = Class'Vmod.vmodLocalMessagePlayerKilled';
 const MESSAGE_CLASS_PREROUND        = Class'Vmod.vmodLocalMessagePreRound';
 const MESSAGE_CLASS_STARTINGROUND   = Class'Vmod.vmodLocalMessageStartingRound';
 const MESSAGE_CLASS_POSTROUND       = Class'Vmod.vmodLocalMessagePostRound';
-
 const MESSAGE_CLASS_SUBTITLE        = Class'SubtitleMessage';
 const MESSAGE_CLASS_REDSUBTITLE     = Class'SubtitleRed';
 const MESSAGE_CLASS_PICKUP          = Class'PickupMessage';
@@ -35,7 +34,6 @@ const MESSAGE_NAME_PLAYERKILLED     = 'PlayerKilled';
 const MESSAGE_NAME_PREROUND         = 'PreRound';
 const MESSAGE_NAME_STARTINGROUND    = 'StartingRound';
 const MESSAGE_NAME_POSTROUND        = 'PostRound';
-
 const MESSAGE_NAME_SUBTITLE         = 'Subtitle';
 const MESSAGE_NAME_REDSUBTITLE      = 'RedSubtitle';
 const MESSAGE_NAME_PICKUP           = 'Pickup';

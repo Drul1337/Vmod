@@ -134,7 +134,7 @@ state PreGame
     function PlayerRequestReadyToPlay(Pawn P)
     {
         // Must be in the game
-        if(!vmodRunePlayer(P).CheckIsPlaying())
+        if(vmodRunePlayer(P).CheckIsGameInactive())
             return;
         
         // If there are not enough players in the game, player cannot ready up
@@ -161,7 +161,7 @@ state PreGame
     function PlayerRequestNotReadyToPlay(Pawn P)
     {
         // Must be in the game
-        if(!vmodRunePlayer(P).CheckIsPlaying())
+        if(vmodRunePlayer(P).CheckIsGameInactive())
             return;
         
         // If the player is already not ready, just return

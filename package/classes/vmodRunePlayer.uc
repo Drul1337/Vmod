@@ -39,21 +39,21 @@ replication
         VcmdRemoveBots;
 }
 
-function bool CheckIsHuman()    { return true; }
-function bool CheckIsAI()       { return false; }
+///////////////////////////////////////////////////////////////////////////////
+//  Check functions used by vmodGameInfo classes
+function bool CheckIsHuman()        { return true; }
+function bool CheckIsAI()           { return false; }
+function bool CheckIsGameActive()   { return !PlayerReplicationInfo.bIsSpectator; }
+function bool CheckIsGameInactive() { return PlayerReplicationInfo.bIsSpectator; }
+
+
+
+
+
 
 function bool ReadyToGoLive()
 { return bReadyToPlay; }
 
-function bool CheckIsSpectator()
-{
-    return PlayerReplicationInfo.bIsSpectator;
-}
-
-function bool CheckIsPlaying()
-{
-    return !PlayerReplicationInfo.bIsSpectator;
-}
 
 // Received from GameInfo
 function NotifyBecameGameActive()

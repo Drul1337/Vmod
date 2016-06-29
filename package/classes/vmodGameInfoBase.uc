@@ -95,21 +95,22 @@ function PlayerSendPlayerList(Pawn P)
 function PlayerBecomeGameActive(Pawn P)
 {
     // Is the player already playing?
-    if(vmodRunePlayer(P).CheckIsPlaying())
+    if(vmodRunePlayer(P).CheckIsGameActive())
         return;
+    
+    vmodRunePlayer(P).NotifyBecameGameActive();
     
     // If it's a team game, join a team
     if(GameIsTeamGame())
         PlayerTeamChange(P, FindBestTeamForPlayer(P));
     
-    vmodRunePlayer(P).NotifyBecameGameActive();
     RestartPlayer(P);
     DispatchPlayerJoinedGame(P);
 }
 
 function PlayerBecomeGameInactive(Pawn P)
 {
-    if(vmodRunePlayer(P).CheckIsSpectator())
+    if(vmodRunePlayer(P).CheckIsGameInactive())
         return;
     
     // If it's a team game, join the inactive team
@@ -711,9 +712,7 @@ function bool RestartPlayer( pawn aPlayer )
 	local actor A;
     local vmodRunePlayer rPlayer;
 
-    // TODO: Quick hack to prevent spectators from being reset.
-    // This should really be handled by states in PlayerPawn
-    if(!vmodRunePlayer(aPlayer).CheckIsPlaying())
+    if(vmodRunePlayer(aPlayer).CheckIsGameInactive())
         return false;
     
 	if( bRestartLevel && Level.NetMode!=NM_DedicatedServer && Level.NetMode!=NM_ListenServer )

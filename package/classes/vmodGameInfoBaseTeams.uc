@@ -26,9 +26,10 @@ function bool CheckTeamIsValid(byte Team)
 ////////////////////////////////////////////////////////////////////////////////
 function PlayerTeamChange(Pawn P, byte Team)
 {
-    if(!GameIsTeamGame())           return; // This is not a team game
-    if(!CheckTeamIsValid(Team))     return; // Invalid team requested
-    if(GetPlayerTeam(P) == Team)    return; // Player is already on this team
+    if(!GameIsTeamGame())                       return; // Not a team game
+    if(!CheckTeamIsValid(Team))                 return; // Invalid team request
+    if(vmodRunePlayer(P).CheckIsGameInactive()) return; // Player is not playing
+    if(GetPlayerTeam(P) == Team)                return; // Already on this team
     
     // TODO: Should probably handle this in the pawn class
     P.PlayerReplicationInfo.Team = Team;
@@ -49,9 +50,11 @@ function ShuffleTeams()
     i = 0;
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
     {
-        if(vmodRunePlayer(PCurr).CheckIsPlaying())
+        if(vmodRunePlayer(PCurr) != None)
+        {
             PlayerTeamChange(PCurr, i % 4);
-        i++;
+            i++;
+        }
     }
     DispatchTeamsShuffled();
 }
