@@ -114,7 +114,7 @@ function DispatchPlayerChangedTeam(Pawn P, byte Team)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
             P.PlayerReplicationInfo.PlayerName $ " changed to team " $ Team,
-            GetMessageTypeNameDefault(),
+            LocalMessagesClass.Static.GetMessageTypeNameDefault(),
             false);
 }
 
@@ -124,6 +124,6 @@ function DispatchTeamsShuffled()
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
             "Team shuffle",
-            GetMessageTypeNameDefault(),
+            LocalMessagesClass.Static.GetMessageTypeNameDefault(),
             false);
 }

@@ -43,7 +43,7 @@ function bool AdminRequestCheck(Pawn P)
     {
         P.ClientMessage(
                 "You must be an administrator",
-                GetMessageTypeNameDefault(),
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
                 false);
         return false;
     }

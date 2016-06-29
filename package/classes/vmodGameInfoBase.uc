@@ -16,23 +16,6 @@ const STATE_POSTGAME    = 'PostGame';
 const OPTION_TIME_LIMIT = "timelimit";
 const OPTION_SCORE_LIMIT = "scorelimit";
 
-// Message class - name pairings
-const MESSAGE_CLASS_DEFAULT         = Class'LocalMessage';
-const MESSAGE_CLASS_PREGAME         = Class'Vmod.vmodLocalMessagePreGame';
-const MESSAGE_CLASS_STARTINGGAME    = Class'Vmod.vmodLocalMessageStartingGame';
-const MESSAGE_CLASS_LIVEGAME        = Class'Vmod.vmodLocalMessageLiveGame';
-const MESSAGE_CLASS_POSTGAME        = Class'Vmod.vmodLocalMessagePostGame';
-const MESSAGE_CLASS_PLAYERREADY     = Class'Vmod.vmodLocalMessagePlayerReady';
-const MESSAGE_CLASS_PLAYERKILLED    = Class'Vmod.vmodLocalMessagePlayerKilled';
-
-const MESSAGE_NAME_DEFAULT          = 'Default';
-const MESSAGE_NAME_PREGAME          = 'PreGame';
-const MESSAGE_NAME_STARTINGGAME     = 'StartingGame';
-const MESSAGE_NAME_LIVEGAME         = 'LiveGame';
-const MESSAGE_NAME_POSTGAME         = 'PostGame';
-const MESSAGE_NAME_PLAYERREADY      = 'PlayerReady';
-const MESSAGE_NAME_PLAYERKILLED     = 'PlayerKilled';
-
 // TODO: Might be able to get around the use of spawnnotify by
 // modifying Login() or IsRelevant()
 const CLASS_SPAWNNOTIFY = Class'Vmod.vmodSpawnNotify';
@@ -59,7 +42,8 @@ var() globalconfig String MessageNotEnoughPlayersToStart;
 var int TimerBroad; // Time since the server switched to this game
 var int TimerLocal; // Local time used between states
 
-var Class<vmodStaticColorsTeams> ColorsTeamsClass;
+var Class<vmodStaticColorsTeams>    ColorsTeamsClass;
+var Class<vmodStaticLocalMessages>  LocalMessagesClass;
 
 var private bool bScoreTracking;
 var private bool bPawnsTakeDamage;
@@ -75,85 +59,6 @@ final function GotoStatePreGame()     { GotoState(STATE_PREGAME); }
 final function GotoStateStarting()    { GotoState(STATE_STARTING); }
 final function GotoStateLive()        { GotoState(STATE_LIVE); }
 final function GotoStatePostGame()    { GotoState(STATE_POSTGAME); }
-
-
-// TODO: Might be a better idea to implement all messages in a static class
-// similar to colors.
-////////////////////////////////////////////////////////////////////////////////
-//  MessageTypeNames
-////////////////////////////////////////////////////////////////////////////////
-function Name GetMessageTypeName(class<LocalMessage> MessageClass)
-{
-    switch(MessageClass)
-    {
-        case MESSAGE_CLASS_PREGAME:         return MESSAGE_NAME_PREGAME;
-        case MESSAGE_CLASS_STARTINGGAME:    return MESSAGE_NAME_STARTINGGAME;
-        case MESSAGE_CLASS_LIVEGAME:        return MESSAGE_NAME_LIVEGAME;
-        case MESSAGE_CLASS_POSTGAME:        return MESSAGE_NAME_POSTGAME;
-        case MESSAGE_CLASS_PLAYERREADY:     return MESSAGE_NAME_PLAYERREADY;
-        case MESSAGE_CLASS_PLAYERKILLED:    return MESSAGE_NAME_PLAYERKILLED;
-        default:                            return MESSAGE_NAME_DEFAULT;
-    }
-}
-
-function Name GetMessageTypeNameDefault()
-{ return GetMessageTypeName(MESSAGE_CLASS_DEFAULT);  }
-
-function Name GetMessageTypeNamePreGame()
-{ return GetMessageTypeName(MESSAGE_CLASS_PREGAME); }
-
-function Name GetMessageTypeNameStartingGame()
-{ return GetMessageTypeName(MESSAGE_CLASS_STARTINGGAME); }
-
-function Name GetMessageTypeNameLiveGame()
-{ return GetMessageTypeName(MESSAGE_CLASS_LIVEGAME); }
-
-function Name GetMessageTypeNamePostGame()
-{ return GetMessageTypeName(MESSAGE_CLASS_POSTGAME); }
-
-function Name GetMessageTypeNamePlayerReady()
-{ return GetMessageTypeName(MESSAGE_CLASS_PLAYERREADY); }
-
-function Name GetMessageTypeNamePlayerKilled()
-{ return GetMessageTypeName(MESSAGE_CLASS_PLAYERKILLED);  }
-
-////////////////////////////////////////////////////////////////////////////////
-//  MessageTypeClasses
-////////////////////////////////////////////////////////////////////////////////
-function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
-{
-    switch(MessageName)
-    {
-       case MESSAGE_NAME_PREGAME:       return MESSAGE_CLASS_PREGAME;   
-       case MESSAGE_NAME_STARTINGGAME:  return MESSAGE_CLASS_STARTINGGAME;
-       case MESSAGE_NAME_LIVEGAME:      return MESSAGE_CLASS_LIVEGAME;
-       case MESSAGE_NAME_POSTGAME:      return MESSAGE_CLASS_POSTGAME;
-       case MESSAGE_NAME_PLAYERREADY:   return MESSAGE_CLASS_PLAYERREADY;
-       case MESSAGE_NAME_PLAYERKILLED:  return MESSAGE_CLASS_PLAYERKILLED;
-       default:                         return MESSAGE_CLASS_DEFAULT;
-    }
-}
-
-function Class<LocalMessage> GetMessageTypeClassDefault()
-{ return GetMessageTypeClass(MESSAGE_NAME_DEFAULT); }
-
-function Class<LocalMessage> GetMessageTypeClassPreGame()
-{ return GetMessageTypeClass(MESSAGE_NAME_PREGAME); }
-
-function Class<LocalMessage> GetMessageTypeClassStartingGame()
-{ return GetMessageTypeClass(MESSAGE_NAME_STARTINGGAME); }
-
-function Class<LocalMessage> GetMessageTypeClassLiveGame()
-{ return GetMessageTypeClass(MESSAGE_NAME_LIVEGAME); }
-
-function Class<LocalMessage> GetMessageTypeClassPostGame()
-{ return GetMessageTypeClass(MESSAGE_NAME_POSTGAME); }
-
-function Class<LocalMessage> GetMessageTypeClassPlayerReady()
-{ return GetMessageTypeClass(MESSAGE_NAME_PLAYERREADY); }
-
-function Class<LocalMessage> GetMessageTypeClassPlayerKilled()
-{ return GetMessageTypeClass(MESSAGE_NAME_PLAYERKILLED); }
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -177,13 +82,13 @@ function PlayerSendPlayerList(Pawn P)
     
     P.ClientMessage(
         "Player List",
-        GetMessageTypeNameDefault(),
+        LocalMessagesClass.Static.GetMessageTypeNameDefault(),
         false);
     
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         P.ClientMessage(
                 P.PlayerReplicationInfo.PlayerID $ " : " $ PCurr.PlayerReplicationInfo.PlayerName,
-                GetMessageTypeNameDefault(),
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
                 false);
 }
 
@@ -246,7 +151,7 @@ function PlayerBroadcast(Pawn P, String Message)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
                 Message,
-                GetMessageTypeNamePlayerReady(),
+                LocalMessagesClass.Static.GetMessageTypeNamePlayerReady(),
                 false);
 }
 
@@ -287,7 +192,7 @@ function DispatchPlayerJoinedGame(Pawn P)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
                 P.PlayerReplicationInfo.PlayerName $ " has joined the game",
-                GetMessageTypeNameDefault(),
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
                 false);
 }
 
@@ -297,7 +202,7 @@ function DispatchPlayerSpectating(Pawn P)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
                 P.PlayerReplicationInfo.PlayerName $ " is now spectating",
-                GetMessageTypeNameDefault(),
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
                 false);
 }
 
@@ -307,7 +212,7 @@ function DispatchPlayerReady(Pawn P)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
                 P.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerReady,
-                GetMessageTypeNamePlayerReady(),
+                LocalMessagesClass.Static.GetMessageTypeNamePlayerReady(),
                 false);
 }
 
@@ -317,7 +222,7 @@ function DispatchPlayerNotReady(Pawn P)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
                 P.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerNotReady,
-                GetMessageTypeNamePlayerReady(),
+                LocalMessagesClass.Static.GetMessageTypeNamePlayerReady(),
                 false);
 }
 
@@ -327,7 +232,7 @@ function DispatchPlayerResetGame(Pawn P)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
                 P.PlayerReplicationInfo.PlayerName $ " has reset the game",
-                GetMessageTypeNameDefault(),
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
                 false);
 }
 
@@ -337,7 +242,7 @@ function DispatchPlayerEndedGame(Pawn P)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
                 P.PlayerReplicationInfo.PlayerName $ " has ended the game",
-                GetMessageTypeNameDefault(),
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
                 false);
 }
 
@@ -347,7 +252,7 @@ function DispatchPlayerStartedGame(Pawn P)
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
         PCurr.ClientMessage(
                 P.PlayerReplicationInfo.PlayerName $ " has started the game",
-                GetMessageTypeNameDefault(),
+                LocalMessagesClass.Static.GetMessageTypeNameDefault(),
                 false);
 }
 
@@ -1102,7 +1007,7 @@ function Killed(Pawn PKiller, Pawn PDead, Name DamageType)
     {
         P.ClientMessage(
                 PKiller.PlayerReplicationInfo.PlayerName $ " killed " $ PDead.PlayerReplicationInfo.PlayerName,
-                GetMessageTypeNamePlayerKilled(),
+                LocalMessagesClass.Static.GetMessageTypeNamePlayerKilled(),
                 false);
     }
     ScoreKill(PKiller, PDead);
@@ -1229,7 +1134,7 @@ auto state PreGame
         if(MessagePreGame != "")
             P.ClientMessage(
                 MessagePreGame,
-                GetMessageTypeNamePreGame(),
+                LocalMessagesClass.Static.GetMessageTypeNamePreGame(),
                 false);
     }
     
@@ -1258,7 +1163,7 @@ auto state PreGame
         if(MessageNotEnoughPlayersToStart != "")
             P.ClientMessage(
                 MessageNotEnoughPlayersToStart,
-                GetMessageTypeNamePlayerReady(),
+                LocalMessagesClass.Static.GetMessageTypeNamePlayerReady(),
                 false);
     }
     
@@ -1267,7 +1172,7 @@ auto state PreGame
         if(MessageWaitingForOthers != "")
             P.ClientMessage(
                 MessageWaitingForOthers,
-                GetMessageTypeNamePlayerReady(),
+                LocalMessagesClass.Static.GetMessageTypeNamePlayerReady(),
                 false);
     }
     
@@ -1294,7 +1199,7 @@ auto state PreGame
         if(MessagePlayerNotReady != "")
             P.ClientMessage(
                 PUnready.PlayerReplicationInfo.PlayerName $ " " $ MessagePlayerNotReady,
-                GetMessageTypeNamePlayerReady(),
+                LocalMessagesClass.Static.GetMessageTypeNamePlayerReady(),
                 false);
     }
 }
@@ -1339,7 +1244,7 @@ state Starting
         if(MessageStartingGame != "")
             P.ClientMessage(
                 MessageStartingGame,
-                GetMessageTypeNameStartingGame(),
+                LocalMessagesClass.Static.GetMessageTypeNameStartingGame(),
                 false);
     }
     
@@ -1372,7 +1277,7 @@ state Starting
         if(MessageStartingCountDown != "")
             P.ClientMessage(
                 MessageStartingCountDown $ " " $ TimeRemaining,
-                GetMessageTypeNameStartingGame(),
+                LocalMessagesClass.Static.GetMessageTypeNameStartingGame(),
                 false);
     }
 }
@@ -1414,7 +1319,7 @@ state Live
         if(MessageLiveGame != "")
             P.ClientMessage(
                 MessageLiveGame,
-                GetMessageTypeNameLiveGame(),
+                LocalMessagesClass.Static.GetMessageTypeNameLiveGame(),
                 false);
     }
     
@@ -1531,7 +1436,7 @@ state PostGame
         if(MessagePostGame != "")
             P.ClientMessage(
                 MessagePostGame,
-                GetMessageTypeNamePostGame(),
+                LocalMessagesClass.Static.GetMessageTypeNamePostGame(),
                 false);
     }
     
@@ -1619,4 +1524,5 @@ defaultproperties
     MinimumPlayersRequiredForStart=2
     
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
+    LocalMessagesClass=Class'Vmod.vmodStaticLocalMessages'
 }

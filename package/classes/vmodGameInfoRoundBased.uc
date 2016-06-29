@@ -8,15 +8,6 @@ const STATE_PREROUND        = 'PreRound';
 const STATE_STARTINGROUND   = 'StartingRound';
 const STATE_POSTROUND       = 'PostRound';
 
-// Message class - name pairings
-const MESSAGE_CLASS_PREROUND        = Class'Vmod.vmodLocalMessagePreRound';
-const MESSAGE_CLASS_STARTINGROUND   = Class'Vmod.vmodLocalMessageStartingRound';
-const MESSAGE_CLASS_POSTROUND       = Class'Vmod.vmodLocalMessagePostRound';
-
-const MESSAGE_NAME_PREROUND         = 'PreRound';
-const MESSAGE_NAME_STARTINGROUND    = 'StartingRound';
-const MESSAGE_NAME_POSTROUND        = 'PostRound';
-
 // Command line game options
 const OPTION_TIME_LIMIT_ROUND = "timelimitround";
 
@@ -61,52 +52,6 @@ function ResetTimerLocalRound()
 {
     TimerLocalRound = 0;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//  MessageTypeNames
-////////////////////////////////////////////////////////////////////////////////
-function Name GetMessageTypeName(class<LocalMessage> MessageClass)
-{
-    switch(MessageClass)
-    {
-        case MESSAGE_CLASS_PREROUND:        return MESSAGE_NAME_PREROUND;
-        case MESSAGE_CLASS_STARTINGROUND:   return MESSAGE_NAME_STARTINGROUND;
-        case MESSAGE_CLASS_POSTROUND:       return MESSAGE_NAME_POSTROUND;
-    }
-    return Super.GetMessageTypeName(MessageClass);
-}
-
-function Name GetMessageTypeNamePreRound()
-{ return GetMessageTypeName(MESSAGE_CLASS_PREROUND); }
-
-function Name GetMessageTypeNameStartingRound()
-{ return GetMessageTypeName(MESSAGE_CLASS_STARTINGROUND); }
-
-function Name GetMessageTypeNamePostRound()
-{ return GetMessageTypeName(MESSAGE_CLASS_POSTROUND); }
-
-////////////////////////////////////////////////////////////////////////////////
-//  MessageTypeClasses
-////////////////////////////////////////////////////////////////////////////////
-function Class<LocalMessage> GetMessageTypeClass(Name MessageName)
-{
-    switch(MessageName)
-    {
-        case MESSAGE_NAME_PREROUND:         return MESSAGE_CLASS_PREROUND;     
-        case MESSAGE_NAME_STARTINGROUND:    return MESSAGE_CLASS_STARTINGROUND;
-        case MESSAGE_NAME_POSTROUND:        return MESSAGE_CLASS_POSTROUND;
-    }
-    return Super.GetMessageTypeClass(MessageName);
-}
-
-function Class<LocalMessage> GetMessageTypeClassPreRound()
-{ return GetMessageTypeClass(MESSAGE_NAME_PREROUND); }
-
-function Class<LocalMessage> GetMessageTypeClassStartingRound()
-{ return GetMessageTypeClass(MESSAGE_NAME_STARTINGROUND); }
-
-function Class<LocalMessage> GetMessageTypeClassPostRound()
-{ return GetMessageTypeClass(MESSAGE_NAME_POSTROUND); }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  GameReplicationInfo update functions
@@ -235,7 +180,7 @@ state PreRound
         if(MessagePreRound != "")
             P.ClientMessage(
                 MessagePreRound,
-                GetMessageTypeNamePreRound(),
+                LocalMessagesClass.Static.GetMessageTypeNamePreRound(),
                 false);
     }
     
@@ -302,7 +247,7 @@ state StartingRound
         if(MessageStartingRound != "")
             P.ClientMessage(
                 MessageStartingRound,
-                GetMessageTypeNameStartingRound(),
+                LocalMessagesClass.Static.GetMessageTypeNameStartingRound(),
                 false);
     }
     
@@ -335,7 +280,7 @@ state StartingRound
         if(MessageStartingRoundCountDown != "")
             P.ClientMessage(
                 MessageStartingRoundCountDown $ " " $ TimeRemaining,
-                GetMessageTypeNameStartingRound(),
+                LocalMessagesClass.Static.GetMessageTypeNameStartingRound(),
                 false);
     }
 }
@@ -373,7 +318,7 @@ state Live
         if(MessageLiveRound != "")
             P.ClientMessage(
                 MessageLiveRound,
-                GetMessageTypeNameLiveGame(),
+                LocalMessagesClass.Static.GetMessageTypeNameLiveGame(),
                 false);
     }
     

@@ -4,7 +4,8 @@
 // class vmodHUD extends HUD;
 class vmodHUD extends RuneHUD;
 
-var Class<vmodStaticColorsTeams> ColorsTeamsClass;
+var Class<vmodStaticColorsTeams>    ColorsTeamsClass;
+var Class<vmodStaticLocalMessages>  LocalMessagesClass;
 var Texture TextureMessageQueue;
 
 struct vmodHUDLocalizedMessage_s
@@ -696,40 +697,42 @@ simulated function LocalizedMessage(
 ////////////////////////////////////////////////////////////////////////////////
 //  DetermineClass
 ////////////////////////////////////////////////////////////////////////////////
-simulated function Class<LocalMessage> DetermineClass(name MsgType)
+simulated function Class<LocalMessage> DetermineClass(Name MsgType)
 {
     local Class<LocalMessage> MessageClass;
     
+    return LocalMessagesClass.Static.GetMessageTypeClass(MsgType);
+    
     switch(MsgType)
     {
-        // Messages from vmodGameInfo
-        case 'PreGame':         return Class'Vmod.vmodLocalMessagePreGame';
-        case 'StartingGame':    return Class'Vmod.vmodLocalMessageStartingGame';
-        case 'LiveGame':        return Class'Vmod.vmodLocalMessageLiveGame';
-        case 'PostGame':        return Class'Vmod.vmodLocalMessagePostGame';
-        case 'PlayerReady':     return Class'Vmod.vmodLocalMessagePlayerReady';
-        
-        // Messages from vmodGameInfoRoundBased
-        case 'PreRound':        return Class'Vmod.vmodLocalMessagePreRound';
-        case 'StartingRound':   return Class'Vmod.vmodLocalMessageStartingRound';
-        case 'PostRound':       return Class'Vmod.vmodLocalMessagePostRound';
-        
-        // Player killed messages
-        case 'PlayerKilled':    return Class'Vmod.vmodLocalMessagePlayerKilled';
-        
-        // Other messages
-        case 'Subtitle':        return Class'SubtitleMessage';
-        case 'RedSubtitle':     return Class'SubtitleRed';
-        case 'Pickup':          return Class'PickupMessage';
-        case 'Say':             return Class'SayMessage';
-        case 'TeamSay':         return Class'SayMessage';
-        case 'NoRunePower':     return Class'NoRunePowerMessage';
-        
-        // Defaults
-        case 'CriticalEvent':
-        case 'DeathMessage':
-        case 'Event':
-        default:                return Class'GenericMessage';
+        //// Messages from vmodGameInfo
+        //case 'PreGame':         return Class'Vmod.vmodLocalMessagePreGame';
+        //case 'StartingGame':    return Class'Vmod.vmodLocalMessageStartingGame';
+        //case 'LiveGame':        return Class'Vmod.vmodLocalMessageLiveGame';
+        //case 'PostGame':        return Class'Vmod.vmodLocalMessagePostGame';
+        //case 'PlayerReady':     return Class'Vmod.vmodLocalMessagePlayerReady';
+        //
+        //// Messages from vmodGameInfoRoundBased
+        //case 'PreRound':        return Class'Vmod.vmodLocalMessagePreRound';
+        //case 'StartingRound':   return Class'Vmod.vmodLocalMessageStartingRound';
+        //case 'PostRound':       return Class'Vmod.vmodLocalMessagePostRound';
+        //
+        //// Player killed messages
+        //case 'PlayerKilled':    return Class'Vmod.vmodLocalMessagePlayerKilled';
+        //
+        //// Other messages
+        //case 'Subtitle':        return Class'SubtitleMessage';
+        //case 'RedSubtitle':     return Class'SubtitleRed';
+        //case 'Pickup':          return Class'PickupMessage';
+        //case 'Say':             return Class'SayMessage';
+        //case 'TeamSay':         return Class'SayMessage';
+        //case 'NoRunePower':     return Class'NoRunePowerMessage';
+        //
+        //// Defaults
+        //case 'CriticalEvent':
+        //case 'DeathMessage':
+        //case 'Event':
+        //default:                return Class'GenericMessage';
     }
     
     return MessageClass;
@@ -754,4 +757,5 @@ defaultproperties
     
     TextureMessageQueue=Texture'RuneI.sb_horizramp'
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
+    LocalMessagesClass=Class'Vmod.vmodStaticLocalMessages'
 }
