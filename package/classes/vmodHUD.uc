@@ -1,12 +1,23 @@
 ////////////////////////////////////////////////////////////////////////////////
 // vmodHUD
 ////////////////////////////////////////////////////////////////////////////////
-// class vmodHUD extends HUD;
-class vmodHUD extends RuneHUD;
+class vmodHUD extends HUD;
 
+////////////////////////////////////////////////////////////////////////////////
+//  Texture imports
+//#exec TEXTURE IMPORT NAME=HealthIcon FILE=Textures\HUD\HealthIcon.pcx MIPS=OFF FLAGS=2
+//#exec TEXTURE IMPORT NAME=HealthEmpty FILE=Textures\HUD\HealthEmpty.pcx MIPS=OFF FLAGS=2
+//#exec TEXTURE IMPORT NAME=HealthFull FILE=Textures\HUD\HealthFull.pcx MIPS=OFF FLAGS=2
+//#exec TEXTURE IMPORT NAME=HealthEmptyTop FILE=Textures\HUD\HealthEmptyTop.pcx MIPS=OFF FLAGS=2
+//#exec TEXTURE IMPORT NAME=HealthFullTop FILE=Textures\HUD\HealthFullTop.pcx MIPS=OFF FLAGS=2
+
+////////////////////////////////////////////////////////////////////////////////
+//  Global classes
+// TODO: Implement interpolation in utilities class
+var Class<vmodStaticUtilities>      UtilitiesClass;
 var Class<vmodStaticColorsTeams>    ColorsTeamsClass;
 var Class<vmodStaticLocalMessages>  LocalMessagesClass;
-var Texture TextureMessageQueue;
+var Class<vmodStaticFonts>          FontsClass;
 
 struct vmodHUDLocalizedMessage_s
 {
@@ -36,6 +47,8 @@ var private MessageQueue_s MessageQueueKills;
 var float PosXKillsQueue;
 var float PosYKillsQueue;
 
+var Texture TextureMessageQueue;
+
 // Message justification types
 enum MessageJustificationType_e
 {
@@ -56,6 +69,29 @@ var float MessageQueueLifeTime;
 var float MessageGlowRate;
 var float MessageBackdropWidth;
 
+struct HudMeter_s
+{
+    var Texture BackDrop;
+    var Texture TexFill;
+    var float P0, P1;
+};
+var HudMeter_s MeterHealth;
+var HudMeter_s MeterShield;
+var HudMeter_s MeterStrength;
+
+////////////////////////////////////////////////////////////////////////////////
+//  Overrides
+
+// Prevents small messages from being drawn
+simulated function bool DisplayMessages(Canvas C) { return true; }
+
+////////////////////////////////////////////////////////////////////////////////
+//  Tick
+////////////////////////////////////////////////////////////////////////////////
+simulated event Tick(float DT)
+{
+    Super.Tick(DT);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  PostBeginPlay
@@ -74,6 +110,18 @@ event PostBeginPlay()
     Super.PostBeginPlay();
 }
 
+simulated function DrawMeter(
+    Canvas C,
+    HudMeter_s Meter,
+    float PosX,
+    float PosY)
+{
+    C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
+    C.SetPos(PosX, PosY);
+    C.DrawIcon(Meter.BackDrop, 1.0);
+    C.DrawIcon(Meter.TexFill, 1.0);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  PostRender
 //
@@ -81,8 +129,36 @@ event PostBeginPlay()
 ////////////////////////////////////////////////////////////////////////////////
 simulated function PostRender(Canvas C)
 {
-    //Super.PostRender(C);
+    DrawMessages(C);
     
+    // Draw these only if the player is active in game
+    if(vmodRunePlayer(Owner).CheckIsGameActive())
+    {
+        // Health
+        MeterHealth.P0 = vmodRunePlayer(Owner).GetHealth();
+        DrawMeter(C, MeterHealth, C.ClipX * 0.1, C.ClipY * 0.5);
+        
+        // Shield
+        MeterShield.P0 = 0.0;
+        DrawMeter(C, MeterShield, C.ClipX * 0.9, C.ClipY * 0.5);
+        
+        // Strength
+        MeterStrength.P0 = vmodRunePlayer(Owner).GetStrength();
+        DrawMeter(C, MeterStrength, C.ClipX * 0.9 - 64, C.ClipY * 0.5);
+    }
+    
+    // Draw the scoreboard
+    if(vmodRunePlayer(Owner).CheckIsShowingScores())
+    {
+        DrawScoreBoard(C);
+    }
+    else
+    {
+        // TODO: This is a hacky way to do fading
+        vmodScoreBoard(vmodRunePlayer(Owner).Scoring).UpdateTimeStamp(Level.TimeSeconds);
+    }
+    
+    /*
     ////////////////////////////////////////////////////////////////////////////
     local PlayerPawn thePlayer;
 	local Texture Tex;
@@ -218,24 +294,18 @@ simulated function PostRender(Canvas C)
     ////////////////////////////////////////////////////////////////////////////
     
     DrawRemainingTime(C, 0, 0);
+    */
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //  MessageQueue Implementation
 ////////////////////////////////////////////////////////////////////////////////
-simulated function HandleScoreBoard(Canvas C)
+simulated function DrawScoreBoard(Canvas C)
 {
-    // TODO: This is hacky
-    if(PlayerPawn(Owner).bShowScores)
-    {
-        if(PlayerPawn(Owner).Scoring != None)
-            PlayerPawn(Owner).Scoring.ShowScores(C);
-    }
-    else
-    {
-        if(PlayerPawn(Owner).Scoring != None)
-            vmodScoreBoard(PlayerPawn(Owner).Scoring).UpdateTimeStamp(Level.TimeSeconds);
-    }
+    if(vmodRunePlayer(Owner).Scoring == None)
+        return;
+    
+    vmodRunePlayer(Owner).Scoring.ShowScores(C);
 }
 
 
@@ -351,8 +421,10 @@ function DrawMessage(
     // Set canvas
     C.Style = ERenderStyle.STY_Translucent;
     
-    if(MyFonts != None) C.Font = MyFonts.GetStaticBigFont();
-    else                C.Font = C.BigFont;
+    ////if(MyFonts != None) C.Font = MyFonts.GetStaticBigFont();
+    ////else                C.Font = C.BigFont;
+    //C.Font = FontsClass.Static.GetBigFont();
+    C.Font = C.BigFont;
     
     // Draw backdrop
     if(BackDrop)
@@ -503,36 +575,36 @@ simulated function DrawMessages(canvas C)
 ////////////////////////////////////////////////////////////////////////////////
 simulated function DrawRemainingTime(canvas Canvas, int x, int y)
 {
-    local int timeleft;
-    local int Hours, Minutes, Seconds;
-
-    if (PlayerPawn(Owner)==None || PlayerPawn(Owner).GameReplicationInfo==None)
-        return;
-
-    timeleft = vmodGameReplicationInfo(PlayerPawn(Owner).GameReplicationInfo).GameTimer;
-    
-    if(timeleft <= 0)
-        return;
-    
-    Canvas.bCenter = true;
-    
-    Hours   = timeleft / 3600;
-    Minutes = timeleft / 60;
-    Seconds = timeleft % 60;
-    //FONT ALTER
-    //Canvas.Font = Canvas.LargeFont;
-    if(MyFonts != None)
-        Canvas.Font = MyFonts.GetStaticLargeFont();
-    else
-        Canvas.Font = Canvas.LargeFont;
-
-    Canvas.SetPos(x, y);
-    if (timeleft <= 30)
-        Canvas.SetColor(255,0,0);
-    Canvas.DrawText(TwoDigitString(Minutes)$":"$TwoDigitString(Seconds), true);
-    Canvas.SetColor(255,255,255);
-    
-    Canvas.bCenter = false;
+    //local int timeleft;
+    //local int Hours, Minutes, Seconds;
+    //
+    //if (PlayerPawn(Owner)==None || PlayerPawn(Owner).GameReplicationInfo==None)
+    //    return;
+    //
+    //timeleft = vmodGameReplicationInfo(PlayerPawn(Owner).GameReplicationInfo).GameTimer;
+    //
+    //if(timeleft <= 0)
+    //    return;
+    //
+    //Canvas.bCenter = true;
+    //
+    //Hours   = timeleft / 3600;
+    //Minutes = timeleft / 60;
+    //Seconds = timeleft % 60;
+    ////FONT ALTER
+    ////Canvas.Font = Canvas.LargeFont;
+    //if(MyFonts != None)
+    //    Canvas.Font = MyFonts.GetStaticLargeFont();
+    //else
+    //    Canvas.Font = Canvas.LargeFont;
+    //
+    //Canvas.SetPos(x, y);
+    //if (timeleft <= 30)
+    //    Canvas.SetColor(255,0,0);
+    //Canvas.DrawText(TwoDigitString(Minutes)$":"$TwoDigitString(Seconds), true);
+    //Canvas.SetColor(255,255,255);
+    //
+    //Canvas.bCenter = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -718,6 +790,11 @@ defaultproperties
     PosYKillsQueue=0.00125
     
     TextureMessageQueue=Texture'RuneI.sb_horizramp'
+    UtilitiesClass=Class'Vmod.vmodStaticUtilities'
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
     LocalMessagesClass=Class'Vmod.vmodStaticLocalMessages'
+    FontsClass=Class'Vmod.vmodStaticFonts'
+    MeterHealth=(P0=0.0,P1=0.0,BackDrop=Texture'HealthIcon',TexFill=Texture'HealthFull')
+    MeterShield=(P0=0.0,P1=0.0,BackDrop=Texture'HealthIcon',TexFill=Texture'HealthFull')
+    MeterStrength=(P0=0.0,P1=0.0,BackDrop=Texture'HealthIcon',TexFill=Texture'HealthFull')
 }

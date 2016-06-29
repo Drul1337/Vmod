@@ -48,6 +48,12 @@ function bool CheckIsGameInactive()     { return PlayerReplicationInfo.bIsSpecta
 function bool CheckIsReadyToPlay()      { return bReadyToPlay; }
 function bool CheckIsNotReadyToPlay()   { return !bReadyToPlay; }
 function bool CheckIsAlive()            { return Health > 0; }
+function bool CheckIsDead()             { return Health <= 0; }
+function bool CheckIsShowingScores()    { return bShowScores; }
+function bool CheckIsNotShowingScores() { return !bShowScores; }
+
+function int GetHealth()                { return Health; }
+function int GetStrength()              { return Strength; }
 
 
 function ResetPlayerStatistics()
@@ -77,6 +83,8 @@ function NotifyBecameGameInactive()
     PlayerReplicationInfo.bIsSpectator = true;
     bHidden = true;
     Visibility = 0;
+    SetCollision(false, false, false);
+	bCollideWorld = false;
     GotoState('PlayerSpectating');
 }
 
@@ -229,6 +237,25 @@ exec final function VcmdClearInventory()
     if(vmodGameInfo(Level.Game) != None)
         vmodGameInfo(Level.Game).ClearPlayerInventory(self);
 }
+
+
+
+
+state PlayerSpectating
+{
+    function BeginState()
+	{
+		PlayerReplicationInfo.bIsSpectator = true;
+		PlayerReplicationInfo.bWaitingPlayer = true;
+		Mesh = None;
+		SetCollision(false,false,false);
+		EyeHeight = Default.BaseEyeHeight;
+		SetPhysics(PHYS_None);
+	}
+}
+
+
+
 
 
 defaultproperties
