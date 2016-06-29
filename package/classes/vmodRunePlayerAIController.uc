@@ -73,6 +73,7 @@ function TickLogic()
     Insults[15] = "[hehe]";
     
     AIPlayer.Say(Insults[Rand(15)]);
+    AIPlayer.Taunt();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
