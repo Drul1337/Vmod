@@ -33,6 +33,58 @@ var int PRISpectatorCount;
 var float TimeStamp;
 var float FadeTime;
 
+////////////////////////////////////////////////////////////////////////////////
+//  Sorting Functions
+//
+//  TODO: See if there's a way to use delegates for sorting conditions.
+//  Implement something faster than selection sort.
+////////////////////////////////////////////////////////////////////////////////
+function SortPRIByTeam(int Start, int Count)
+{
+    local int Smallest;
+    local int i, j;
+    local PlayerReplicationInfo PRITemp;
+    
+    for(i = Start; i < Count - 1; i++)
+    {
+        Smallest = i;
+        for(j = i + 1; j < Count; j++)
+        {
+            if(PRIOrdered[j].Team < PRIOrdered[Smallest].Team)
+                Smallest = j;
+        }
+        PRITemp = PRIOrdered[i];
+        PRIOrdered[i] = PRIOrdered[Smallest];
+        PRIOrdered[Smallest] = PRITemp;
+    }
+}
+
+function SortPRIByScore(int Start, int Count)
+{
+    local int Smallest;
+    local int i, j;
+    local PlayerReplicationInfo PRITemp;
+    
+    for(i = Start; i < Count - 1; i++)
+    {
+        Smallest = i;
+        for(j = i + 1; j < Count; j++)
+        {
+            if(PRIOrdered[j].Score > PRIOrdered[Smallest].Score)
+                Smallest = j;
+        }
+        PRITemp = PRIOrdered[i];
+        PRIOrdered[i] = PRIOrdered[Smallest];
+        PRIOrdered[Smallest] = PRITemp;
+    }
+}
+
+
+
+
+
+
+
 function UpdateTimeStamp(float t)
 {
     TimeStamp = t;
@@ -193,42 +245,48 @@ function DrawPlayerScores(Canvas C, float t, SortType_e SortType)
     C.DrawText(TextDeaths);
     
     // Draw the players
-    C.Style = ERenderStyle.STY_Translucent;
-    for(i = 0; i < PRIPlayerCount; i++)
+    if(PRIPlayerCount > 0)
     {
-        // Name
-        C.DrawColor = WhiteColor * 0.05;
-        C.SetPos(C.ClipX * 0.1, (C.ClipY * 0.25) + (i * 16) + 2);
-        C.DrawTile(
-            TextureBackdrop,
-            C.ClipX * 0.8, 12,
-            0, 0,
-            TextureBackdrop.USize,
-            TextureBackdrop.VSize);
-        C.DrawColor = WhiteColor;
-        C.SetPos(C.ClipX * 0.1, (C.ClipY * 0.25) + (i * 16) + 4);
-        C.DrawText(PRIOrdered[i].PlayerName);
-        
-        // Score
-        C.SetPos(C.ClipX * 0.3, (C.ClipY * 0.25) + (i * 16) + 4);
-        C.DrawText(int(PRIOrdered[i].Score));
-        
-        // Deaths
-        C.SetPos(C.ClipX * 0.35, (C.ClipY * 0.25) + (i * 16) + 4);
-        C.DrawText(int(PRIOrdered[i].Deaths));
+        C.Style = ERenderStyle.STY_Translucent;
+        for(i = 0; i < PRIPlayerCount; i++)
+        {
+            // Name
+            C.DrawColor = WhiteColor * 0.05;
+            C.SetPos(C.ClipX * 0.1, (C.ClipY * 0.25) + (i * 16) + 2);
+            C.DrawTile(
+                TextureBackdrop,
+                C.ClipX * 0.8, 12,
+                0, 0,
+                TextureBackdrop.USize,
+                TextureBackdrop.VSize);
+            C.DrawColor = WhiteColor;
+            C.SetPos(C.ClipX * 0.1, (C.ClipY * 0.25) + (i * 16) + 4);
+            C.DrawText(PRIOrdered[i].PlayerName);
+            
+            // Score
+            C.SetPos(C.ClipX * 0.3, (C.ClipY * 0.25) + (i * 16) + 4);
+            C.DrawText(int(PRIOrdered[i].Score));
+            
+            // Deaths
+            C.SetPos(C.ClipX * 0.35, (C.ClipY * 0.25) + (i * 16) + 4);
+            C.DrawText(int(PRIOrdered[i].Deaths));
+        }
     }
     
     // Draw the spectators heading
-    C.DrawColor = GoldColor;
-    C.SetPos(C.ClipX * 0.1, C.ClipY * 0.475);
-    C.DrawText(TextSpectators);
-    
-    // Draw the spectators
-    C.DrawColor = WhiteColor;
-    for(i = 0; i < PRISpectatorCount; i++)
+    if(PRISpectatorCount > 0)
     {
-        C.SetPos(C.ClipX * 0.1, (C.ClipY) * 0.5 + (i * 16));
-        C.DrawText(PRIOrdered[MAX_PRI - 1 - i].PlayerName);
+        C.DrawColor = GoldColor;
+        C.SetPos(C.ClipX * 0.1, C.ClipY * 0.475);
+        C.DrawText(TextSpectators);
+        
+        // Draw the spectators
+        C.DrawColor = WhiteColor;
+        for(i = 0; i < PRISpectatorCount; i++)
+        {
+            C.SetPos(C.ClipX * 0.1, (C.ClipY) * 0.5 + (i * 16));
+            C.DrawText(PRIOrdered[MAX_PRI - 1 - i].PlayerName);
+        }
     }
 }
 

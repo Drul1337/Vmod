@@ -122,6 +122,30 @@ function AdminRequestGiveWeapon(Pawn P, Class<Weapon> WeaponClass)
     PlayerGiveWeapon(P, WeaponClass);
 }
 
+function AdminRequestShuffleTeams(Pawn P)
+{
+    if(!AdminRequestCheck(P))
+        return;
+    
+    ShuffleTeams();
+}
+
+function AdminRequestAddBot(Pawn P)
+{
+    if(!AdminRequestCheck(P))
+        return;
+    
+    GameAddBot();
+}
+
+function AdminRequestRemoveBots(Pawn P)
+{
+    if(!AdminRequestCheck(P))
+        return;
+    
+    GameRemoveBots();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  STATE: PreGame
 ////////////////////////////////////////////////////////////////////////////////
@@ -129,6 +153,10 @@ state PreGame
 {
     function PlayerRequestReadyToPlay(Pawn P)
     {
+        // Must be in the game
+        if(!vmodRunePlayer(P).CheckIsPlaying())
+            return;
+        
         // If there are not enough players in the game, player cannot ready up
         if(!CheckEnoughPlayersInGame())
         {
@@ -152,6 +180,10 @@ state PreGame
     
     function PlayerRequestNotReadyToPlay(Pawn P)
     {
+        // Must be in the game
+        if(!vmodRunePlayer(P).CheckIsPlaying())
+            return;
+        
         // If the player is already not ready, just return
         if(!CheckPlayerReady(P))
             return;

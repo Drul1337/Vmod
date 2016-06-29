@@ -6,6 +6,11 @@ class vmodGameInfoBase extends GameInfo abstract;
 // TODO: Message replication may be a lag issue. Maybe set all messages to static
 // in their classes so the client can build the message instead of the server.
 
+// PlayerJoinGame(Pawn P)       // A new human or ai player has joined the game
+// PlayerLeaveGame(Pawn P)      // A human or ai player is leaving the game
+// PlayerBecomeActive(Pawn P)   // A player would like to start playing
+// PlayerBecomeInactive(Pawn P) // A player would like to spectate
+
 // Game states
 const STATE_PREGAME     = 'PreGame';
 const STATE_STARTING    = 'Starting';
@@ -77,6 +82,8 @@ final function GotoStateLive()        { GotoState(STATE_LIVE); }
 final function GotoStatePostGame()    { GotoState(STATE_POSTGAME); }
 
 
+// TODO: Might be a better idea to implement all messages in a static class
+// similar to colors.
 ////////////////////////////////////////////////////////////////////////////////
 //  MessageTypeNames
 ////////////////////////////////////////////////////////////////////////////////
@@ -157,11 +164,12 @@ function Class<LocalMessage> GetMessageTypeClassPlayerKilled()
 ////////////////////////////////////////////////////////////////////////////////
 //  Team-related prototypes to be implemented in BaseTeams class
 ////////////////////////////////////////////////////////////////////////////////
-// TODO: These prototypes here could cause some problems, 
+// TODO: Try to abstract this out
 function bool GameIsTeamGame();
 function byte GetPlayerTeam(Pawn P);
 function Vector GetTeamColorVector(byte team);
 function PlayerTeamChange(Pawn P, byte Team);
+function byte FindBestTeamForPlayer(Pawn P);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -186,14 +194,25 @@ function PlayerSendPlayerList(Pawn P)
 function PlayerJoinGame(Pawn P)
 {
     // TODO: This is where a player will go from spectator mode to playing mode
-    PlayerPawn(P).PlayerReplicationInfo.bIsSpectator = false;
+    if(vmodRunePlayer(P).CheckIsPlaying())
+        return;
+    
+    // If it's a team game, join a team
+    // TODO: Should probably force the player to select a team instead
+    if(GameIsTeamGame())
+        PlayerTeamChange(P, FindBestTeamForPlayer(P));
+    
+    vmodRunePlayer(P).NotifyJoinedGame();
+    RestartPlayer(P);
     DispatchPlayerJoinedGame(P);
 }
 
 function PlayerSpectate(Pawn P)
 {
     // TODO: This is where a player will go from playing mode to spectator mode
-    PlayerPawn(P).PlayerReplicationInfo.bIsSpectator = true;
+    if(vmodRunePlayer(P).CheckIsSpectator())
+        return;
+    vmodRunePlayer(P).NotifyBecameSpectator();
     DispatchPlayerSpectating(P);
 }
 
@@ -414,7 +433,171 @@ function String GetRules()
     return ResultSet;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//  GameAddBot
+////////////////////////////////////////////////////////////////////////////////
+function GameAddBot()
+{
+    local Pawn P;
+    local String ErrorString;
+    
+    TestPlayerJoinGame(
+        Class'Vmod.vmodRunePlayerAI', P,
+        ErrorString,
+        "Billy");
+    
+    // Check for error
+    if(ErrorString != "")
+    {
+        log("Failed to add bot: " $ ErrorString);
+        return;
+    }
+    
+    P.bIsHuman = false;
+    vmodRunePlayerAI(P).InitializeAIController();
+    
+    // Notify the pawn of the current game state
+    PlayerGameStateNotification(P);
+    vmodRunePlayer(P).GotoState('PlayerWalking');
+    
+    // Default state makes the player a spectator
+    //PlayerSpectate(P);
+    PlayerJoinGame(P);
+}
 
+function GameRemoveBot(Pawn P)
+{
+    if(P.bIsHuman)
+        return;
+    
+    vmodRunePlayerAI(P).DestroyAIController();
+    P.Destroy(); // Destroying the pawn makes it pass through LeaveGame
+}
+
+function GameRemoveBots()
+{
+    local Pawn P;
+    
+    for(P = Level.PawnList; P != None; P = P.NextPawn)
+        if(!P.bIsHuman)
+            GameRemoveBot(P);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  CheckGameAtCapacity
+////////////////////////////////////////////////////////////////////////////////
+function bool CheckGameAtCapacity()
+{
+    return MaxPlayers <= NumPlayers;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  TestPlayerJoinGame
+//
+//  Add a new player to this game. This can be either a human or an ai player.
+////////////////////////////////////////////////////////////////////////////////
+function TestPlayerJoinGame(
+    Class<Pawn>         PawnClass,
+    out Pawn            P,
+    out String          ErrorString,
+    optional String     PlayerName)
+{
+    local NavigationPoint PlayerStart;
+    
+    // Find player start
+    PlayerStart = FindPlayerStart(None);
+    if(PlayerStart == None)
+    {
+        log("Could not find player start for new player");
+        ErrorString = FailedPlaceMessage;
+        return;
+    }
+    
+    // Spawn a new Pawn
+    // TODO: Could make a pool of Pawns instead
+    P = Spawn(
+        PawnClass,,
+        'Player',
+        PlayerStart.Location,
+        PlayerStart.Rotation);
+    
+    if(P == None)
+    {
+        log("Failed to spawn Pawn for new player");
+        ErrorString = FailedSpawnMessage;
+        return;
+    }
+    
+    P.ViewRotation  = PlayerStart.Rotation;
+    P.StartEvent    = PlayerStart.Event;
+    P.CurrentSkin   = 0;
+    P.Static.SetSkinActor(P, 0);
+    P.PlayerReplicationInfo.PlayerID = CurrentID;
+    if(PlayerPawn(P) != None)
+    {
+        PlayerPawn(P).bJustSpawned  = true;
+        PlayerPawn(P).GameReplicationInfo = GameReplicationInfo;
+    }
+    CurrentID++;
+    
+    P.ClientSetRotation(P.Rotation);
+    if(PlayerName == "")
+        PlayerName = DefaultPlayerName;
+    Changename(P, PlayerName, false);
+    
+    BroadcastMessage(P.PlayerReplicationInfo.PlayerName$EnteredMessage, false);
+    
+    NumPlayers++;
+    
+    log("Player joined game: " $ PlayerName);
+}
+
+function TestPlayerLeaveGame(PlayerPawn P)
+{
+    NumPlayers--;
+    
+    if(NumPlayers <= MinimumPlayersRequiredForStart)
+        GotoStatePreGame();
+    
+    BroadcastMessage(P.PlayerReplicationInfo.PlayerName$LeftMessage, false );
+    
+    if ( LocalLog != None )
+		LocalLog.LogPlayerDisconnect(P);
+	if ( WorldLog != None )
+		WorldLog.LogPlayerDisconnect(P);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  PreLogin
+////////////////////////////////////////////////////////////////////////////////
+event PreLogin(
+	String      Options,
+	String      Address,
+	out String  Error,
+	out String  FailCode)
+{
+    local String InName;
+    
+    Error = "";
+    
+    // Initial capacity check
+    if(CheckGameAtCapacity())
+    {
+        Error = MaxedOutMessage;
+        return;
+    }
+    
+    // TODO: Check game password
+    InName      = Left(ParseOption(Options, "Name"), 20);
+    
+    // IP ban check
+    if(!CheckIPPolicy(Address))
+    {
+        Error = IPBanned;
+        return;
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Login
@@ -425,114 +608,34 @@ function String GetRules()
 //  Login is called, especially if content is downloaded.
 ////////////////////////////////////////////////////////////////////////////////
 event playerpawn Login(
-	string              Portal,
-	string              Options,
-	out string          Error,
-	class<playerpawn>   SpawnClass)
+	String              Portal,
+	String              Options,
+	out String          Error,
+	Class<PlayerPawn>   SpawnClass)
 {
-	local NavigationPoint StartSpot;
-	local PlayerPawn      NewPlayer, TestPlayer;
-	local Pawn            PawnLink;
-	local string          InName, InPassword, InSkin, InFace, InChecksum;
-	local byte            InTeam;
-
-    // Check capacity (may have changed since PreLogin)
-    // Note: No longer distinguishing between players and spectators
-    if(Level.NetMode != NM_Standalone)
+    local String InName;
+    local Pawn P;
+    
+    Error = "";
+    
+    // Capacity check, may have changed since PreLogin
+    if(CheckGameAtCapacity())
     {
-        if(AtCapacity(Options))
-        {
-            Error = MaxedOutMessage;
-            return None;
-        }
+        Error = MaxedOutMessage;
+        return None;
     }
-
-	// Get URL options.
-	InName     = Left(ParseOption ( Options, "Name"), 20);
-	InTeam     = GetIntOption( Options, "Team", 255 ); // default to "no team"
-	InPassword = ParseOption ( Options, "Password" );
-	InSkin	   = ParseOption ( Options, "Skin"    );
-	InFace     = ParseOption ( Options, "Face"    );
-	InChecksum = ParseOption ( Options, "Checksum" );
-
-	log( "Login:" @ InName );
-	if( InPassword != "" )
-		log( "Password"@InPassword );
-	 
-	// Find a start spot.
-	StartSpot = FindPlayerStart( None, InTeam, Portal );
-
-	if( StartSpot == None )
-	{
-		Error = FailedPlaceMessage;
-		return None;
-	}
     
-    // Spawn a new player
-    // Make sure this kind of player is allowed.
-	if ( (bHumansOnly || Level.bHumansOnly) && !SpawnClass.Default.bIsHuman
-		&& !ClassIsChildOf(SpawnClass, class'Spectator') )
-		SpawnClass = DefaultPlayerClass;
+    // Parse command line options
+    // TODO: Implement as constants
+    InName      = Left(ParseOption(Options, "Name"), 20);
     
-	NewPlayer = Spawn(SpawnClass,,'Player',StartSpot.Location,StartSpot.Rotation);
-	if( NewPlayer!=None )
-	{
-		NewPlayer.ViewRotation = StartSpot.Rotation;
+    // Join the game
+    TestPlayerJoinGame(
+       Class'Vmod.vmodPlayerRagnar', P,
+       Error,
+       InName);
     
-		// Save the playerstart event for later firing
-		NewPlayer.StartEvent = StartSpot.Event;
-    
-		NewPlayer.bJustSpawned = true;
-	}
-    else
-	{
-		log("Couldn't spawn player at "$StartSpot);
-		Error = FailedSpawnMessage;
-		return None;
-	}
-
-	NewPlayer.CurrentSkin = int(InSkin);
-	NewPlayer.static.SetSkinActor(NewPlayer, int(InSkin));
-
-	// Set the player's ID.
-	NewPlayer.PlayerReplicationInfo.PlayerID = CurrentID++;
-
-	// Init player's information.
-	NewPlayer.ClientSetRotation(NewPlayer.Rotation);
-	if( InName=="" )
-		InName=DefaultPlayerName;
-	if( Level.NetMode!=NM_Standalone || NewPlayer.PlayerReplicationInfo.PlayerName==DefaultPlayerName )
-		ChangeName( NewPlayer, InName, false );
-
-	// Change player's team.
-	//if ( !ChangeTeam(newPlayer, InTeam) )
-	//{
-	//	Error = FailedTeamMessage;
-	//	return None;
-	//}
-    if(GameIsTeamGame())
-        PlayerTeamChange(newPlayer, InTeam);
-
-	if( NewPlayer.IsA('Spectator') && (Level.NetMode == NM_DedicatedServer) )
-		NumSpectators++;
-
-	// Init player's replication info
-	NewPlayer.GameReplicationInfo = GameReplicationInfo;
-
-	// If we are a server, broadcast a welcome message.
-	if( Level.NetMode==NM_DedicatedServer || Level.NetMode==NM_ListenServer )
-		BroadcastMessage( NewPlayer.PlayerReplicationInfo.PlayerName$EnteredMessage, false );
-
-	// Log it.
-	if ( LocalLog != None )
-		LocalLog.LogPlayerConnect(NewPlayer);
-	if ( WorldLog != None )
-		WorldLog.LogPlayerConnect(NewPlayer, InChecksum);
-
-	if ( !NewPlayer.IsA('Spectator') )
-		NumPlayers++;
-		
-	return newPlayer;
+	return PlayerPawn(P);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -569,6 +672,9 @@ event PostLogin( playerpawn NewPlayer )
     
     // Notify the pawn of the current game state
     PlayerGameStateNotification(NewPlayer);
+    
+    // Default state makes the player a spectator
+    PlayerSpectate(NewPlayer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -578,10 +684,7 @@ event PostLogin( playerpawn NewPlayer )
 ////////////////////////////////////////////////////////////////////////////////
 function Logout(Pawn P)
 {
-    Super.Logout(P);
-    
-    if(NumPlayers <= MinimumPlayersRequiredForStart)
-        GotoStatePreGame();
+    TestPlayerLeaveGame(PlayerPawn(P));
 }
 
 
@@ -699,6 +802,11 @@ function bool RestartPlayer( pawn aPlayer )
 	local actor A;
     local vmodRunePlayer rPlayer;
 
+    // TODO: Quick hack to prevent spectators from being reset.
+    // This should really be handled by states in PlayerPawn
+    if(!vmodRunePlayer(aPlayer).CheckIsPlaying())
+        return false;
+    
 	if( bRestartLevel && Level.NetMode!=NM_DedicatedServer && Level.NetMode!=NM_ListenServer )
 		return true;
 

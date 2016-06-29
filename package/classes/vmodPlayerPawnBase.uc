@@ -1182,7 +1182,7 @@ function UpdateUseActor()
         {
             priority = A.GetUsePriority();
             dist = VSize(A.Location - Location);
-
+        
             if((priority < bestPriority) 
             || (priority == bestPriority && dist < bestDist))
             {

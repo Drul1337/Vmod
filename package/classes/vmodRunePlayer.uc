@@ -33,11 +33,41 @@ replication
         VcmdChangeTeam,
         VcmdGetPlayerList,
         VcmdSetPlayerTeam,
-        VcmdBroadcast;
+        VcmdBroadcast,
+        VcmdShuffleTeams,
+        VcmdAddBot,
+        VcmdRemoveBots;
 }
 
 function bool ReadyToGoLive()
 { return bReadyToPlay; }
+
+function bool CheckIsSpectator()
+{
+    return PlayerReplicationInfo.bIsSpectator;
+}
+
+function bool CheckIsPlaying()
+{
+    return !PlayerReplicationInfo.bIsSpectator;
+}
+
+// Received from GameInfo
+function NotifyBecameSpectator()
+{
+    PlayerReplicationInfo.bIsSpectator = true;
+    bHidden = true;
+    Visibility = 0;
+    GotoState('PlayerSpectating');
+}
+
+function NotifyJoinedGame()
+{
+    PlayerReplicationInfo.bIsSpectator = false;
+    bHidden = false;
+    Visibility = Default.Visibility;
+    GotoState('PlayerWalking');
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Game Notifications
@@ -84,6 +114,9 @@ exec final function Vcmd()
     ClientMessage("VcmdSetPlayerTeam");
     ClientMessage("VcmdBroadcast");
     ClientMessage("VcmdGiveWeapon");
+    ClientMessage("VcmdShuffleTeams");
+    ClientMessage("VcmdAddBot");
+    ClientMessage("VcmdRemoveBots");
 }
 
 exec final function VcmdBroadcast(String Message)
@@ -151,6 +184,21 @@ exec final function VcmdGetPlayerList()
 exec final function VcmdSetPlayerTeam(int PlayerID, byte Team)
 {
     vmodGameInfo(Level.Game).AdminRequestTeamChange(Self, PlayerID, Team);
+}
+
+exec final function VcmdShuffleTeams()
+{
+    vmodGameInfo(Level.Game).AdminRequestShuffleTeams(Self);
+}
+
+exec final function VcmdAddBot()
+{
+    vmodGameInfo(Level.Game).AdminRequestAddBot(self);
+}
+
+exec final function VcmdRemoveBots()
+{
+    vmodGameInfo(Level.Game).AdminRequestRemoveBots(self);
 }
 
 defaultproperties

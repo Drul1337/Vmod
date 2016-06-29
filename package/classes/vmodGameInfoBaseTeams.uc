@@ -3,6 +3,17 @@
 ////////////////////////////////////////////////////////////////////////////////
 class vmodGameInfoBaseTeams extends vmodGameInfoBase abstract;
 
+function byte FindBestTeamForPlayer(Pawn P)
+{
+    local byte Team;
+    
+    Team = vmodRunePlayer(P).PlayerReplicationInfo.Team;
+    if(Team >= 0 && Team <= 3)
+        return Team;
+    else
+        return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  Player or Admin invoked functions
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,19 +28,24 @@ function PlayerTeamChange(Pawn P, byte Team)
     DispatchPlayerChangedTeam(P, Team);
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-//  Event Dispatchers
+//  ShuffleTeams
+//
+//  Attempt to balance teams.
 ////////////////////////////////////////////////////////////////////////////////
-function DispatchPlayerChangedTeam(Pawn P, byte Team)
+function ShuffleTeams()
 {
-    // TODO: Implement a real team change message
+    // TODO: Implement a good balancing algorithm
     local Pawn PCurr;
+    local byte i;
+    i = 0;
     for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
-        PCurr.ClientMessage(
-            P.PlayerReplicationInfo.PlayerName $ " changed to team " $ Team,
-            GetMessageTypeNameDefault(),
-            false);
+    {
+        if(vmodRunePlayer(PCurr).CheckIsPlaying())
+            PlayerTeamChange(PCurr, i % 4);
+        i++;
+    }
+    DispatchTeamsShuffled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -72,4 +88,29 @@ function Vector GetTeamColorVector(byte Team)
         V.Z);
     V *= brightness;
     return V;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  Event Dispatchers
+////////////////////////////////////////////////////////////////////////////////
+function DispatchPlayerChangedTeam(Pawn P, byte Team)
+{
+    // TODO: Implement a real team change message
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+            P.PlayerReplicationInfo.PlayerName $ " changed to team " $ Team,
+            GetMessageTypeNameDefault(),
+            false);
+}
+
+function DispatchTeamsShuffled()
+{
+    local Pawn PCurr;
+    for(PCurr = Level.PawnList; PCurr != None; PCurr = PCurr.NextPawn)
+        PCurr.ClientMessage(
+            "Team shuffle",
+            GetMessageTypeNameDefault(),
+            false);
 }

@@ -396,7 +396,6 @@ function DrawMessage(
             // Draw player's message
             PosX += 96;
             C.SetPos(PosX, PosY);
-            //C.DrawColor = WhiteColor * t;
             C.DrawColor = ColorsTeamsClass.Static.ColorWhite() * t;
             C.DrawText(M.MessageString);
             break;
