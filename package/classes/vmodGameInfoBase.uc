@@ -173,6 +173,10 @@ function PlayerBecomeGameInactive(Pawn P)
     
     vmodRunePlayer(P).NotifyBecameGameInactive();
     DispatchPlayerSpectating(P);
+    
+    // Reset the game if necessary
+    if(!CheckEnoughPlayersInGame())
+        GotoStatePreGame();
 }
 
 function PlayerReady(Pawn P){}      // Implement in states
@@ -541,7 +545,7 @@ function PlayerLeaveGame(PlayerPawn P)
 {
     NumPlayers--;
     
-    if(NumPlayers <= MinimumPlayersRequiredForStart)
+    if(!CheckEnoughPlayersInGame())
         GotoStatePreGame();
     
     BroadcastMessage(P.PlayerReplicationInfo.PlayerName$LeftMessage, false );
@@ -680,7 +684,16 @@ function Logout(Pawn P)
 ////////////////////////////////////////////////////////////////////////////////
 function bool CheckEnoughPlayersInGame()
 {
-    return NumPlayers >= MinimumPlayersRequiredForStart;
+    local int ActiveCount;
+    local Pawn P;
+    
+    for(P = Level.PawnList; P != None; P = P.NextPawn)
+    {
+        if(vmodRunePlayer(P).CheckIsGameActive())
+            ActiveCount++;
+    }
+    
+    return ActiveCount >= MinimumPlayersRequiredForStart;
 }
 
 // Return true to switch game state to Starting, which counts into Live

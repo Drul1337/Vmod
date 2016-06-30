@@ -3,5 +3,6 @@
 *.exe
 ServerDM.bat
 ServerTDM.bat
+ServerGLD.bat
 ServerTGLD.bat
 server.bat
