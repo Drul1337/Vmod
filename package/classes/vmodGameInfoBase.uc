@@ -696,8 +696,10 @@ function bool CheckEnoughPlayersReady()
     
     for(P = Level.PawnList; P != None; P = P.NextPawn)
     {
-        if(vmodRunePlayer(P).CheckIsReadyToPlay())  ReadyCount++;
-        else                                        UnreadyCount++;
+        // AI is always ready
+        if(vmodRunePlayer(P).CheckIsAI())               ReadyCount++;
+        else if(vmodRunePlayer(P).CheckIsReadyToPlay()) ReadyCount++;
+        else                                            UnreadyCount++;
     }
     
     // Ready count conditions - majority of players are ready
