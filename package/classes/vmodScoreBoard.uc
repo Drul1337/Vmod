@@ -27,11 +27,6 @@ enum SortType_e
     SORT_SCORE
 };
 
-const MAX_PRI = 128;
-var PlayerReplicationInfo PRIOrdered[128];
-var int PRIPlayerCount;
-var int PRISpectatorCount;
-
 var float TimeStamp;
 var float FadeTime;
 
@@ -43,13 +38,9 @@ var float TextYPadding;
 var String TextHeaderMessages[4];
 var Texture TextureHBorder;
 
-enum TableJustify_e
-{
-    JUSTIFY_MIN,    // X: Left      Y: Top
-    JUSTIFY_MAX,    // X: Right     Y: Bottom
-    JUSTIFY_CENTER  // X: Center    Y: Center
-};
-
+// Test vars
+var float ScrollingInterp0;
+var float ScrollingInterp1;
 
 var int TableRows;
 var int TableCols;
@@ -57,95 +48,270 @@ const TABLE_WIDTH = 0.8;
 const TABLE_HEIGHT = 0.8;
 
 
-////////////////////////////////////////////////////////////////////////////////
-//  DrawCellString
-//
-//  TODO: Implement a table struct so that there can be several different
-//  tables at once.
-//
-//  TODO: Clip all drawing to the cell span
-//
-//  TODO: Implement the ability to display scrolling text in a span of cells.
-////////////////////////////////////////////////////////////////////////////////
-function DrawCellString(
-    Canvas                      C,
-    int                         Row,        // Upper-left starting row
-    int                         Col,        // Upper-left starting col
-    int                         RowSpan,    // Number of merged rows down
-    int                         ColSpan,    // Number of merged cols right
-    String                      S,
-    optional TableJustify_e     JustifyX,
-    optional TableJustify_e     JustifyY)
-{
-    local float CellW, CellH;
-    local float SpanW, SpanH;
-    local float PosX, PosY;
-    local float StrW, StrH;
-    
-    // Invalid without a string
-    if(S == "")
-        return;
-    
-    // Adjust out of bounds indices
-    if(Row < 0)                     Row = 0;
-    if(Row >= TableRows)            Row = TableRows - 1;
-    if(Col < 0)                     Col = 0;
-    if(Col >= TableCols)            Col = TableCols - 1;
-    
-    // Adjust out of bounds spans
-    if(Row + RowSpan > TableRows)   RowSpan = TableRows - Row;
-    if(Col + ColSpan > TableCols)   ColSpan = TableCols - Col;
 
-    // Determine cell dimensions
-    CellW = C.ClipX * TABLE_WIDTH / float(TableCols);
-    CellH = C.ClipY * TABLE_HEIGHT / float(TableRows);
-    
-    // Determine span dimensions
-    SpanW = CellW * float(ColSpan);
-    SpanH = CellH * float(RowSpan);
-    
-    // Determine upper-left position
-    PosX = (C.ClipX * (1.0 - TABLE_WIDTH)  / 2.0) + (CellW * float(Col));
-    PosY = (C.ClipY * (1.0 - TABLE_HEIGHT) / 2.0) + (CellH * float(Row));
-    
-    // Adjust according to justification
-    C.StrLen(S, StrW, StrH);
-    switch(JustifyX)
-    {
-        case JUSTIFY_MAX:
-            PosX = PosX + SpanW - StrW;
-            break;
-        
-        case JUSTIFY_CENTER:
-            PosX = PosX + (SpanW / 2.0) - (StrW / 2.0);
-            break;
-            
-        case JUSTIFY_MIN:
-        default:
-            break;
-    }
-    
-    switch(JustifyY)
-    {
-        case JUSTIFY_MAX:
-            PosY = PosY + SpanH - StrH;
-            break;
-            
-        case JUSTIFY_CENTER:
-            PosY = PosY + (SpanH / 2.0) - (StrH / 2.0);
-            break;
-        
-        case JUSTIFY_MIN:
-        default:
-            break;
-    }
-    
-    C.SetPos(PosX, PosY);
-    C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
-    C.DrawText(S);
+
+
+
+
+// Used for holding and sorting player replication info
+const MAX_PRI = 128;
+var PlayerReplicationInfo PRIOrdered[128];
+var int PRIPlayerCount;     // Players are placed at the front of the array
+var int PRISpectatorCount;  // Spectators are placed at the back of the array
+
+////////////////////////////////////////////////////////////////////////////////
+//  Table structs
+struct Table_s
+{
+    var int Rows;   // Row x Col resolution
+    var int Cols;
+    var float W;    // Relative dimensions
+    var float H;
+    var float X;    // Relative position
+    var float Y;
+};
+
+enum Justification_e
+{
+    JUSTIFY_MIN,    // X: Left      Y: Top
+    JUSTIFY_MAX,    // X: Right     Y: Bottom
+    JUSTIFY_CENTER  // X: Center    Y: Center
+};
+
+struct TableCell_s
+{
+    var int             Row;
+    var int             Col;
+    var int             RowSpan;
+    var int             ColSpan;
+    var Texture         Tex;
+    var Color           TexColor;
+    var String          Str;
+    var Color           StrColor;
+    var Justification_e JustifyX;
+    var Justification_e JustifyY;
+};
+
+var Table_s         TableHeader;
+var TableCell_s     TableCellServerName;
+
+////////////////////////////////////////////////////////////////////////////////
+//  Table implementation
+function TableSetResolution(
+    out Table_s     T,
+    int             Rows, 
+    int             Cols)
+{
+    T.Rows = Rows;
+    T.Cols = Cols;
 }
 
+function TableSetDimensions(
+    out Table_s     T,
+    float           W,
+    float           H)
+{
+    if(W < 0.0) W = 0.0;
+    if(W > 1.0) W = 1.0;
+    if(H < 0.0) H = 0.0;
+    if(H > 1.0) H = 1.0;
+    T.W = W;
+    T.H = H;
+}
 
+function TableSetPosition(
+    out Table_s     T,
+    float           X,
+    float           Y)
+{
+    if(X < 0.0) X = 0.0;
+    if(X > 1.0) X = 1.0;
+    if(Y < 0.0) Y = 0.0;
+    if(Y > 1.0) Y = 1.0;
+    T.X = X;
+    T.Y = Y;
+}
+
+function TableGetCellInfo(
+    Canvas              C,
+    out Table_s         T,
+    out TableCell_s     TC,
+    out float           CellX,
+    out float           CellY,
+    out float           CellW,
+    out float           CellH)
+{
+    local int DRow, DCol;
+    local int DRowSpan, DColSpan;
+    
+    // Get table index
+    DRow = TC.Row;
+    DCol = TC.Col;
+    if(DRow < 0)         DRow = 0;
+    if(DRow >= T.Rows)   DRow = T.Rows - 1;
+    if(DCol < 0)         DCol = 0;
+    if(DCol >= T.Cols)   DCol = T.Cols - 1;
+    
+    // Get row and col span
+    DRowSpan = TC.RowSpan;
+    DColSpan = TC.ColSpan;
+    if(DRow + DRowSpan > T.Rows)    DRowSpan = T.Rows - DRow;
+    if(DCol + DColSpan > T.Cols)    DColSpan = T.Cols - DCol;
+    
+    // Determine the dimensions of a cell
+    CellW = (C.ClipX * T.W) / float(T.Cols);
+    CellH = (C.ClipY * T.H) / float(T.Rows);
+    
+    // Determine the top-left draw position of the cell index
+    CellX = (C.ClipX * T.X) + (CellW * DCol);
+    CellY = (C.ClipY * T.Y) + (CellH * DRow);
+    
+    // Determine the draw dimensions
+    CellW = CellW * DColSpan;
+    CellH = CellH * DRowSpan;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  TableCell implementation
+function TableCellSetIndex(
+    out TableCell_s     TC,
+    int                 Row,
+    int                 Col)
+{
+    TC.Row = Row;
+    TC.Col = Col;
+}
+
+function TableCellSetSpan(
+    out TableCell_s     TC,
+    int                 Rows,
+    int                 Cols)
+{
+    TC.RowSpan = Rows;
+    TC.ColSpan = Cols;
+}
+
+function TableCellSetTexture(
+    out TableCell_s     TC,
+    Texture             Tex)
+{
+    TC.Tex = Tex;
+}
+
+function TableCellSetString(
+    out TableCell_s             TC,
+    String                      Str,
+    optional Justification_e    JustifyX,
+    optional Justification_e    JustifyY)
+{
+    TC.Str = Str;
+    TC.JustifyX = JustifyX;
+    TC.JustifyY = JustifyY;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DrawTableCell
+//
+//  Given a table and a table cell, a texture and a string may be drawn onto
+//  the players scoreboard.
+////////////////////////////////////////////////////////////////////////////////
+function DrawTableCell(Canvas C, Table_s T, TableCell_s TC)
+{
+    local float DX, DY;
+    local float DW, DH;
+    local float StrW, StrH;
+    
+    TableGetCellInfo(C, T, TC, DX, DY, DW, DH);
+    
+    // Draw the texture
+    if(TC.Tex != None)
+    {
+        
+    }
+    
+    // Draw the string
+    if(TC.Str != "")
+    {
+        C.StrLen(TC.Str, StrW, StrH);
+        switch(TC.JustifyX)
+        {
+            case JUSTIFY_MAX:       // Right justify
+                DX = DX + DW - StrW;
+                break;
+            
+            case JUSTIFY_CENTER:    // Center justify
+                DX = DX + (DW * 0.5) - (StrW * 0.5);
+                break;
+            
+            case JUSTIFY_MIN:       // Left justify
+            default:
+                break;
+        }
+        
+        switch(TC.JustifyY)
+        {
+            case JUSTIFY_MAX:       // Bottom justify
+                DY = DY + DH - StrH;
+                break;
+            
+            case JUSTIFY_CENTER:    // Center justify
+                DY = DY + (DH * 0.5) - (StrH * 0.5);
+                break;
+            
+            case JUSTIFY_MIN:       // Left justify
+            default:
+                break;
+        }
+        
+        C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
+        C.SetPos(DX, DY);
+        C.DrawText(TC.Str);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  DrawTableCellScrolling
+//
+//  Same as DrawTableCell, except any string values will have their X position
+//  interpolated, giving the appearance of scrolling text.
+////////////////////////////////////////////////////////////////////////////////
+function DrawTableCellScrolling(
+    Canvas          C,
+    Table_s         T,
+    TableCell_s     TC,
+    float           Interp)
+{
+    local float DX, DY;
+    local float DW, DH;
+    local float StrW, StrH;
+    
+    TableGetCellInfo(C, T, TC, DX, DY, DW, DH);
+    
+    // Draw the string
+    if(TC.Str != "")
+    {
+        C.StrLen(TC.Str, StrW, StrH);
+        switch(TC.JustifyY)
+        {
+            case JUSTIFY_MAX:       // Bottom justify
+                DY = DY + DH - StrH;
+                break;
+            
+            case JUSTIFY_CENTER:    // Center justify
+                DY = DY + (DH * 0.5) - (StrH * 0.5);
+                break;
+            
+            case JUSTIFY_MIN:       // Left justify
+            default:
+                break;
+        }
+        
+        DX = UtilitiesClass.Static.InterpLinear(Interp, (DX + DW), DX, 1.0);
+        C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
+        C.SetPos(DX, DY);
+        C.DrawText(TC.Str);
+    }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Sorting Functions
@@ -193,196 +359,7 @@ function SortPRIByScore(int Start, int Count)
     }
 }
 
-
-
-
-
-
-
-function UpdateTimeStamp(float t)
-{
-    TimeStamp = t;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  ShowScore
-////////////////////////////////////////////////////////////////////////////////
-function ShowScores(Canvas C)
-{
-    local float t; // Interp value
-    
-    if(Level.TimeSeconds < TimeStamp + FadeTime)
-        t = (Level.TimeSeconds - TimeStamp) / (FadeTime);
-    else
-        t = 1.0;
-    
-    // TODO: This is called from vmodHUD.
-    // To implement fading, going to need to have HUD pass a timestamp in
-	C.Font = RegFont;
-    DrawHeader(C, t);
-    DrawPlayerScores(C, t, SORT_SCORE);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  DrawHeader
-////////////////////////////////////////////////////////////////////////////////
-function DrawHeader(Canvas C, float t)
-{
-    // Draw server name
-    DrawCellString(
-        C,
-        0, 0,
-        1, TableCols,
-        PlayerPawn(Owner).GameReplicationInfo.ServerName,
-        JUSTIFY_CENTER,
-        JUSTIFY_CENTER);
-    
-    // Draw a helpful little messages
-    DrawCellString(
-        C,
-        1, 0,
-        1, TableCols,
-        "Smash your keyboard to join the game",
-        JUSTIFY_CENTER,
-        JUSTIFY_CENTER);
-    
-    //local int i, j;
-    //local String s;
-    //for(i = 0; i < TableRows; i++)
-    //    for(j = i; j < TableCols; j = j + 2)
-    //    {
-    //        s = "" $ (i * TableCols + j);
-    //        DrawCellString(
-    //            C, i, j, 1, 2, s, JUSTIFY_CENTER, JUSTIFY_MAX);
-    //    }
-    //DrawCellString(
-    //    C,
-    //    5, 5,
-    //    1, 1,
-    //    "ThisIsMyTestString");
-    
-    //function DrawCellString(
-    //Canvas  C,
-    //int     Row,        // The upper-left starting row / col
-    //int     Col,
-    //int     RowSpan,    // The number of "merged" cells for this draw
-    //int     ColSpan,
-    //String  S)
-    
-    //var float RelYScoreBoard;
-    //var float RelWScoreBoard;
-    //Canvas.StrLen("R ", XL, YL);
-    //C.DrawRect(Meter.TexBackDrop, Width, Height);
-    
-    //local String HeaderString;
-    //local float StrW, StrH;
-    //local float CurX, CurY;
-    //local int i;
-    //
-    //C.Style = ERenderStyle.STY_Translucent;
-    //
-    //// Header top banner
-    //HeaderString = PlayerPawn(Owner).GameReplicationInfo.ServerName;
-    //C.StrLen(HeaderString, StrW, StrH);
-    //CurX = C.ClipX * ((1.0 - RelWScoreBoard) / 2.0);
-    //CurY = C.ClipY * RelYScoreBoard + StrH + (TextYPadding * 2.0);
-    //C.SetPos(CurX, CurY);
-    //C.DrawColor = ColorsTeamsClass.Static.ColorWhite() * 0.25;
-    //C.DrawRect(TextureHBorder, C.ClipX * RelWScoreBoard, StrH);
-    //
-    //// Server name
-    //CurX = (C.ClipX * 0.5) - (StrW / 2.0);
-    //CurY = C.ClipY * RelYScoreBoard + StrH;
-    //C.SetPos(CurX, CurY);
-    //C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
-    //C.DrawText(HeaderString);
-    //
-    //// Draw the server messages
-    //for(i = 0; i < 4; i++)
-    //{
-    //    CurY += StrH + TextYPadding;
-    //    C.StrLen(TextHeaderMessages[i], StrW, StrH);
-    //    CurX = (C.ClipX * 0.5) - (StrW / 2.0);
-    //    C.SetPos(CurX, CurY);
-    //    C.DrawColor = ColorsTeamsClass.Static.ColorGreen();
-    //    C.DrawText(TextHeaderMessages[i]);
-    //}
-    
-    //local float Width, TempWidth;
-    //local Color GreenColor;
-    //local Color WhiteColor;
-    //
-    //GreenColor.G = 255;
-    //GreenColor.R = 60;
-    //GreenColor.B = 60;
-    //GreenColor = GreenColor * t;
-    //
-    //WhiteColor.G = 255;
-    //WhiteColor.R = 255;
-    //WhiteColor.B = 255;
-    //WhiteColor = WhiteColor * t;
-    //
-    //C.bCenter = false;
-    //
-    //// Left side
-    //C.DrawColor = GreenColor;
-    //
-    //// Level
-    //C.SetPos(C.ClipX * 0.1, C.ClipY * 0.1);
-    //C.DrawText(TextLevel);
-    //
-    //// Author
-    //C.SetPos(C.ClipX * 0.1, C.ClipY * 0.1 + 16);
-    //C.DrawText(TextAuthor);
-    //
-    //// Ideal player load
-    //C.SetPos(C.ClipX * 0.1, C.ClipY * 0.1 + 32);
-    //C.DrawText(TextIdealLoad);
-    //
-    //// Values
-    //C.DrawColor = WhiteColor;
-    //
-    //// Level value
-    //C.SetPos(C.ClipX * 0.1 + 512, C.ClipY * 0.1);
-    //C.DrawTextRightJustify(Level.Title, C.Curx, C.CurY);
-    //
-    //// Author value
-    //C.SetPos(C.ClipX * 0.1 + 512, C.ClipY * 0.1 + 16);
-    //C.DrawTextRightJustify(Level.Author, C.Curx, C.CurY);
-    //
-    //// Ideal player load value
-    //C.SetPos(C.ClipX * 0.1 + 512, C.ClipY * 0.1 + 32);
-    //C.DrawTextRightJustify(Level.IdealPlayerCount, C.Curx, C.CurY);
-    //
-    //// Right Side
-    //C.DrawColor = GreenColor;
-    //
-    //// Server
-    //C.SetPos(C.ClipX * 0.9 - 512, C.ClipY * 0.1);
-    //C.DrawText(TextServer);
-    //
-    //// Game type
-    //C.SetPos(C.ClipX * 0.9 - 512, C.ClipY * 0.1 + 32);
-    //C.DrawText(TextGameType);
-    //
-    //// Values
-    //C.DrawColor = WhiteColor;
-    //
-    //// Server value
-    //C.SetPos(C.ClipX * 0.9, C.ClipY * 0.1);
-    //C.DrawTextRightJustify(
-    //    PlayerPawn(Owner).GameReplicationInfo.ServerName, C.CurX, C.CurY);
-    //    
-    //// Game type value
-    //C.SetPos(C.ClipX * 0.9, C.ClipY * 0.1 + 32);
-    //C.DrawTextRightJustify(
-    //    PlayerPawn(Owner).GameReplicationInfo.GameName, C.CurX, C.CurY);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//  DrawPlayerScores
-////////////////////////////////////////////////////////////////////////////////
-function DrawPlayerScores(Canvas C, float t, SortType_e SortType)
+function UpdatePRIArray()
 {
     local PlayerReplicationInfo PRI;
     local int i;
@@ -410,337 +387,169 @@ function DrawPlayerScores(Canvas C, float t, SortType_e SortType)
             PRIPlayerCount++;
         }
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//  ShowScore
+////////////////////////////////////////////////////////////////////////////////
+function ShowScores(Canvas C)
+{
+    local int i;
+    local float t; // Interp value
     
-    // Draw players
+    if(Level.TimeSeconds < TimeStamp + FadeTime)
+        t = (Level.TimeSeconds - TimeStamp) / (FadeTime);
+    else
+        t = 1.0;
+    
+    // Update and sort the player replication info array
+    UpdatePRIArray();
+    SortPRIByScore(0, PRIPlayerCount);
+    
+    // Prepare the scoreboard table
+    C.Font = RegFont;
+    
+    TableSetResolution(TableHeader, 32, 16);
+    TableSetDimensions(TableHeader, 0.8, 0.8);
+    TableSetPosition(TableHeader, 0.1, 0.1);
+    
+    // Draw server name
+    TableCellSetIndex(TableCellServerName, 0, 0);
+    TableCellSetSpan(TableCellServername, 1, TableHeader.Cols);
+    TableCellSetTexture(TableCellServerName, None);
+    TableCellSetString(
+        TableCellServerName,
+        PlayerPawn(Owner).GameReplicationInfo.ServerName,
+        JUSTIFY_CENTER,
+        JUSTIFY_CENTER);
+    DrawTableCell(C, TableHeader, TableCellServerName);
+    
+    // Draw map info scrolling bar
+    TableCellSetIndex(TableCellServerName, 4, 0);
+    TableCellSetSpan(TableCellServername, 1, TableHeader.Cols);
+    TableCellSetTexture(TableCellServerName, None);
+    TableCellSetString(
+        TableCellServerName,
+        Level.Author $ "  " $
+        Level.Title $ "  " $
+        Level.IdealPlayerCount,
+        //PlayerPawn(Owner).GameReplicationInfo.ServerName,
+        JUSTIFY_CENTER,
+        JUSTIFY_CENTER);
+    //DrawTableCell(C, TableHeader, TableCellServerName);
+    if(Level.TimeSeconds - ScrollingInterp0 >= 20.0)
+        ScrollingInterp0 = Level.TimeSeconds;
+    t = (Level.TimeSeconds - ScrollingInterp0) / 20.0;
+    DrawTableCellScrolling(C, TableHeader, TableCellServerName, t);
+    
+    // Draw player info
     if(PRIPlayerCount > 0)
     {
-        // Sort players array
-        SortPRIByScore(0, PRIPlayerCount);
-        
-        // Players heading
-        DrawCellString(
-            C,
-            3, 0,
-            1, 3,
-            "Players",
-            JUSTIFY_CENTER,
+        // Draw player names
+        TableCellSetIndex(TableCellServerName, 5, 0);
+        TableCellSetSpan(TableCellServerName, 2, 3);
+        TableCellSetString(
+            TableCellServerName,
+            TextPlayers,
+            JUSTIFY_MIN,
             JUSTIFY_CENTER);
+        DrawTableCell(C, TableHeader, TableCellServerName);
         
-        // Draw each player's name
         for(i = 0; i < PRIPlayerCount; i++)
         {
-            DrawCellString(
-                C,
-                4 + i, 0,
-                1, 3,
+            TableCellSetIndex(TableCellServerName, 7 + i, 0);
+            TableCellSetSpan(TableCellServerName, 1, 3);
+            TableCellSetString(
+                TableCellServerName,
                 PRIOrdered[i].PlayerName,
                 JUSTIFY_MIN,
                 JUSTIFY_CENTER);
+            DrawTableCell(C, TableHeader, TableCellServerName);
         }
         
-        // Score heading
-        DrawCellString(
-            C,
-            3, 4,
-            1, 2,
-            "Score",
-            JUSTIFY_CENTER,
+        // Draw player scores
+        TableCellSetIndex(TableCellServerName, 5, 4);
+        TableCellSetSpan(TableCellServerName, 2, 1);
+        TableCellSetString(
+            TableCellServerName,
+            TextScore,
+            JUSTIFY_MIN,
             JUSTIFY_CENTER);
+        DrawTableCell(C, TableHeader, TableCellServerName);
         
-        // Draw each player's score
         for(i = 0; i < PRIPlayerCount; i++)
         {
-            DrawCellString(
-                C,
-                4 + i, 4,
-                1, 2,
+            TableCellSetIndex(TableCellServerName, 7 + i, 4);
+            TableCellSetSpan(TableCellServerName, 1, 1);
+            TableCellSetString(
+                TableCellServerName,
                 "" $ int(PRIOrdered[i].Score),
                 JUSTIFY_MIN,
                 JUSTIFY_CENTER);
+            DrawTableCell(C, TableHeader, TableCellServerName);
         }
         
-        // Deaths heading
-        DrawCellString(
-            C,
-            3, 6,
-            1, 2,
-            "Deaths",
-            JUSTIFY_CENTER,
+        // Draw player deaths
+        TableCellSetIndex(TableCellServerName, 5, 5);
+        TableCellSetSpan(TableCellServerName, 2, 1);
+        TableCellSetString(
+            TableCellServerName,
+            TextDeaths,
+            JUSTIFY_MIN,
             JUSTIFY_CENTER);
+        DrawTableCell(C, TableHeader, TableCellServerName);
         
-        // Draw each player's deaths
         for(i = 0; i < PRIPlayerCount; i++)
         {
-            DrawCellString(
-                C,
-                4 + i, 6,
-                1, 2,
+            TableCellSetIndex(TableCellServerName, 7 + i, 5);
+            TableCellSetSpan(TableCellServerName, 1, 1);
+            TableCellSetString(
+                TableCellServerName,
                 "" $ int(PRIOrdered[i].Deaths),
                 JUSTIFY_MIN,
                 JUSTIFY_CENTER);
+            DrawTableCell(C, TableHeader, TableCellServerName);
+        }
+        
+        // Draw player ping
+        TableCellSetIndex(TableCellServerName, 5, 8);
+        TableCellSetSpan(TableCellServerName, 2, 1);
+        TableCellSetString(
+            TableCellServerName,
+            TextPing,
+            JUSTIFY_MIN,
+            JUSTIFY_CENTER);
+        DrawTableCell(C, TableHeader, TableCellServerName);
+        
+        for(i = 0; i < PRIPlayerCount; i++)
+        {
+            TableCellSetIndex(TableCellServerName, 7 + i, 8);
+            TableCellSetSpan(TableCellServerName, 1, 1);
+            TableCellSetString(
+                TableCellServerName,
+                "" $ PRIOrdered[i].Ping,
+                JUSTIFY_MIN,
+                JUSTIFY_CENTER);
+            DrawTableCell(C, TableHeader, TableCellServerName);
         }
     }
-    
-    
-    //local PlayerReplicationInfo PRI;
-    //local int i;
-    //local Color GoldColor;
-    //local Color WhiteColor;
-    //
-    //GoldColor.G = 255;
-    //GoldColor.R = 255;
-    //GoldColor.B = 60;
-    //GoldColor = GoldColor * t;
-    //
-    //WhiteColor.G = 255;
-    //WhiteColor.R = 255;
-    //WhiteColor.B = 255;
-    //WhiteColor = WhiteColor * t;
-    //
-    //PRIPlayerCount = 0;
-    //PRISpectatorCount = 0;
-    //
-    //// Populate player array
-    //for(i = 0; i < MAX_PRI; i++)
-    //{
-    //    PRI = PlayerPawn(Owner).GameReplicationInfo.PRIArray[i];
-    //    if(PRI == None)
-    //        break;
-    //    
-    //    if(PRI.bIsSpectator)
-    //    {
-    //        // Place spectators at the back of the array
-    //        PRIOrdered[(MAX_PRI - 1) - PRISpectatorCount] = PRI;
-    //        PRISpectatorCount++;
-    //    }
-    //    else
-    //    {
-    //        // Place players at the front of the array
-    //        PRIOrdered[PRIPlayerCount] = PRI;
-    //        PRIPlayerCount++;
-    //    }
-    //}
-    //
-    //// TODO: Peform sorting here
-    //
-    //// Players heading
-    //C.DrawColor = GoldColor;
-    //C.SetPos(C.ClipX * 0.1, C.ClipY * 0.225);
-    //C.DrawText(TextPlayers);
-    //
-    //// Score heading
-    //C.SetPos(C.ClipX * 0.3, C.ClipY * 0.225);
-    //C.DrawText(TextScore);
-    //
-    //// Deaths heading
-    //C.SetPos(C.ClipX * 0.35, C.ClipY * 0.225);
-    //C.DrawText(TextDeaths);
-    //
-    //// Ping heading
-    //C.SetPos(C.ClipX * 0.6, C.ClipY * 0.225);
-    //C.DrawText(TextPing);
-    //
-    //// Draw the players
-    //if(PRIPlayerCount > 0)
-    //{
-    //    C.Style = ERenderStyle.STY_Translucent;
-    //    for(i = 0; i < PRIPlayerCount; i++)
-    //    {
-    //        // Name
-    //        C.DrawColor = WhiteColor * 0.05;
-    //        C.SetPos(C.ClipX * 0.1, (C.ClipY * 0.25) + (i * 16) + 2);
-    //        C.DrawTile(
-    //            TextureBackdrop,
-    //            C.ClipX * 0.8, 12,
-    //            0, 0,
-    //            TextureBackdrop.USize,
-    //            TextureBackdrop.VSize);
-    //        C.DrawColor = WhiteColor;
-    //        C.SetPos(C.ClipX * 0.1, (C.ClipY * 0.25) + (i * 16) + 4);
-    //        C.DrawText(PRIOrdered[i].PlayerName);
-    //        
-    //        // Score
-    //        C.SetPos(C.ClipX * 0.3, (C.ClipY * 0.25) + (i * 16) + 4);
-    //        C.DrawText(int(PRIOrdered[i].Score));
-    //        
-    //        // Deaths
-    //        C.SetPos(C.ClipX * 0.35, (C.ClipY * 0.25) + (i * 16) + 4);
-    //        C.DrawText(int(PRIOrdered[i].Deaths));
-    //        
-    //        // Ping
-    //        C.SetPos(C.ClipX * 0.6, (C.ClipY * 0.25) + (i * 16) + 4);
-    //        C.DrawText(PRIOrdered[i].Ping);
-    //    }
-    //}
-    //
-    //// Draw the spectators heading
-    //if(PRISpectatorCount > 0)
-    //{
-    //    C.DrawColor = GoldColor;
-    //    C.SetPos(C.ClipX * 0.1, C.ClipY * 0.475);
-    //    C.DrawText(TextSpectators);
-    //    
-    //    // Draw the spectators
-    //    C.DrawColor = WhiteColor;
-    //    for(i = 0; i < PRISpectatorCount; i++)
-    //    {
-    //        C.SetPos(C.ClipX * 0.1, (C.ClipY) * 0.5 + (i * 16));
-    //        C.DrawText(PRIOrdered[MAX_PRI - 1 - i].PlayerName);
-    //    }
-    //}
 }
 
-/*
-function DrawPlayerInfo( canvas Canvas, PlayerReplicationInfo PRI, float XOffset, float YOffset)
+
+
+
+
+
+
+
+function UpdateTimeStamp(float t)
 {
-	local bool bLocalPlayer;
-	local PlayerPawn PlayerOwner;
-	local float XL,YL;
-	local int AwardPos;
-
-	PlayerOwner = PlayerPawn(Owner);
-    
-	bLocalPlayer = (PRI.PlayerName == PlayerOwner.PlayerReplicationInfo.PlayerName);
-	//FONT ALTER
-	//	Canvas.Font = RegFont;
-	if(MyFonts != None)
-		Canvas.Font = MyFonts.GetStaticMedFont();
-	else
-		Canvas.Font = RegFont;
-
-	// Draw Ready
-	//if (PRI.bReadyToPlay)
-    //if(vmodPlayerReplicationInfo(PRI).bReadyToGoLive)
-	//{
-	//	Canvas.StrLen("R ", XL, YL);
-	//	Canvas.SetPos(Canvas.ClipX*0.1-XL, YOffset);
-	//	Canvas.DrawText(ReadyText, false);
-	//}
-
-	if (bLocalPlayer)
-		Canvas.DrawColor = VioletColor;
-	else
-		Canvas.DrawColor = WhiteColor;
-
-	// Draw Name
-	//if (PRI.bAdmin)	//FONT ALTER
-	//{
-	//	//Canvas.Font = Font'SmallFont';
-	//	if(MyFonts != None)
-	//		Canvas.Font = MyFonts.GetStaticSmallFont();
-	//	else
-	//		Canvas.Font = Font'SmallFont';
-	//}
-	//else
-	//{	//FONT ALTER
-		//Canvas.Font = RegFont;
-		if(MyFonts != None)
-			Canvas.Font = MyFonts.GetStaticMedFont();
-		else
-			Canvas.Font = RegFont;
-	//}
-
-	Canvas.SetPos(Canvas.ClipX*0.1, YOffset);
-	Canvas.DrawText(PRI.PlayerName, false);
-		//FONT ALTER
-	//Canvas.Font = RegFont;
-	if(MyFonts != None)
-		Canvas.Font = MyFonts.GetStaticMedFont();
-	else
-		Canvas.Font = RegFont;
-    
-    // Draw ready
-    if(vmodPlayerReplicationInfo(PRI).bReadyToPlay)
-    {
-        Canvas.SetPos(Canvas.ClipX*0.2, YOffset);
-        Canvas.DrawColor = GreenColor;
-        Canvas.DrawText("ready", false);
-    }
-    
-    // Draw admin
-    if(vmodPlayerReplicationInfo(PRI).bAdmin)
-    {
-        Canvas.SetPos(Canvas.ClipX*0.3, YOffset);
-        Canvas.DrawColor = RedColor;
-        Canvas.DrawText("admin", false);
-    }
-    
-    // Draw team number
-    Canvas.SetPos(Canvas.ClipX*0.4, YOffset);
-    Canvas.DrawColor = RedColor;
-    Canvas.DrawText(PRI.Team, false);
-    Canvas.DrawColor = WhiteColor;
-    
-	// Draw Score
-	Canvas.SetPos(Canvas.ClipX*0.5, YOffset);
-	Canvas.DrawText(int(PRI.Score), false);
-
-	// Draw Deaths
-	Canvas.SetPos(Canvas.ClipX*0.6, YOffset);
-	Canvas.DrawText(int(PRI.Deaths), false);
-
-	if (Canvas.ClipX > 512 && Level.Netmode != NM_Standalone)
-	{
-		// Draw Ping
-		Canvas.SetPos(Canvas.ClipX*0.7, YOffset);
-		Canvas.DrawText(PRI.Ping, false);
-
-		// Packetloss
-			//FONT ALTER
-		//Canvas.Font = RegFont;
-		if(MyFonts != None)
-			Canvas.Font = MyFonts.GetStaticMedFont();
-		else
-			Canvas.Font = RegFont;
-
-		Canvas.DrawColor = WhiteColor;
-	}
-
-	// Draw Awards
-	AwardPos = Canvas.ClipX*0.8;
-	Canvas.DrawColor = WhiteColor;
-		//FONT ALTER
-	//Canvas.Font = Font'SmallFont';
-	if(MyFonts != None)
-		Canvas.Font = MyFonts.GetStaticSmallFont();
-	else
-		Canvas.Font = Font'SmallFont';
-
-	Canvas.StrLen("00", XL, YL);
-	if (PRI.bFirstBlood)
-	{	// First blood
-		Canvas.SetPos(AwardPos-YL+XL*0.25, YOffset-YL*0.5);
-		Canvas.DrawTile(FirstBloodIcon, YL*2, YL*2, 0, 0, FirstBloodIcon.USize, FirstBloodIcon.VSize);
-		AwardPos += XL*2;
-	}
-	if (PRI.MaxSpree > 2)
-	{	// Killing sprees
-		Canvas.SetPos(AwardPos-YL+XL*0.25, YOffset-YL*0.5);
-		Canvas.DrawTile(SpreeIcon, YL*2, YL*2, 0, 0, SpreeIcon.USize, SpreeIcon.VSize);
-		Canvas.SetPos(AwardPos, YOffset);
-		Canvas.DrawColor = CyanColor;
-		Canvas.DrawText(PRI.MaxSpree, false);
-		Canvas.DrawColor = WhiteColor;
-		AwardPos += XL*2;
-	}
-	if (PRI.HeadKills > 0)
-	{	// Head kills
-		Canvas.SetPos(AwardPos-YL+XL*0.25, YOffset-YL*0.5);
-		Canvas.DrawTile(HeadIcon, YL*2, YL*2, 0, 0, HeadIcon.USize, HeadIcon.VSize);
-		Canvas.SetPos(AwardPos, YOffset);
-		Canvas.DrawColor = CyanColor;
-		Canvas.DrawText(PRI.HeadKills, false);
-		Canvas.DrawColor = WhiteColor;
-		AwardPos += XL*2;
-	}
-		//FONT ALTER
-	//Canvas.Font = RegFont;
-	if(MyFonts != None)
-		Canvas.Font = MyFonts.GetStaticMedFont();
-	else
-		Canvas.Font = RegFont;
+    TimeStamp = t;
 }
-*/
+
+
+
+
 
 defaultproperties
 {
