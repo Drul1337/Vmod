@@ -40,7 +40,6 @@ var Texture TextureHBorder;
 
 // Test vars
 var float ScrollingInterp0;
-var float ScrollingInterp1;
 
 var int TableRows;
 var int TableCols;
@@ -201,10 +200,12 @@ function TableCellSetTexture(
 function TableCellSetString(
     out TableCell_s             TC,
     String                      Str,
+    optional Color              StrColor,
     optional Justification_e    JustifyX,
     optional Justification_e    JustifyY)
 {
     TC.Str = Str;
+    TC.StrColor = StrColor;
     TC.JustifyX = JustifyX;
     TC.JustifyY = JustifyY;
 }
@@ -263,7 +264,8 @@ function DrawTableCell(Canvas C, Table_s T, TableCell_s TC)
                 break;
         }
         
-        C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
+        //C.DrawColor = ColorsTeamsClass.Static.ColorWhite();
+        C.DrawColor = TC.StrColor;
         C.SetPos(DX, DY);
         C.DrawText(TC.Str);
     }
@@ -394,6 +396,9 @@ function UpdatePRIArray()
 ////////////////////////////////////////////////////////////////////////////////
 function ShowScores(Canvas C)
 {
+    local int CurrentRow, SavedRow;
+    local int CurrentCol, SavedCol;
+    
     local int i;
     local float t; // Interp value
     
@@ -409,125 +414,186 @@ function ShowScores(Canvas C)
     // Prepare the scoreboard table
     C.Font = RegFont;
     
-    TableSetResolution(TableHeader, 32, 16);
+    TableSetResolution(TableHeader, TableRows, TableCols);
     TableSetDimensions(TableHeader, 0.8, 0.8);
     TableSetPosition(TableHeader, 0.1, 0.1);
     
+    CurrentRow = 0;
+    CurrentCol = 0;
+    
     // Draw server name
-    TableCellSetIndex(TableCellServerName, 0, 0);
+    TableCellSetIndex(TableCellServerName, CurrentRow, 0);
     TableCellSetSpan(TableCellServername, 1, TableHeader.Cols);
     TableCellSetTexture(TableCellServerName, None);
     TableCellSetString(
         TableCellServerName,
         PlayerPawn(Owner).GameReplicationInfo.ServerName,
+        ColorsTeamsClass.Static.ColorGreen(),
         JUSTIFY_CENTER,
         JUSTIFY_CENTER);
     DrawTableCell(C, TableHeader, TableCellServerName);
+    CurrentRow++;
     
     // Draw map info scrolling bar
-    TableCellSetIndex(TableCellServerName, 4, 0);
+    TableCellSetIndex(TableCellServerName, CurrentRow, 0);
     TableCellSetSpan(TableCellServername, 1, TableHeader.Cols);
     TableCellSetTexture(TableCellServerName, None);
     TableCellSetString(
         TableCellServerName,
-        Level.Author $ "  " $
-        Level.Title $ "  " $
-        Level.IdealPlayerCount,
-        //PlayerPawn(Owner).GameReplicationInfo.ServerName,
+        TextAuthor $ " [" $ Level.Author $ "]      " $
+        TextLevel $ " [" $ Level.Title $ "]      " $
+        TextIdealLoad $ " [" $ Level.IdealPlayerCount $ "]",
+        ColorsTeamsClass.Static.ColorRed(),
         JUSTIFY_CENTER,
         JUSTIFY_CENTER);
-    //DrawTableCell(C, TableHeader, TableCellServerName);
     if(Level.TimeSeconds - ScrollingInterp0 >= 20.0)
         ScrollingInterp0 = Level.TimeSeconds;
     t = (Level.TimeSeconds - ScrollingInterp0) / 20.0;
     DrawTableCellScrolling(C, TableHeader, TableCellServerName, t);
+    CurrentRow++;
     
     // Draw player info
     if(PRIPlayerCount > 0)
     {
+        SavedRow = CurrentRow;
+        
         // Draw player names
-        TableCellSetIndex(TableCellServerName, 5, 0);
+        CurrentCol = 0;
+        TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
         TableCellSetSpan(TableCellServerName, 2, 3);
         TableCellSetString(
             TableCellServerName,
             TextPlayers,
+            ColorsTeamsClass.Static.ColorGold(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
         DrawTableCell(C, TableHeader, TableCellServerName);
+        CurrentRow += 2;
         
         for(i = 0; i < PRIPlayerCount; i++)
         {
-            TableCellSetIndex(TableCellServerName, 7 + i, 0);
+            TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
             TableCellSetSpan(TableCellServerName, 1, 3);
             TableCellSetString(
                 TableCellServerName,
                 PRIOrdered[i].PlayerName,
+                ColorsTeamsClass.Static.ColorWhite(),
                 JUSTIFY_MIN,
                 JUSTIFY_CENTER);
             DrawTableCell(C, TableHeader, TableCellServerName);
+            CurrentRow++;
         }
+        CurrentRow = SavedRow;
+        CurrentCol += 3;
         
         // Draw player scores
-        TableCellSetIndex(TableCellServerName, 5, 4);
+        TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
         TableCellSetSpan(TableCellServerName, 2, 1);
         TableCellSetString(
             TableCellServerName,
             TextScore,
+            ColorsTeamsClass.Static.ColorGold(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
         DrawTableCell(C, TableHeader, TableCellServerName);
+        CurrentRow += 2;
         
         for(i = 0; i < PRIPlayerCount; i++)
         {
-            TableCellSetIndex(TableCellServerName, 7 + i, 4);
+            TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
             TableCellSetSpan(TableCellServerName, 1, 1);
             TableCellSetString(
                 TableCellServerName,
                 "" $ int(PRIOrdered[i].Score),
+                ColorsTeamsClass.Static.ColorWhite(),
                 JUSTIFY_MIN,
                 JUSTIFY_CENTER);
             DrawTableCell(C, TableHeader, TableCellServerName);
+            CurrentRow++;
         }
+        CurrentRow = SavedRow;
+        CurrentCol += 1;
         
         // Draw player deaths
-        TableCellSetIndex(TableCellServerName, 5, 5);
+        TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
         TableCellSetSpan(TableCellServerName, 2, 1);
         TableCellSetString(
             TableCellServerName,
             TextDeaths,
+            ColorsTeamsClass.Static.ColorGold(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
         DrawTableCell(C, TableHeader, TableCellServerName);
+        CurrentRow += 2;
         
         for(i = 0; i < PRIPlayerCount; i++)
         {
-            TableCellSetIndex(TableCellServerName, 7 + i, 5);
+            TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
             TableCellSetSpan(TableCellServerName, 1, 1);
             TableCellSetString(
                 TableCellServerName,
                 "" $ int(PRIOrdered[i].Deaths),
+                ColorsTeamsClass.Static.ColorWhite(),
                 JUSTIFY_MIN,
                 JUSTIFY_CENTER);
             DrawTableCell(C, TableHeader, TableCellServerName);
+            CurrentRow++;
         }
+        CurrentRow = SavedRow;
+        CurrentCol += 1;
         
         // Draw player ping
-        TableCellSetIndex(TableCellServerName, 5, 8);
+        TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
         TableCellSetSpan(TableCellServerName, 2, 1);
         TableCellSetString(
             TableCellServerName,
             TextPing,
+            ColorsTeamsClass.Static.ColorGold(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
         DrawTableCell(C, TableHeader, TableCellServerName);
+        CurrentRow += 2;
         
         for(i = 0; i < PRIPlayerCount; i++)
         {
-            TableCellSetIndex(TableCellServerName, 7 + i, 8);
+            TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
             TableCellSetSpan(TableCellServerName, 1, 1);
             TableCellSetString(
                 TableCellServerName,
                 "" $ PRIOrdered[i].Ping,
+                ColorsTeamsClass.Static.ColorWhite(),
+                JUSTIFY_MIN,
+                JUSTIFY_CENTER);
+            DrawTableCell(C, TableHeader, TableCellServerName);
+            CurrentRow++;
+        }
+    }
+    CurrentRow++;
+    CurrentCol = 0;
+    
+    // Draw spectator info
+    if(PRISpectatorCount > 0)
+    {
+        // Draw player names
+        TableCellSetIndex(TableCellServerName, CurrentRow, 0);
+        TableCellSetSpan(TableCellServerName, 2, 3);
+        TableCellSetString(
+            TableCellServerName,
+            TextSpectators,
+            ColorsTeamsClass.Static.ColorGreen(),
+            JUSTIFY_MIN,
+            JUSTIFY_CENTER);
+        DrawTableCell(C, TableHeader, TableCellServerName);
+        CurrentRow += 2;
+        
+        for(i = 0; i < PRISpectatorCount; i++)
+        {
+            TableCellSetIndex(TableCellServerName, CurrentRow + i, 0);
+            TableCellSetSpan(TableCellServerName, 1, 3);
+            TableCellSetString(
+                TableCellServerName,
+                PRIOrdered[MAX_PRI - 1 - i].PlayerName,
+                ColorsTeamsClass.Static.ColorBlue(),
                 JUSTIFY_MIN,
                 JUSTIFY_CENTER);
             DrawTableCell(C, TableHeader, TableCellServerName);
