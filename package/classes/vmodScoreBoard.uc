@@ -24,7 +24,6 @@ var float RelWScoreBoard;
 
 var float TextYPadding;
 
-var String TextHeaderMessages[4];
 var Texture TextureHBorder;
 
 // Test vars
@@ -32,8 +31,17 @@ var float ScrollingInterp0;
 
 var int TableRows;
 var int TableCols;
-const TABLE_WIDTH = 0.8;
-const TABLE_HEIGHT = 0.8;
+
+var float TableScreenWidth;
+var float TableScreenHeight;
+var float TableScreenPosX;
+var float TableScreenPosY;
+
+// Column properties
+var int ColWidthName;
+var int ColWidthScore;
+var int ColWidthDeaths;
+var int ColWidthPing;
 
 
 
@@ -181,9 +189,11 @@ function TableCellSetSpan(
 
 function TableCellSetTexture(
     out TableCell_s     TC,
-    Texture             Tex)
+    Texture             Tex,
+    optional Color      TexColor)
 {
     TC.Tex = Tex;
+    TC.TexColor = TexColor;
 }
 
 function TableCellSetString(
@@ -213,10 +223,19 @@ function DrawTableCell(Canvas C, Table_s T, TableCell_s TC)
     
     TableGetCellInfo(C, T, TC, DX, DY, DW, DH);
     
+    C.Style = ERenderStyle.STY_Translucent;
+    
     // Draw the texture
     if(TC.Tex != None)
     {
-        
+        C.DrawColor = TC.TexColor;
+        C.SetPos(DX, DY);
+        C.DrawTile(
+            TC.Tex,
+            DW, DH,
+            0, 0,
+            TC.Tex.USize,
+            TC.Tex.VSize);
     }
     
     // Draw the string
@@ -257,6 +276,7 @@ function DrawTableCell(Canvas C, Table_s T, TableCell_s TC)
         C.DrawColor = TC.StrColor;
         C.SetPos(DX, DY);
         C.DrawText(TC.Str);
+        C.Style = ERenderStyle.STY_Normal;
     }
 }
 
@@ -403,9 +423,21 @@ function ShowScores(Canvas C)
     // Prepare the scoreboard table
     C.Font = RegFont;
     
-    TableSetResolution(TableHeader, TableRows, TableCols);
-    TableSetDimensions(TableHeader, 0.8, 0.8);
-    TableSetPosition(TableHeader, 0.1, 0.1);
+    // Set up table parameters
+    if(ColWidthName <= 0)   ColWidthName = 1;
+    if(ColWidthScore <= 0)  ColWidthScore = 1;
+    if(ColWidthDeaths <= 0) ColWidthDeaths = 1;
+    if(ColWidthPing <= 0)   ColWidthPing = 1;
+    
+    CurrentCol = 0;
+    CurrentCol += ColWidthName;
+    CurrentCol += ColWidthScore;
+    CurrentCol += ColWidthDeaths;
+    CurrentCol += ColWidthPing;
+    
+    TableSetResolution(TableHeader, TableRows, CurrentCol);
+    TableSetDimensions(TableHeader, TableScreenWidth, TableScreenHeight);
+    TableSetPosition(TableHeader, TableScreenPosX, TableScreenPosY);
     
     CurrentRow = 0;
     CurrentCol = 0;
@@ -413,7 +445,7 @@ function ShowScores(Canvas C)
     // Draw server name
     TableCellSetIndex(TableCellServerName, CurrentRow, 0);
     TableCellSetSpan(TableCellServername, 1, TableHeader.Cols);
-    TableCellSetTexture(TableCellServerName, None);
+    TableCellSetTexture(TableCellServerName, TextureBackdrop, ColorsTeamsClass.Static.ColorWhite() * 0.2);
     TableCellSetString(
         TableCellServerName,
         PlayerPawn(Owner).GameReplicationInfo.ServerName,
@@ -449,7 +481,7 @@ function ShowScores(Canvas C)
         // Draw player names
         CurrentCol = 0;
         TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
-        TableCellSetSpan(TableCellServerName, 2, 3);
+        TableCellSetSpan(TableCellServerName, 2, ColWidthName);
         TableCellSetString(
             TableCellServerName,
             TextClass.Static.ScoreBoardPlayers(),
@@ -462,7 +494,7 @@ function ShowScores(Canvas C)
         for(i = 0; i < PRIPlayerCount; i++)
         {
             TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
-            TableCellSetSpan(TableCellServerName, 1, 3);
+            TableCellSetSpan(TableCellServerName, 1, ColWidthName);
             TableCellSetString(
                 TableCellServerName,
                 PRIOrdered[i].PlayerName,
@@ -473,11 +505,11 @@ function ShowScores(Canvas C)
             CurrentRow++;
         }
         CurrentRow = SavedRow;
-        CurrentCol += 3;
+        CurrentCol += ColWidthName;
         
         // Draw player scores
         TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
-        TableCellSetSpan(TableCellServerName, 2, 1);
+        TableCellSetSpan(TableCellServerName, 2, ColWidthScore);
         TableCellSetString(
             TableCellServerName,
             TextClass.Static.ScoreBoardScore(),
@@ -490,7 +522,7 @@ function ShowScores(Canvas C)
         for(i = 0; i < PRIPlayerCount; i++)
         {
             TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
-            TableCellSetSpan(TableCellServerName, 1, 1);
+            TableCellSetSpan(TableCellServerName, 1, ColWidthScore);
             TableCellSetString(
                 TableCellServerName,
                 "" $ int(PRIOrdered[i].Score),
@@ -501,11 +533,11 @@ function ShowScores(Canvas C)
             CurrentRow++;
         }
         CurrentRow = SavedRow;
-        CurrentCol += 1;
+        CurrentCol += ColWidthScore;
         
         // Draw player deaths
         TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
-        TableCellSetSpan(TableCellServerName, 2, 1);
+        TableCellSetSpan(TableCellServerName, 2, ColWidthDeaths);
         TableCellSetString(
             TableCellServerName,
             TextClass.Static.ScoreBoardDeaths(),
@@ -518,7 +550,7 @@ function ShowScores(Canvas C)
         for(i = 0; i < PRIPlayerCount; i++)
         {
             TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
-            TableCellSetSpan(TableCellServerName, 1, 1);
+            TableCellSetSpan(TableCellServerName, 1, ColWidthDeaths);
             TableCellSetString(
                 TableCellServerName,
                 "" $ int(PRIOrdered[i].Deaths),
@@ -529,11 +561,11 @@ function ShowScores(Canvas C)
             CurrentRow++;
         }
         CurrentRow = SavedRow;
-        CurrentCol += 1;
+        CurrentCol += ColWidthDeaths;
         
         // Draw player ping
         TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
-        TableCellSetSpan(TableCellServerName, 2, 1);
+        TableCellSetSpan(TableCellServerName, 2, ColWidthPing);
         TableCellSetString(
             TableCellServerName,
             TextClass.Static.ScoreBoardPing(),
@@ -546,7 +578,7 @@ function ShowScores(Canvas C)
         for(i = 0; i < PRIPlayerCount; i++)
         {
             TableCellSetIndex(TableCellServerName, CurrentRow, CurrentCol);
-            TableCellSetSpan(TableCellServerName, 1, 1);
+            TableCellSetSpan(TableCellServerName, 1, ColWidthPing);
             TableCellSetString(
                 TableCellServerName,
                 "" $ PRIOrdered[i].Ping,
@@ -610,11 +642,6 @@ defaultproperties
 {
     RegFont=Font'Engine.MedFont'
     
-    TextHeaderMessages(0)="Test \n line 1"
-    TextHeaderMessages(1)="dAssdasdasdasdasdasdasdasdasdasdasdasdasdasdasdasdasd"
-    TextHeaderMessages(2)="hehehehe"
-    TextHeaderMessages(3)="test line 3 fsdjsdfijgso"
-    
     TextureBackdrop=Texture'RuneI.sb_horizramp'
     
     FadeTime=0.25
@@ -630,4 +657,14 @@ defaultproperties
     
     TableRows=16
     TableCols=16
+    
+    ColWidthName=4
+    ColWidthScore=2
+    ColWidthDeaths=2
+    ColWidthPing=2
+    
+    TableScreenWidth=0.5
+    TableScreenHeight=0.5
+    TableScreenPosX=0.25
+    TableScreenPosY=0.25
 }
