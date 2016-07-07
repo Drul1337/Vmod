@@ -68,15 +68,15 @@ function DrawPlayerScores(Canvas C, float t, SortType_e SortType)
     {
         C.DrawColor = GoldColor;
         C.SetPos(C.ClipX * 0.1, C.ClipY * 0.225);
-        C.DrawText(TextPlayers);
+        C.DrawText(TextClass.Static.ScoreBoardPlayers());
         
         // Score heading
         C.SetPos(C.ClipX * 0.3, C.ClipY * 0.225);
-        C.DrawText(TextScore);
+        C.DrawText(TextClass.Static.ScoreBoardScore());
         
         // Deaths heading
         C.SetPos(C.ClipX * 0.35, C.ClipY * 0.225);
-        C.DrawText(TextDeaths);
+        C.DrawText(TextClass.Static.ScoreBoardDeaths());
         
         // Draw the players
         C.Style = ERenderStyle.STY_Translucent;
@@ -116,7 +116,7 @@ function DrawPlayerScores(Canvas C, float t, SortType_e SortType)
     {
         C.DrawColor = GoldColor;
         C.SetPos(C.ClipX * 0.1, C.ClipY * 0.475);
-        C.DrawText(TextSpectators);
+        C.DrawText(TextClass.Static.ScoreBoardSpectators());
         
         // Draw the spectators
         C.DrawColor = WhiteColor;

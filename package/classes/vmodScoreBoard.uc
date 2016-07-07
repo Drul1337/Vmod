@@ -6,18 +6,7 @@ class vmodScoreBoard extends ScoreBoard;
 var Class<vmodStaticUtilities>      UtilitiesClass;
 var Class<vmodStaticColorsTeams>    ColorsTeamsClass;
 var Class<vmodStaticFonts>          FontsClass;
-
-var String TextLevel;
-var String TextAuthor;
-var String TextIdealLoad;
-var String TextServer;
-var String TextIP;
-var String TextGameType;
-var String TextPlayers;
-var String TextSpectators;
-var String TextScore;
-var String TextDeaths;
-var String TextPing;
+var Class<vmodStaticLocalText>      TextClass;
 
 var Texture TextureBackdrop;
 
@@ -440,9 +429,9 @@ function ShowScores(Canvas C)
     TableCellSetTexture(TableCellServerName, None);
     TableCellSetString(
         TableCellServerName,
-        TextAuthor $ " [" $ Level.Author $ "]      " $
-        TextLevel $ " [" $ Level.Title $ "]      " $
-        TextIdealLoad $ " [" $ Level.IdealPlayerCount $ "]",
+        TextClass.Static.ScoreBoardAuthor() $ " [" $ Level.Author $ "]      " $
+        TextClass.Static.ScoreBoardLevel() $ " [" $ Level.Title $ "]      " $
+        TextClass.Static.ScoreBoardIdealLoad() $ " [" $ Level.IdealPlayerCount $ "]",
         ColorsTeamsClass.Static.ColorRed(),
         JUSTIFY_CENTER,
         JUSTIFY_CENTER);
@@ -463,7 +452,7 @@ function ShowScores(Canvas C)
         TableCellSetSpan(TableCellServerName, 2, 3);
         TableCellSetString(
             TableCellServerName,
-            TextPlayers,
+            TextClass.Static.ScoreBoardPlayers(),
             ColorsTeamsClass.Static.ColorGold(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
@@ -491,7 +480,7 @@ function ShowScores(Canvas C)
         TableCellSetSpan(TableCellServerName, 2, 1);
         TableCellSetString(
             TableCellServerName,
-            TextScore,
+            TextClass.Static.ScoreBoardScore(),
             ColorsTeamsClass.Static.ColorGold(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
@@ -519,7 +508,7 @@ function ShowScores(Canvas C)
         TableCellSetSpan(TableCellServerName, 2, 1);
         TableCellSetString(
             TableCellServerName,
-            TextDeaths,
+            TextClass.Static.ScoreBoardDeaths(),
             ColorsTeamsClass.Static.ColorGold(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
@@ -547,7 +536,7 @@ function ShowScores(Canvas C)
         TableCellSetSpan(TableCellServerName, 2, 1);
         TableCellSetString(
             TableCellServerName,
-            TextPing,
+            TextClass.Static.ScoreBoardPing(),
             ColorsTeamsClass.Static.ColorGold(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
@@ -579,7 +568,7 @@ function ShowScores(Canvas C)
         TableCellSetSpan(TableCellServerName, 2, 3);
         TableCellSetString(
             TableCellServerName,
-            TextSpectators,
+            TextClass.Static.ScoreBoardSpectators(),
             ColorsTeamsClass.Static.ColorGreen(),
             JUSTIFY_MIN,
             JUSTIFY_CENTER);
@@ -621,17 +610,6 @@ defaultproperties
 {
     RegFont=Font'Engine.MedFont'
     
-    TextLevel="Level"
-    TextAuthor="Author"
-    TextIdealLoad="Ideal Player Load"
-    TextServer="Server"
-    TextIP="IP"
-    TextGameType="Game Type"
-    TextPlayers="Players"
-    TextSpectators="Spectators"
-    TextScore="Score"
-    TextDeaths="Deaths"
-    TextPing="Ping"
     TextHeaderMessages(0)="Test \n line 1"
     TextHeaderMessages(1)="dAssdasdasdasdasdasdasdasdasdasdasdasdasdasdasdasdasd"
     TextHeaderMessages(2)="hehehehe"
@@ -643,6 +621,7 @@ defaultproperties
     UtilitiesClass=Class'Vmod.vmodStaticUtilities'
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'
     FontsClass=Class'Vmod.vmodStaticFonts'
+    TextClass=Class'Vmod.vmodStaticLocalText'
     
     RelYScoreBoard=0.1
     RelWScoreBoard=0.6
