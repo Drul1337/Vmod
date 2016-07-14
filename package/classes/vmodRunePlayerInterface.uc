@@ -23,7 +23,7 @@ class vmodRunePlayerInterface extends vmodRunePlayerBase config(user) abstract;
 ///////////////////////////////////////////////////////////////////////////////
 replication
 {
-	// Client can call
+    // Client --> Server
 	reliable if(Role < ROLE_Authority)
 		CameraIn,
 		CameraOut,

@@ -229,8 +229,8 @@ function PlayerGiveWeapon(Pawn P, Class<Weapon> WeaponClass)
     
     if(P.Weapon != None)
         if(vmodRunePlayer(P) != None)
-            //vmodRunePlayer(P).StowWeapon();
-            vmodRunePlayer(P).StowWeapon(P.Weapon);
+            vmodRunePlayer(P).StowWeapon();
+            //vmodRunePlayer(P).StowWeapon(P.Weapon);
     
     W.bTossedOut = true;
     W.Instigator = P;
@@ -845,10 +845,10 @@ function bool RestartPlayer( pawn aPlayer )
 		aPlayer.SetSkinActor(aPlayer, aPlayer.CurrentSkin);
 
 		// Reset anim proxy vars
-		if(PlayerPawn(aPlayer) != None && PlayerPawn(aPlayer).AnimProxy != None)
-		{
-			PlayerPawn(aPlayer).AnimProxy.GotoState('Idle');
-		}
+		//if(PlayerPawn(aPlayer) != None && PlayerPawn(aPlayer).AnimProxy != None)
+		//{
+		//	PlayerPawn(aPlayer).AnimProxy.GotoState('Idle');
+		//}
 	}
 	else
 		log(startspot$" Player start not useable!!!");
@@ -867,7 +867,7 @@ function bool RestartPlayer( pawn aPlayer )
 	}
     
     // TODO: Fix this hack
-    vmodRunePlayer(aPlayer).GotoState('PlayerWalking');
+    //vmodRunePlayer(aPlayer).GotoState('PlayerWalking');
 
 	return foundStart;
 }

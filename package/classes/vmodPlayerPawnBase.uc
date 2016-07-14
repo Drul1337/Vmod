@@ -39,8 +39,6 @@ class vmodPlayerPawnBase extends PlayerPawn config(user) abstract;
 // TODO: Enable weapon swipe trails
 // TODO: Finish implementing PlayerPawn independent of AnimationProxy
 // TODO: Get rid of these weapon stow meshes - just unnecessary
-// TODO: Implement a help command to list out all available commands to the user
-// TODO: Implement error messages like ("you must be admin to do that")
 
 
 // Note: If any states are added / removed, Debug() needs to be updated
@@ -171,7 +169,6 @@ function SpawnAnimationProxy()
 
     AnimProxy = spawn(AnimationProxyClass, self);
 }
-
 ////////////////////////////////////////////////////////////////////////////////
 //  Tick
 ////////////////////////////////////////////////////////////////////////////////
@@ -243,6 +240,7 @@ function ClientReStart()
 
     Super.ClientRestart();
 }
+
 
 
 
@@ -448,7 +446,6 @@ function Landed(vector HitNormal, actor HitActor)
 
 function PlayStateAnimation() {}
 
-
 ////////////////////////////////////////////////////////////////////////////////
 //  PlayerMove
 ////////////////////////////////////////////////////////////////////////////////
@@ -462,93 +459,17 @@ function PlayerMove( float DeltaTime )
     local bool  bSaveJump;
     local name AnimGroupName;
 
-    GetAxes(Rotation,X,Y,Z);
+    GetAxes(ViewRotation,X,Y,Z);
 
-    aForward *= 0.4;
-    aStrafe  *= 0.4;
-    aLookup  *= 0.24;
-    aTurn    *= 0.24;
+    aForward    *= 0.4;
+    aStrafe     *= 0.4;
+    aLookup     *= 0.24;
+    aTurn       *= 0.24;
+    aUp         *= 0.0;
 
     // Update acceleration.
-    NewAccel = aForward*X + aStrafe*Y; 
+    NewAccel = aForward*X + aStrafe*Y;
     NewAccel.Z = 0;
-    
-    // Check for Dodge move
-    //if ( DodgeDir == DODGE_Active )
-    //  DodgeMove = DODGE_Active;
-    //else
-    //  DodgeMove = DODGE_None;
-    //if (DodgeClickTime > 0.0)
-    //{
-    //  if ( DodgeDir < DODGE_Active )
-    //  {
-    //      OldDodge = DodgeDir;
-    //      DodgeDir = DODGE_None;
-    //      if (bEdgeForward && bWasForward)
-    //          DodgeDir = DODGE_Forward;
-    //      if (bEdgeBack && bWasBack)
-    //          DodgeDir = DODGE_Back;
-    //      if (bEdgeLeft && bWasLeft)
-    //          DodgeDir = DODGE_Left;
-    //      if (bEdgeRight && bWasRight)
-    //          DodgeDir = DODGE_Right;
-    //      if ( DodgeDir == DODGE_None)
-    //          DodgeDir = OldDodge;
-    //      else if ( DodgeDir != OldDodge )
-    //          DodgeClickTimer = DodgeClickTime + 0.5 * DeltaTime;
-    //      else 
-    //          DodgeMove = DodgeDir;
-    //  }
-    //
-    //  if (DodgeDir == DODGE_Done)
-    //  {
-    //      DodgeClickTimer -= DeltaTime;
-    //      if (DodgeClickTimer < -0.35) 
-    //      {
-    //          DodgeDir = DODGE_None;
-    //          DodgeClickTimer = DodgeClickTime;
-    //      }
-    //  }       
-    //  else if ((DodgeDir != DODGE_None) && (DodgeDir != DODGE_Active))
-    //  {
-    //      DodgeClickTimer -= DeltaTime;           
-    //      if (DodgeClickTimer < 0)
-    //      {
-    //          DodgeDir = DODGE_None;
-    //          DodgeClickTimer = DodgeClickTime;
-    //      }
-    //  }
-    //}
-
-    //AnimGroupName = GetAnimGroup(AnimSequence);
-    //if ( (Physics == PHYS_Walking) && (AnimGroupName != 'Dodge') )
-    //{
-    //  //if walking, look up/down stairs - unless player is rotating view
-    //  if ( !bKeyboardLook && (bLook == 0) )
-    //  {
-    //      if ( bLookUpStairs )
-    //          ViewRotation.Pitch = FindStairRotation(deltaTime);
-    //      else if ( bCenterView )
-    //      {
-    //          ViewRotation.Pitch = ViewRotation.Pitch & 65535;
-    //          if (ViewRotation.Pitch > 32768)
-    //              ViewRotation.Pitch -= 65536;
-    //          ViewRotation.Pitch = ViewRotation.Pitch * (1 - 12 * FMin(0.0833, deltaTime));
-    //          if ( Abs(ViewRotation.Pitch) < 1000 )
-    //              ViewRotation.Pitch = 0; 
-    //      }
-    //  }
-    //
-    //  Speed2D = Sqrt(Velocity.X * Velocity.X + Velocity.Y * Velocity.Y);
-    //  //add bobbing when walking
-    //  if ( !bShowMenu )
-    //      CheckBob(DeltaTime, Speed2D, Y);
-    //} 
-    //else if ( !bShowMenu )
-    //{ 
-    //  BobTime = 0;
-    //  WalkBob = WalkBob * (1 - FMin(1, 8 * deltatime));
-    //}
 
     // Update rotation.
     OldRotation = Rotation;
@@ -819,7 +740,6 @@ function ProcessMove(
 	if(bJustFired)
 		GotoStateAttack();
 }
-
 
 
 
@@ -2023,7 +1943,7 @@ state EdgeHanging       {   function BeginState() { GotoStateNeutral(); }   }
 state FeigningDeath     {   function BeginState() { GotoStateNeutral(); }   }
 state GameEnded         {   function BeginState() { GotoStateNeutral(); }   }
 state PlayerFlying      {   function BeginState() { GotoStateNeutral(); }   }
-state PlayerSpectating  {   function BeginState() { GotoStateNeutral(); }   }
+//state PlayerSpectating  {   function BeginState() { GotoStateNeutral(); }   }
 state PlayerSwimming    {   function BeginState() { GotoStateNeutral(); }   }
 state PlayerWaiting     {   function BeginState() { GotoStateNeutral(); }   }
 state PlayerWalking     {   function BeginState() { GotoStateNeutral(); }   }
@@ -2181,6 +2101,38 @@ state PainConcuss
 {
     function BeginState() // [PainConcuss]
     {
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  State: PainConcuss
+////////////////////////////////////////////////////////////////////////////////
+state PlayerSpectating
+{
+    function BeginState() // [PlayerSpectating]
+	{
+		PlayerReplicationInfo.bIsSpectator = true;
+        bHidden = true;
+        Visibility = 0;
+        PlayerReplicationInfo.bWaitingPlayer = true;
+        Mesh = None;
+        SetCollision(false,false,false);
+        bCollideWorld = false;
+		EyeHeight = Default.BaseEyeHeight;
+		SetPhysics(PHYS_None);
+	}
+    
+    function EndState() // [PlayerSpectating]
+    {
+        PlayerReplicationInfo.bIsSpectator = false;
+        bHidden = false;
+        Visibility = 1;
+        PlayerReplicationInfo.bWaitingPlayer = false;
+        SetMesh();
+        SetCollision(true, true, true);
+        bCollideWorld = true;
+        SetPhysics(PHYS_Falling);
     }
 }
 

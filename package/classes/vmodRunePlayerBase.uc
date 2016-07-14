@@ -442,16 +442,6 @@ function Weapon DetachWeaponFromStowJoint(optional byte slot)
     return Weapon(DetachFromWeaponStowPrimaryJoint());
 }
 
-exec function PleaseDrop()
-{
-    DropWeapon();
-}
-
-exec function PleaseStowWeapon()
-{
-    StowWeapon();
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //  AttachWeaponToWeaponJoint
