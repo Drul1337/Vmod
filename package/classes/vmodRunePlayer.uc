@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-// vmodRunePlayerInterface.uc
+// vmodRunePlayer.uc
 //
 //		|---Object
 //			|---Actor
@@ -12,8 +12,8 @@
 //										|---vmodRunePlayer
 //
 
-class vmodRunePlayer extends vmodRunePlayerInterface config(user) abstract;
-//class vmodRunePlayer extends RunePlayer config(user) abstract;
+//class vmodRunePlayer extends vmodRunePlayerInterface config(user) abstract;
+class vmodRunePlayer extends RunePlayer config(user) abstract;
 
 var Class<vmodStaticColorsTeams>    ColorsTeamsClass;
 var bool bCanRestart;
@@ -98,7 +98,7 @@ function NotifyBecameGameActive()
 
 function NotifyBecameGameInactive()
 {
-    GotoStatePlayerSpectating();
+    //GotoStatePlayerSpectating();
 }
 
 function NotifyBecameReadyToPlay()
@@ -281,25 +281,6 @@ exec final function VcmdClearInventory()
     if(vmodGameInfo(Level.Game) != None)
         vmodGameInfo(Level.Game).ClearPlayerInventory(self);
 }
-
-
-
-//state PlayerSpectating
-//{
-//    function BeginState()
-//	{
-//		PlayerReplicationInfo.bIsSpectator = true;
-//        bHidden = true;
-//        Visibility = 0;
-//        PlayerReplicationInfo.bWaitingPlayer = true;
-//        Mesh = None;
-//        SetCollision(false,false,false);
-//        bCollideWorld = false;
-//		EyeHeight = Default.BaseEyeHeight;
-//		SetPhysics(PHYS_None);
-//	}
-//}
-
 
 
 

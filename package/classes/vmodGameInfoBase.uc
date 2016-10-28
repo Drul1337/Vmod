@@ -229,8 +229,8 @@ function PlayerGiveWeapon(Pawn P, Class<Weapon> WeaponClass)
     
     if(P.Weapon != None)
         if(vmodRunePlayer(P) != None)
-            vmodRunePlayer(P).StowWeapon();
-            //vmodRunePlayer(P).StowWeapon(P.Weapon);
+            //vmodRunePlayer(P).StowWeapon();
+            vmodRunePlayer(P).StowWeapon(P.Weapon);
     
     W.bTossedOut = true;
     W.Instigator = P;
@@ -459,6 +459,8 @@ function GameRemoveBot(Pawn P)
     // Logout, but when the bot is created it does not pass through LogIn.
     // This is why PlayerJoinGame gets called for bots, but PlayerLeaveGame
     // does not.
+    //
+    // See Pawn::simulated event Destroyed()
     P.Destroy();
 }
 

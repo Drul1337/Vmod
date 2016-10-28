@@ -118,35 +118,6 @@ function PlayTakeHit(
     
 }
 
-//function PlayFrontHit(optional float tweenTime) {}
-//function PlayBackHit(optional float tweenTime) {}
-//function PlayGutHit(optional float tweenTime) {}
-//function PlayHeadHit(optional float tweenTime) {}
-//function PlayLeftHit(optional float tweenTime) {}
-//function PlayRightHit(optional float tweenTime) {}
-//function PlayDrowning(optional float tweenTime) {}
-//
-//function PlayDeath(name damageType) {}
-//function PlayBackDeath(name damageType) {}
-//function PlayLeftDeath(name damageType) {}
-//function PlayRightDeath(name damageType) {}
-//function PlayHeadDeath(name damageType) {}
-//function PlayDrownDeath(name damageType) {}
-//function PlayGibDeath(name damageType) {}
-//function PlaySkewerDeath(name damageType) {}
-//
-//function PlayFiring() {}
-//function PlayAltFiring() {}
-//function PlayMoving(optional float tweenTime) {}
-//function PlayInAir(optional float tweenTime) {}
-//function PlayPullUp(optional float tweenTime) {}
-//function PlayStepUp(optional float tweenTime) {}
-//function PlayDuck(optional float tweenTime) {}
-//function PlayCrawling(optional float tweenTime) {}
-//function PlayWaiting(optional float tweenTime) {}
-//function PlayLanded(float impactVelocity) {}
-//function PlaySwimming() {}
-
 ////////////////////////////////////////////////////////////////////////////////
 //  GetWeaponGrade
 //
