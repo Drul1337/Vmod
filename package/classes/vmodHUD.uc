@@ -810,6 +810,14 @@ simulated function LocalizedMessage(
             case Class'RuneI.SayMessage':
                 MangleMessageSay(Message);
                 break;
+                
+            case Class'RuneI.PickupMessage':
+                Message.MessageString = MessageClass.Static.GetString(
+                    Switch,
+                    RelatedPRI1,
+                    RelatedPRI2,
+                    OptionalObject);
+                break;
         }
         
         MessageQueuePush(MessageQueueGeneral, Message);
