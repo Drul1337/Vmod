@@ -1,0 +1,1 @@
+class vmodQGunBaseTracer extends vmodQGunBase;
