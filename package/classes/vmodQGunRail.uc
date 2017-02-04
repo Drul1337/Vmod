@@ -1,9 +1,16 @@
+//class vmodQGunRail extends vmodWeaponRanged;
 class vmodQGunRail extends vmodQGunBaseTracer;
 
 #EXEC SKELETAL IMPORT NAME=railgun FILE=..\Vmod\Models\railgun.scm
 #exec SKELETAL ORIGIN NAME=railgun X=0 Y=0 Z=0 Pitch=0 Yaw=64 Roll=-64
 #EXEC TEXTURE IMPORT NAME=railguntex FILE=..\Vmod\Textures\railgun.bmp
 #EXEC AUDIO IMPORT NAME=railgunsound FILE=..\Vmod\sounds\railgun.wav
+
+// Render first person models
+simulated event RenderOverlays(canvas C)
+{
+	C.DrawActor(self, false);
+}
 
 function WeaponFire(int SwingCount)
 {
@@ -32,10 +39,19 @@ function WeaponFire(int SwingCount)
 			'None',
 			0);
 	}
-	
-	Rail = Spawn(Class'vmodQuakeRail',owner,, HitLocation, Owner.Rotation);
-	Rail.VampireDest = Pawn(Owner);
-	
+
+	Rail = Spawn(
+		Class'vmodQuakeRail',
+		owner,,
+		owner.Location,
+		Owner.Rotation);
+		
+	AttachActorToJoint(Rail, 0);
+	Rail.bHidden = false;
+	Rail.Target = None;
+	Rail.OriginLocation = Location;
+	Rail.HitLocation = HitLocation;
+		
 	PlaySound(Sound'Vmod.railgunsound');
 }
 

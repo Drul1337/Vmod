@@ -287,6 +287,7 @@ exec final function VcmdClearInventory()
 
 defaultproperties
 {
+	GroundSpeed=415.0
     bReadyToPlay=false
     PlayerReplicationInfoClass=Class'Vmod.vmodPlayerReplicationInfo'
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'

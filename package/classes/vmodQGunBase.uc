@@ -1,5 +1,9 @@
 class vmodQGunBase extends DwarfBattleAxe;
 
+// Weapon overlays and first person models are drawn in
+// RenderOverlays
+// See original UT99 source for reference
+
 defaultproperties
 {
 	A_Idle=H5_Idle

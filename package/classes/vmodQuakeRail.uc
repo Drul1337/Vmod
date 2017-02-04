@@ -1,57 +1,98 @@
-class vmodQuakeRail extends VampireTrail;
+class vmodQuakeRail extends BeamSystem;
 
-function ServerReachedDest()
-{}
+var vector OriginLocation;
+var vector HitLocation;
 
-function ServerBegin()
-{}
-
-simulated function PostBeginPlay()
+function PreBeginPlay()
 {
-	Super.PostBeginPlay();
-	//ToDestVelocity = 800 + 200 * FRand(); // velocity to the player
+	local actor A;
+	local int i;
 
-	Swipe = Spawn(SwipeClass, self,, Location,);
-	if(Swipe != None)
+	Super(ParticleSystem).PreBeginPlay();
+
+	ParticleCount = NumConPts * 3;
+
+	for(i = 0; i < NumConPts; i++)
+		ConnectionPoint[i] = Location;
+
+	SetTimer(5 + FRand()*2, false);
+}
+
+event SystemInit()
+{
+	Super.SystemInit();
+	RemoteRole = ROLE_None;
+}
+
+event SystemTick(float DeltaSeconds)
+{
+	local int i;
+	local float alpha;
+	
+	ConnectionPoint[0].X = OriginLocation.X;
+	ConnectionPoint[0].Y = OriginLocation.Y;
+	ConnectionPoint[0].Z = OriginLocation.Z;
+	ConnectionOffset[0].X = 0;
+	ConnectionOffset[0].Y = 0;
+	ConnectionOffset[0].Z = 0;
+	
+	for(i = 1; i < NumConPts; i++)
 	{
-		Swipe.RemoteRole=ROLE_None;		// Spawn on clients, don't replicate
-		Swipe.BaseJointIndex = JointNamed('one');
-		Swipe.OffsetJointIndex = JointNamed('two');
-		Swipe.SystemLifeSpan = -1;
-		Swipe.SwipeSpeed = 2;
-		AttachActorToJoint(Swipe, JointNamed('one'));
+		ConnectionPoint[i].X = HitLocation.X;
+		ConnectionPoint[i].Y = HitLocation.Y;
+		ConnectionPoint[i].Z = HitLocation.Z;
+		ConnectionOffset[i].X = 0;
+		ConnectionOffset[i].Y = 0;
+		ConnectionOffset[i].Z = 0;
+	}
+	
+	CurrentTime += DeltaSeconds;
+	if(CurrentTime >= SystemLifeSpan)
+	{
+		Destroy();
+	}
+	
+	// Fade particles
+	for(i = 0; i < ParticleCount; i++)
+	{
+		ParticleArray[i].Style = Style;
+		alpha = CurrentTime / SystemLifeSpan; // Linear alpha fade
+		alpha = 1.0 - alpha;
+		ParticleArray[i].Alpha.X = alpha;
+		ParticleArray[i].Alpha.Y = alpha;
+		ParticleArray[i].Alpha.Z = alpha;
 	}
 }
 
-simulated function Tick(float DeltaTime)
+event ParticleTick(float DeltaSeconds)
+{ // ParticleTick ticks ALL particles in a given ParticleSystem
+}
+
+function Timer()
 {
-	local vector toDest;
-	local float dist;
-	local vector v;
+	//// Hack - Beams must go through render code once before going to stasis
+	// Don't know what this means
+	bStasis=true;
+}
 
-	if(VampireDest == None)
-	{
-//		Destroy();
-		return;
-	}
+function SpawnBeamDebris()
+{}
 
-	alpha += DeltaTime * 0.8;
-	if(alpha > 1.0)
-		alpha = 1.0;
-
-	toDest = VampireDest.Location - Location;
-	if(VSize(toDest) < 20)
-	{
-		ServerReachedDest();
-		Destroy();
-		return;
-	}
-
-	v = Velocity * (1.0 - alpha) + (ToDestVelocity * Normal(toDest)) * alpha + VRand() * 40;
-	Velocity += Acceleration * DeltaTime;
+defaultproperties
+{
+	bSystemTicks=false
+	bEventSystemTick=true
+	AlphaScale=1.0
 	
-	if(VSize(v) > 1000)
-		v = 1000 * Normal(v);
-
-	SetLocation(Location + v * DeltaTime);
+	LastTime=0.0
+	CurrentTime=0.0
+	SystemLifeSpan=3.0
+	AlphaStart=255
+	AlphaEnd=0
+	Style=STY_AlphaBlend
+	
+    ParticleCount=1
+    ParticleTexture(0)=Texture'RuneFX.beam'
+    NumConPts=20
+    BeamThickness=1.500000
 }

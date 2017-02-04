@@ -2,24 +2,30 @@ class vmodQProjectileBase extends Projectile;
 
 var class<ParticleSystem> m_spawnParticlesClass;
 var class<ParticleSystem> m_trailParticlesClass;
-var class<ParticleSystem> m_explodeParticlesClass;
+
+var class<vmodEffect> m_baseEffectClass;
+var class<vmodEffect> m_explodeParticlesClass;
+
+var vmodEffect m_baseEffect;
 
 var ParticleSystem m_spawnParticles;
 var ParticleSystem m_trailParticles;
 
-function PreBeginPlay()
+simulated function PreBeginPlay()
 {
-	local vector X, Y, Z;
+	local int baseJointIndex;
+	//local vector X, Y, Z;
 	
 	if(Owner != None)
 	{
-		DrawScale = Owner.DrawScale;
+		DrawScale = DrawScale * Owner.DrawScale;
 	}
 	
-	if(m_spawnParticlesClass != None)
+	if(m_baseEffectClass != None)
 	{
-		m_spawnParticles = Spawn(m_spawnParticlesClass,,,,Rotation);
-		m_spawnParticles.SetBase(self);
+		m_baseEffect = Spawn(m_baseEffectClass, self);
+		baseJointIndex = JointNamed('base');
+		self.AttachActorToJoint(m_baseEffect, baseJointIndex);
 	}
 	
 	if(m_trailParticlesClass != None)
@@ -28,19 +34,15 @@ function PreBeginPlay()
 		m_trailParticles.SetBase(self);
 	}
 	
-	if(Pawn(Owner) != None)
-	{
-		GetAxes(Pawn(Owner).ViewRotation, X, Y, Z);
-		Velocity = X * Speed;
-	}
+	Velocity = Vector(Rotation) * speed;
 }
 
 simulated function Destroyed()
 {
 	// TODO: Particle systems should destroy themselves
-	if(m_spawnParticles != None)
+	if(m_baseEffect != None)
 	{
-		m_spawnParticles.Destroy();
+		m_baseEffect.Destroy();
 	}
 	
 	if(m_trailParticles != None)
@@ -98,4 +100,7 @@ defaultproperties
 	m_explodeParticlesClass=None
 	m_spawnParticles=None
 	m_trailParticles=None
+	
+	m_baseEffectClass=None
+	m_baseEffect=None
 }

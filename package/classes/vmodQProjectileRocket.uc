@@ -7,14 +7,6 @@ class vmodQProjectileRocket extends vmodQProjectileBase;
 var float m_splashRadius;
 var float m_splashDamage;
 
-function PostBeginPlay()
-{
-	Super.PostBeginPlay();
-	Velocity = Vector(Rotation) * speed;
-	RandSpin(50000);
-	PlaySound(SpawnSound);
-}
-
 simulated function Explode(vector HitLocation, vector HitNormal)
 {
 	local Pawn P;
@@ -46,12 +38,13 @@ simulated function Explode(vector HitLocation, vector HitNormal)
 
 defaultproperties
 {
+	DrawScale=2.5
 	m_splashRadius=192.0
 	m_splashDamage=25.0
 	bFixedRotationDir=true
-	RotationRate=(Yaw=0,Pitch=0,Roll=240000)
+	RotationRate=(Yaw=0,Pitch=0,Roll=360000)
 	
-	Speed=1000.0
+	Speed=1200.0
 	DrawType=DT_SkeletalMesh
 	Skeletal=SkelModel'Vmod.qrocket'
     SkelGroupSkins(0)=Texture'Vmod.qrockettex'
@@ -59,8 +52,9 @@ defaultproperties
 	
 	m_spawnParticlesClass=Class'Vmod.vmodQRocketEffect'
 	m_trailParticlesClass=Class'Vmod.vmodQRocketTrail'
-	m_explodeParticlesClass=Class'RuneI.MechRocketExplosion'
+	m_explodeParticlesClass=Class'vmod.vmodQRocketExplosion'
+	m_baseEffectClass=Class'vmod.vmodQRocketBaseEffect'
 	
 	// Physical impact damage
-	Damage=0
+	Damage=50.0
 }
