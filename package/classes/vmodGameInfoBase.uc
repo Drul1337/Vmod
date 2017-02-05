@@ -847,10 +847,10 @@ function bool RestartPlayer( pawn aPlayer )
 		aPlayer.SetSkinActor(aPlayer, aPlayer.CurrentSkin);
 
 		// Reset anim proxy vars
-		//if(PlayerPawn(aPlayer) != None && PlayerPawn(aPlayer).AnimProxy != None)
-		//{
-		//	PlayerPawn(aPlayer).AnimProxy.GotoState('Idle');
-		//}
+		if(PlayerPawn(aPlayer) != None && PlayerPawn(aPlayer).AnimProxy != None)
+		{
+			PlayerPawn(aPlayer).AnimProxy.GotoState('Idle');
+		}
 	}
 	else
 		log(startspot$" Player start not useable!!!");

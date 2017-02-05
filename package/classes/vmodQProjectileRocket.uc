@@ -17,7 +17,7 @@ simulated function Tick(float DeltaTime)
 	Super.Tick(DeltaTime);
 	
 	m_timer += DeltaTime;
-	if((m_timer - m_lastSmoke) > 0.1)
+	if((m_timer - m_lastSmoke) > 0.05)
 	{
 		m_lastSmoke = m_timer;
 		smoke = Spawn(
@@ -26,7 +26,7 @@ simulated function Tick(float DeltaTime)
 			GetJointPos(JointNamed('base')));
 		
 		GetAxes(Rotation, X, Y, Z);
-		smoke.Velocity = Normal(Y) * 10.0;
+		smoke.Velocity = Normal(Y) * 20.0;
 	}		
 }
 
