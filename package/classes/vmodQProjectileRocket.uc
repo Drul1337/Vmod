@@ -6,6 +6,29 @@ class vmodQProjectileRocket extends vmodQProjectileBase;
 
 var float m_splashRadius;
 var float m_splashDamage;
+var float m_timer;
+var float m_lastSmoke;
+
+simulated function Tick(float DeltaTime)
+{
+	local vector X, Y, Z;
+	local Actor smoke;
+
+	Super.Tick(DeltaTime);
+	
+	m_timer += DeltaTime;
+	if((m_timer - m_lastSmoke) > 0.1)
+	{
+		m_lastSmoke = m_timer;
+		smoke = Spawn(
+			class'vmod.vmodQRocketSmoke'
+			,,,
+			GetJointPos(JointNamed('base')));
+		
+		GetAxes(Rotation, X, Y, Z);
+		smoke.Velocity = Normal(Y) * 10.0;
+	}		
+}
 
 simulated function Explode(vector HitLocation, vector HitNormal)
 {
@@ -33,11 +56,15 @@ simulated function Explode(vector HitLocation, vector HitNormal)
 			0);
 	}
 	
+	Spawn(class'RuneFX.EmpathyFlash',,,Location);
+	
 	Super.Explode(HitLocation, HitNormal);
 }
 
 defaultproperties
 {
+	m_lastSmoke=0.0
+	m_timer=0.0
 	DrawScale=2.5
 	m_splashRadius=192.0
 	m_splashDamage=25.0
@@ -51,7 +78,7 @@ defaultproperties
     SkelGroupSkins(1)=Texture'Vmod.qrockettex'
 	
 	m_spawnParticlesClass=Class'Vmod.vmodQRocketEffect'
-	m_trailParticlesClass=Class'Vmod.vmodQRocketTrail'
+	//m_trailParticlesClass=Class'Vmod.vmodQRocketTrail'
 	m_explodeParticlesClass=Class'vmod.vmodQRocketExplosion'
 	m_baseEffectClass=Class'vmod.vmodQRocketBaseEffect'
 	

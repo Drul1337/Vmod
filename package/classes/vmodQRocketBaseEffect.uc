@@ -11,6 +11,7 @@ defaultproperties
     DrawType=DT_Sprite
     Style=STY_Translucent
     Texture=Texture'RuneFX.deely1'
-	DrawScale=0.6
-	ScaleGlow=0.75
+	DrawScale=0.75
+	ScaleGlow=0.9
+	ColorAdjust=(X=1.0,Y=0.0,Z=0.0)
 }
