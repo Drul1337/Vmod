@@ -15,6 +15,7 @@
 //class vmodRunePlayer extends vmodRunePlayerInterface config(user) abstract;
 class vmodRunePlayer extends RunePlayer config(user) abstract;
 
+var Actor Mount;
 var Class<vmodStaticColorsTeams>    ColorsTeamsClass;
 var bool bCanRestart;
 
@@ -39,6 +40,17 @@ replication
         VcmdAddBot,
         VcmdRemoveBots,
         VcmdGrantAdmin;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+event PlayerInput(float dt)
+{
+	if(vmodMountBase(Mount) != None)
+	{
+		vmodMountBase(Mount).RecievePlayerInput(aBaseY, aStrafe, aUp);
+	}
+	
+	Super.PlayerInput(dt);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -287,7 +299,7 @@ exec final function VcmdClearInventory()
 
 defaultproperties
 {
-	GroundSpeed=415.0
+	//GroundSpeed=415.0
     bReadyToPlay=false
     PlayerReplicationInfoClass=Class'Vmod.vmodPlayerReplicationInfo'
     ColorsTeamsClass=Class'Vmod.vmodStaticColorsTeams'

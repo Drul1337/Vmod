@@ -8,10 +8,12 @@ class vmodPlayerRagnar extends vmodRunePlayer;
 
 defaultproperties
 {
-    //SubstituteMesh=SkelModel'VmodRagnarSkel'
-	//SkelGroupSkins(0)=Texture'Vmod.VmodRagnarTextureHead'
-	//SkelGroupSkins(1)=Texture'Vmod.VmodRagnarTextureArm'
-	//SkelGroupSkins(2)=Texture'Vmod.VmodRagnarTextureArm'
-	//SkelGroupSkins(3)=Texture'Vmod.VmodRagnarTextureBody'
-	RemoteRole=ROLE_SimulatedProxy
+    SubstituteMesh=SkelModel'VmodRagnarSkel'
+	SkelGroupSkins(0)=Texture'Vmod.VmodRagnarTextureHead'
+	SkelGroupSkins(1)=Texture'Vmod.VmodRagnarTextureArm'
+	SkelGroupSkins(2)=Texture'Vmod.VmodRagnarTextureArm'
+	SkelGroupSkins(3)=Texture'Vmod.VmodRagnarTextureBody'
+	//RemoteRole=ROLE_SimulatedProxy
+	//Skeletal=SkelModel'creatures.SnowBeast'
+	//GroundSpeed=500.0
 }

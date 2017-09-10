@@ -3,6 +3,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 class vmodHUD extends HUD;
 
+#EXEC TEXTURE IMPORT NAME=crosshair FILE=..\Vmod\Textures\crosshair.bmp
+
 ////////////////////////////////////////////////////////////////////////////////
 //  Global classes
 // TODO: Implement interpolation in utilities class
@@ -199,6 +201,11 @@ simulated function PostRender(Canvas C)
         // Strength
         UpdateMeterStrength();
         DrawMeter(C, MeterStrength, C.ClipX * 0.99 - 64, C.ClipY * 0.99);
+		
+		//// Crosshair
+		//C.SetPos(C.SizeX/2, C.SizeY/2);
+		//C.DrawColor.A = 128;
+		//C.DrawRect(Texture'vmod.crosshair', 32, 32);
     }
     
     // Draw the scoreboard

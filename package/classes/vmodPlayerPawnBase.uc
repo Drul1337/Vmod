@@ -2429,7 +2429,6 @@ state Neutral
             case MD_BACKWARDRIGHT:  animName = 'MOV_ALL_lstrafe1_AA0S';     break;
             case MD_NEUTRAL:        animName = 'neutral_idle';              break;
         }
-        
         //if(animName != 'None')
         //    LoopAnim(animName, 1.0, 0.0);
     }
